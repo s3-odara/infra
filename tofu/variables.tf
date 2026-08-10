@@ -17,5 +17,11 @@ variable "guests" {
       protocol = string
       port     = number
     })), [])
+
+    private_ports = optional(list(object({
+      protocol = string
+      port     = number
+      source   = optional(string)
+    })), [])
   }))
 }
