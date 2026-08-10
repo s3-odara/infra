@@ -1,6 +1,8 @@
 { pkgs, ... }:
 
 {
+  imports = [ ../../modules/hardening.nix ];
+
   networking.hostName = "incus-01";
 
   # UEFI mode
