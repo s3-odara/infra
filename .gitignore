@@ -1,0 +1,17 @@
+# OpenTofu working directory
+**/.terraform/
+
+# OpenTofu state
+**/*.tfstate
+**/*.tfstate.*
+**/.terraform.tfstate.lock.info
+
+# Crash logs
+crash.log
+crash.*.log
+
+# Local overrides
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
