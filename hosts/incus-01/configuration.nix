@@ -70,7 +70,6 @@
 
   environment.systemPackages = with pkgs; [
     git
-    opentofu
   ];
 
   system.stateVersion = "26.05";
