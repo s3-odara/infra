@@ -47,10 +47,17 @@
         ];
       };
 
-      knot = nixpkgs.lib.nixosSystem {
+      nsd = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
         modules = [
-          ./guests/knot/configuration.nix
+          ./guests/nsd/configuration.nix
+        ];
+      };
+
+      wireguard = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules = [
+          ./guests/wireguard/configuration.nix
         ];
       };
     };

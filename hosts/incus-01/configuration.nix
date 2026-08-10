@@ -15,6 +15,7 @@
     "virtio_blk"
     "virtio_scsi"
   ];
+  boot.kernelModules = [ "wireguard" ];
 
   networking.useNetworkd = true;
   networking.useDHCP = true;
