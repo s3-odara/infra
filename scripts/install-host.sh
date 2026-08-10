@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if (($# != 1)); then
-  echo "Usage: $0 <target-address>" >&2
+if (($# != 1)) || [[ $1 != *@* ]]; then
+  echo "Usage: $0 <user@target-address>" >&2
   exit 1
 fi
 
-host=$1
+target=$1
+host=${target#*@}
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 repo_root=$(cd -- "$script_dir/.." && pwd)
 bootstrap="$repo_root/bootstrap"
@@ -42,7 +43,7 @@ nix build --no-link \
   "$repo_root#nixosConfigurations.incus-01.config.system.build.toplevel"
 
 echo
-echo "WARNING: nixos-anywhere will repartition and overwrite $host."
+echo "WARNING: nixos-anywhere will repartition and overwrite $target."
 read -r -p "Type 'incus-01' to continue: " confirmation
 [[ "$confirmation" == incus-01 ]] || {
   echo "Installation cancelled" >&2
@@ -51,7 +52,7 @@ read -r -p "Type 'incus-01' to continue: " confirmation
 
 nix run "$nixos_anywhere" -- \
   --flake "$repo_root#incus-01" \
-  --target-host "root@$host" \
+  --target-host "$target" \
   --extra-files "$bootstrap"
 
 echo
