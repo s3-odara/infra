@@ -2,8 +2,8 @@
 
 {
   imports = [
-    ../../modules/hardening.nix
-    ../../modules/kernel.nix
+    ./hardening.nix
+    ./kernel.nix
   ];
 
   networking.hostName = "incus-01";

@@ -43,7 +43,10 @@ while (($# > 0)); do
   *) break ;;
   esac
 done
-(($# == 1)) || { usage >&2; exit 1; }
+(($# == 1)) || {
+  usage >&2
+  exit 1
+}
 
 target=$1
 if [[ ! $target =~ ^me@([A-Za-z0-9][A-Za-z0-9.-]*)$ ]]; then
