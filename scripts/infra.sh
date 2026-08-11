@@ -3,19 +3,21 @@ set -euo pipefail
 
 repo_root=${INFRA_ROOT:-$PWD}
 tofu_dir="$repo_root/tofu"
-default_tfvars=${INFRA_TFVARS:-hosts/incus-01.tfvars}
+host=$(uname -n)
+host=${host%%.*}
+tfvars="hosts/$host.tfvars"
 
 usage() {
   cat <<'EOF'
 Usage:
-  infra plan [--tfvars <path>]
-  infra deploy [--tfvars <path>]
+  infra plan
+  infra deploy
   infra deploy-guests [guest ...]
 
 Commands:
   plan            Initialize, validate, and plan the OpenTofu configuration.
-  deploy          Apply OpenTofu, then deploy every guest configuration.
-  deploy-guests   Build and activate guest configurations through incus exec.
+  deploy          Apply OpenTofu, then bootstrap or update every guest.
+  deploy-guests   Bootstrap or update guests without changing OpenTofu.
 
 Run these commands on the installed Incus host.
 EOF
@@ -31,24 +33,8 @@ require_repo() {
     fail "run this command from the repository root (or set INFRA_ROOT)"
 }
 
-parse_tfvars() {
-  local tfvars=$default_tfvars
-
-  while (($# > 0)); do
-    case $1 in
-    --tfvars)
-      (($# >= 2)) || fail "--tfvars requires a path"
-      tfvars=$2
-      shift 2
-      ;;
-    *)
-      fail "unknown argument: $1"
-      ;;
-    esac
-  done
-
+require_tfvars() {
   [[ -f "$tofu_dir/$tfvars" ]] || fail "tfvars file not found: $tofu_dir/$tfvars"
-  printf '%s\n' "$tfvars"
 }
 
 tofu_init_validate() {
@@ -57,8 +43,8 @@ tofu_init_validate() {
 }
 
 tofu_plan() {
-  local tfvars
-  tfvars=$(parse_tfvars "$@")
+  (($# == 0)) || fail "plan takes no arguments"
+  require_tfvars
   tofu_init_validate
   doas tofu -chdir="$tofu_dir" plan -var-file="$tfvars"
 }
@@ -77,62 +63,29 @@ wait_for_guest() {
   return 1
 }
 
-rollback_guest() {
-  local guest=$1
-  local previous=$2
-
-  [[ -n "$previous" ]] || return 1
-
-  echo "Rolling $guest back to $previous..." >&2
-  incus exec "$guest" -- \
-    nix-env --profile /nix/var/nix/profiles/system --set "$previous"
-  incus exec "$guest" -- \
-    "$previous/bin/switch-to-configuration" switch
-}
-
 deploy_guest() {
   local guest=$1
-
-  echo "Building the $guest configuration..."
-  local system
-  system=$(nix build --no-link --print-out-paths \
-    "$repo_root#nixosConfigurations.$guest.config.system.build.toplevel")
 
   echo "Waiting for $guest..."
   wait_for_guest "$guest" || fail "timed out waiting for $guest"
 
-  echo "Importing the Nix closure into $guest..."
-  local -a closure=()
-  mapfile -t closure < <(nix-store --query --requisites "$system")
-  nix-store --export "${closure[@]}" |
-    incus exec "$guest" -- nix-store --import >/dev/null
-
-  local previous
-  previous=$(incus exec "$guest" -- \
-    readlink -f /nix/var/nix/profiles/system 2>/dev/null || true)
-
-  incus exec "$guest" -- \
-    nix-env --profile /nix/var/nix/profiles/system --set "$system"
-
-  if ! incus exec "$guest" -- \
-    "$system/bin/switch-to-configuration" switch; then
-    rollback_guest "$guest" "$previous" || true
-    fail "activation failed for $guest"
+  if incus exec "$guest" -- \
+    systemctl is-enabled --quiet nixos-upgrade.timer; then
+    echo "Updating $guest..."
+    incus exec "$guest" -- systemctl start nixos-upgrade.service
+  else
+    echo "Bootstrapping $guest..."
+    incus exec "$guest" -- \
+      nixos-rebuild switch \
+      --refresh \
+      --option experimental-features "nix-command flakes" \
+      --flake "github:s3-odara/infra#$guest"
   fi
 
-  if ! incus exec "$guest" -- \
-    systemctl is-system-running --wait --quiet; then
-    rollback_guest "$guest" "$previous" || true
-    fail "system health check failed for $guest"
-  fi
-
-  echo "Deployed $guest ($system)"
+  echo "Deployed $guest"
 }
 
 deploy_guests() {
-  require_repo
-  [[ -d "$tofu_dir" ]] || fail "missing OpenTofu directory: $tofu_dir"
-
   local -a guests=()
   if (($# > 0)); then
     guests=("$@")
@@ -144,14 +97,18 @@ deploy_guests() {
 
   local guest
   for guest in "${guests[@]}"; do
+    if [[ ! $guest =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]] ||
+      ((${#guest} > 63)); then
+      fail "invalid guest name: $guest"
+    fi
     incus info "$guest" >/dev/null || fail "guest not found: $guest"
     deploy_guest "$guest"
   done
 }
 
 deploy_all() {
-  local tfvars
-  tfvars=$(parse_tfvars "$@")
+  (($# == 0)) || fail "deploy takes no arguments"
+  require_tfvars
   tofu_init_validate
   doas tofu -chdir="$tofu_dir" apply -var-file="$tfvars"
   deploy_guests
@@ -187,4 +144,3 @@ main() {
 }
 
 main "$@"
-:q

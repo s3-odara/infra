@@ -1,10 +1,24 @@
-{ ... }:
+{ configurationName, ... }:
 
 {
   boot.isContainer = true;
-  networking.hostName = "prosody";
+  networking.hostName = configurationName;
   networking.useDHCP = true;
   networking.firewall.enable = false;
+
+  system.autoUpgrade = {
+    enable = true;
+    flake = "github:s3-odara/infra#${configurationName}";
+    upgrade = false;
+    allowReboot = false;
+    randomizedDelaySec = "1h";
+    fixedRandomDelay = true;
+  };
+
+  nix.settings.experimental-features = [
+    "nix-command"
+    "flakes"
+  ];
 
   services.prosody = {
     enable = true;

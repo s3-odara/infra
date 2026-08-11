@@ -1,33 +1,41 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if (($# != 1)) || [[ $1 != *@* ]]; then
-  echo "Usage: $0 <user@target-address>" >&2
+fail() {
+  echo "install-host: $*" >&2
   exit 1
+}
+
+(($# == 2)) || fail "usage: $0 <nixos-configuration> <user@target-address>"
+
+configuration=$1
+target=$2
+
+if [[ ! $configuration =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]] ||
+  ((${#configuration} > 63)); then
+  fail "configuration must use at most 63 lowercase letters, digits, and internal hyphens"
 fi
 
-target=$1
-host=${target#*@}
-script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-repo_root=$(cd -- "$script_dir/.." && pwd)
-bootstrap="$repo_root/bootstrap"
-secrets="$bootstrap/etc/nixos-secrets"
-password_hash="$secrets/me-password-hash"
-nixos_anywhere=${NIXOS_ANYWHERE_FLAKE:-github:nix-community/nixos-anywhere/036bd2423203b1432f36621404289832183cfecd}
+[[ $target == *@* ]] || fail "target must have the form user@target-address"
 
-if [[ ! -e "$password_hash" ]]; then
-  install -d -m 700 "$bootstrap" "$bootstrap/etc" "$secrets"
+repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
+bootstrap="$repo_root/bootstrap"
+password_hash="$bootstrap/etc/nixos-secrets/me-password-hash"
+
+[[ -f "$repo_root/hosts/$configuration/configuration.nix" ]] ||
+  fail "host configuration not found: $configuration"
+
+if [[ ! -s $password_hash ]]; then
+  install -d -m 700 \
+    "$bootstrap" "$bootstrap/etc" "$bootstrap/etc/nixos-secrets"
 
   temporary=$(mktemp)
   trap 'rm -f "$temporary"' EXIT
 
   echo "Enter the password that the me account will use for doas."
   umask 077
-  nix shell nixpkgs#mkpasswd -c mkpasswd -m yescrypt >"$temporary"
-  [[ -s "$temporary" ]] || {
-    echo "Password hash generation failed" >&2
-    exit 1
-  }
+  nix shell "path:$repo_root#mkpasswd" -c mkpasswd -m yescrypt >"$temporary"
+  [[ -s $temporary ]] || fail "password hash generation failed"
 
   install -m 600 "$temporary" "$password_hash"
   rm -f "$temporary"
@@ -38,23 +46,15 @@ else
   echo "Using existing $password_hash"
 fi
 
-echo "Building incus-01 before installation..."
-nix build --no-link \
-  "$repo_root#nixosConfigurations.incus-01.config.system.build.toplevel"
-
-echo
 echo "WARNING: nixos-anywhere will repartition and overwrite $target."
-read -r -p "Type 'incus-01' to continue: " confirmation
-[[ "$confirmation" == incus-01 ]] || {
-  echo "Installation cancelled" >&2
-  exit 1
-}
+read -r -p "Type '$configuration' to continue: " confirmation
+[[ $confirmation == "$configuration" ]] || fail "installation cancelled"
 
-nix run "$nixos_anywhere" -- \
-  --flake "$repo_root#incus-01" \
+nix run "path:$repo_root#nixos-anywhere" -- \
+  --flake "path:$repo_root#$configuration" \
   --target-host "$target" \
   --extra-files "$bootstrap"
 
 echo
-echo "Installation finished. Log in with: ssh me@$host"
+echo "Installation finished. Log in with: ssh me@${target#*@}"
 echo "Copy or clone this repository onto the host, then run: nix run .#infra -- deploy"

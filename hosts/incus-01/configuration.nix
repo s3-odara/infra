@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ configurationName, pkgs, ... }:
 
 {
   imports = [
@@ -6,10 +6,20 @@
     ./kernel.nix
   ];
 
-  networking.hostName = "incus-01";
+  networking.hostName = configurationName;
+
+  system.autoUpgrade = {
+    enable = true;
+    flake = "github:s3-odara/infra#${configurationName}";
+    upgrade = false;
+    allowReboot = true;
+  };
 
   # UEFI mode
-  boot.loader.systemd-boot.enable = true;
+  boot.loader.systemd-boot = {
+    enable = true;
+    bootCounting.enable = true;
+  };
   boot.loader.efi.canTouchEfiVariables = true;
 
   # minimal kernelにNixOSの汎用initrd module群を要求せず、VPSに必要なmoduleだけを含める
