@@ -1,7 +1,10 @@
 { pkgs, ... }:
 
 {
-  imports = [ ../../modules/hardening.nix ];
+  imports = [
+    ../../modules/hardening.nix
+    ../../modules/kernel.nix
+  ];
 
   networking.hostName = "incus-01";
 
@@ -9,11 +12,15 @@
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  # VPSで使われるVirtIO storage module
+  # minimal kernelにNixOSの汎用initrd module群を要求せず、VPSに必要なmoduleだけを含める
+  boot.initrd.includeDefaultModules = false;
   boot.initrd.availableKernelModules = [
     "virtio_pci"
     "virtio_blk"
     "virtio_scsi"
+    "nvme"
+    "ahci"
+    "ata_piix"
   ];
   boot.kernelModules = [ "wireguard" ];
 

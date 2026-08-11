@@ -21,6 +21,7 @@
       "hardened_usercopy=1"
       "proc_mem.force_override=ptrace"
       "oops=panic"
+      "lockdown=integrity"
       "panic=10"
     ];
 
