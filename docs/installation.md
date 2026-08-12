@@ -65,7 +65,7 @@ make deploy
 
 `make deploy`は次の順で処理する。
 
-1. OpenTofu `init`、`validate`、`apply`
+1. OpenTofu `init`、`apply`（構成とtfvarsも適用前に検証）
 2. Incusゲストの起動待ち
 3. 対応するSOPS暗号文の配送
 4. 未構築ゲストへの`nixos-rebuild switch`

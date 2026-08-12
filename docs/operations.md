@@ -4,6 +4,7 @@
 
 ```bash
 make help
+make check
 make plan
 make deploy
 make tofu-apply
@@ -13,12 +14,15 @@ make host-update
 make update-flake
 ```
 
-- `plan`: OpenTofuの差分を表示する
+- `check`: Nix、OpenTofu構成、シェル構文を静的に検証する
+- `plan`: 実行中のホストに対応するtfvarsを検証し、OpenTofuの差分を表示する
 - `deploy`: OpenTofuを適用し、全ゲストへNixOS構成を適用する
 - `tofu-apply`: OpenTofuだけを適用する
 - `guests`: OpenTofuを触らずゲストを適用する
 - `host-update`: ホストの`nixos-upgrade.service`を起動して完了を待つ
-- `update-flake`: flake inputと生成済みkernel configを更新して評価する
+- `update-flake`: flake inputと生成済みkernel configを更新し、Nix構成を評価する
+
+`check`のOpenTofu検証はtfvarsや実環境を読まない。ホスト固有の入力値は`plan`または`apply`で検証する。
 
 ホストとゲストでは`system.autoUpgrade`も動く。ゲストの自動更新はSOPS暗号文を配送しない。暗号文を変更したら`make guests GUESTS=GUEST`を実行する。
 

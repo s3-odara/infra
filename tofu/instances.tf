@@ -6,6 +6,17 @@ resource "incus_instance" "guest" {
   type    = "container"
   image   = each.value.image
 
+  lifecycle {
+    precondition {
+      condition = try(
+        cidrcontains(var.network_ipv4, each.value.ipv4) &&
+        each.value.ipv4 != split("/", var.network_ipv4)[0],
+        false,
+      )
+      error_message = "${each.key}.ipv4 must be inside network_ipv4 and must not be the bridge address."
+    }
+  }
+
   profiles = [
     incus_profile.default.name
   ]

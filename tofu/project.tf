@@ -13,7 +13,7 @@ resource "incus_project" "user" {
 
     # Restricted project
 
-    "restricted" = "true"
+    "restricted"                      = "true"
     "restricted.containers.privilege" = "isolated"
     # NixOS containerではsecurity.nesting=trueを使う。
     "restricted.containers.nesting" = "allow"

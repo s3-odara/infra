@@ -1,9 +1,10 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help plan deploy tofu-apply guests host-update secrets install-host update-flake
+.PHONY: help check check-nix check-tofu check-shell plan deploy tofu-apply guests host-update secrets install-host update-flake
 
 help:
 	@printf '%s\n' \
+	  'make check' \
 	  'make plan' \
 	  'make deploy' \
 	  'make tofu-apply' \
@@ -12,6 +13,21 @@ help:
 	  'make secrets ARGS="--target me@HOST init prosody"' \
 	  'make install-host CONFIG=incus-01 TARGET=root@HOST' \
 	  'make update-flake'
+
+check: check-nix check-tofu check-shell
+
+check-nix:
+	nix flake check --no-build "path:$(CURDIR)"
+
+check-tofu:
+	nix shell "path:$(CURDIR)#opentofu" -c sh -eu -c '\
+	  tofu=$$(command -v tofu); \
+	  "$$tofu" -chdir=tofu fmt -check; \
+	  doas "$$tofu" -chdir=tofu init -backend=false -lockfile=readonly; \
+	  "$$tofu" -chdir=tofu validate'
+
+check-shell:
+	bash -n scripts/*.sh
 
 plan:
 	./scripts/tofu.sh plan
@@ -39,3 +55,4 @@ install-host:
 
 update-flake:
 	./scripts/update-flake.sh
+	$(MAKE) check-nix

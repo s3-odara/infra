@@ -73,10 +73,6 @@ update_guest() {
 ((${#guests[@]} > 0)) || fail "no guests found"
 
 for guest in "${guests[@]}"; do
-  if [[ ! $guest =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]] ||
-    ((${#guest} > 63)); then
-    fail "invalid guest name: $guest"
-  fi
   incus info "$guest" >/dev/null || fail "guest not found: $guest"
   update_guest "$guest"
 done

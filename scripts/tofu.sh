@@ -33,5 +33,4 @@ fi
 
 tofu_bin=$(command -v tofu)
 doas "$tofu_bin" -chdir="$tofu_dir" init
-doas "$tofu_bin" -chdir="$tofu_dir" validate
 doas "$tofu_bin" -chdir="$tofu_dir" "$command" -var-file="$tfvars"

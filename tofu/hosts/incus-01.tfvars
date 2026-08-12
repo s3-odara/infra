@@ -19,6 +19,7 @@ guests = {
         port     = 53
       },
     ]
+    private_ports = []
   }
 
   prosody = {
@@ -46,6 +47,7 @@ guests = {
         port     = 5269
       },
     ]
+    private_ports = []
   }
 
   wireguard = {
@@ -61,5 +63,6 @@ guests = {
         port     = 443
       },
     ]
+    private_ports = []
   }
 }

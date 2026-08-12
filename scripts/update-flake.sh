@@ -58,9 +58,6 @@ for config_file in "${kernel_configs[@]}"; do
   install -m 0644 "$generated" "$config_file"
 done
 
-log "Evaluating flake outputs"
-nix flake check --no-build "path:$repo_root"
-
-log "Update complete"
+log "Files updated"
 git -C "$repo_root" diff --stat -- flake.lock "${kernel_configs[@]}"
 git -C "$repo_root" diff -- flake.lock "${kernel_configs[@]}"

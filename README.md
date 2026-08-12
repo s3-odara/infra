@@ -15,9 +15,12 @@ scripts/     Makeから呼ぶ処理
 Incusホストのリポジトリrootで実行する。
 
 ```bash
+make check
 make plan
 make deploy
 ```
+
+`make check`はNix、OpenTofu構成、シェル構文を静的に検証する。ホスト固有のtfvarsと実環境との差分は`make plan`で検証する。
 
 `make deploy`はOpenTofuを適用した後、暗号文を各ゲストへ送り、NixOS構成を適用する。
 

@@ -17,7 +17,7 @@ resource "incus_network_acl" "guest" {
       for port in each.value.private_ports : {
         action           = "allow"
         protocol         = port.protocol
-        source           = coalesce(port.source, cidrsubnet(var.network_ipv4, 0, 0))
+        source           = port.source == "network" ? cidrsubnet(var.network_ipv4, 0, 0) : port.source
         destination_port = tostring(port.port)
         state            = "enabled"
       }

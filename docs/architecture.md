@@ -25,18 +25,29 @@ tofu/hosts/HOST.tfvars の guests.GUEST
 secrets/guests/HOST/GUEST/    # シークレットを使う場合
 ```
 
-ホストとゲストの対応は`tofu/hosts/HOST.tfvars`の`guests` mapで決まる。
+ホストとゲストの対応は`tofu/hosts/HOST.tfvars`の`guests` mapで決まる。Incus instanceはOpenTofuだけで作成し、ゲスト名には小文字英数字と`-`からなる63文字以下のDNS labelを使う。
 
 ```hcl
 guests = {
   prosody = {
-    image  = "images:nixos/unstable"
-    ipv4   = "10.77.1.10"
-    cpu    = 1
-    memory = "1GiB"
+    image         = "images:nixos/unstable"
+    ipv4          = "10.77.1.10"
+    cpu_allowance = "100ms/100ms"
+    memory        = "1GiB"
+    disk_size     = "10GiB"
+
+    public_ports = [
+      {
+        protocol = "tcp"
+        port     = 5222
+      },
+    ]
+    private_ports = []
   }
 }
 ```
+
+`public_ports`と`private_ports`は、使わない場合も`[]`を明記する。private portの`source`も必須で、同じIncus network全体を許可するときは`source = "network"`、範囲を限定するときはCIDRを指定する。
 
 同名ゲストを複数ホストに置くときは、同じNixOS構成を使う。シークレットは`HOST/GUEST`ごとに分ける。
 
@@ -54,11 +65,11 @@ guests = {
 管理端末のリポジトリrootでNixOS構成を確認する。
 
 ```bash
-nix flake check --no-build
+make check-nix
 nix build .#nixosConfigurations.HOST.config.system.build.toplevel
 ```
 
-OpenTofuの確認は対象ホストで行う。`make plan`は実行中のホスト名に対応するtfvarsを読む。
+OpenTofuの確認は対象ホストで行う。`make check`は構成を静的に検証し、`make plan`は実行中のホスト名に対応するtfvarsと実環境を検証する。
 
 ```bash
 ssh -t me@HOST 'cd ~/infra && make plan'
