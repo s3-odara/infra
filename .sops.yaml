@@ -1,0 +1,8 @@
+keys:
+  - &admin_pgp B3531E573A6676E8A92060B3879D4D00108D4015
+
+creation_rules:
+  - path_regex: ^secrets/guests/[^/]+/[^/]+/identity\.sops\.json$
+    key_groups:
+      - pgp:
+          - *admin_pgp

@@ -1,4 +1,4 @@
-{ configurationName, ... }:
+{ config, configurationName, ... }:
 
 {
   boot.isContainer = true;
@@ -87,8 +87,18 @@
     '';
   };
 
-  systemd.services.prosody.serviceConfig.EnvironmentFile =
-    "/etc/nixos-secrets/prosody.env";
+  sops = {
+    secrets.turn_external_secret = { };
+    templates."prosody.env" = {
+      content = ''
+        TURN_EXTERNAL_SECRET=${config.sops.placeholder.turn_external_secret}
+      '';
+      mode = "0400";
+      reloadUnits = [ "prosody.service" ];
+    };
+  };
+
+  systemd.services.prosody.serviceConfig.EnvironmentFile = config.sops.templates."prosody.env".path;
 
   system.stateVersion = "26.05";
 }

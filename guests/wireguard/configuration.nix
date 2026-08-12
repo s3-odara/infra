@@ -1,4 +1,9 @@
-{ configurationName, pkgs, ... }:
+{
+  config,
+  configurationName,
+  pkgs,
+  ...
+}:
 
 {
   boot.isContainer = true;
@@ -22,10 +27,16 @@
     "flakes"
   ];
 
+  sops.secrets = {
+    wg0_private_key.restartUnits = [ "wg-quick-wg0.service" ];
+    peer_10_0_0_2_psk.restartUnits = [ "wg-quick-wg0.service" ];
+    peer_10_0_0_3_psk.restartUnits = [ "wg-quick-wg0.service" ];
+  };
+
   networking.wg-quick.interfaces.wg0 = {
     mtu = 1420;
     listenPort = 443;
-    privateKeyFile = "/etc/nixos-secrets/wireguard/wg0.key";
+    privateKeyFile = config.sops.secrets.wg0_private_key.path;
 
     postUp = ''
       ${pkgs.iptables}/bin/iptables -A FORWARD -i wg0 -j ACCEPT
@@ -42,13 +53,13 @@
     peers = [
       {
         publicKey = "tG03yW2hbB7vxQMdbS8RTBwKr4O5trXYyFvOFAnTNGo=";
-        presharedKeyFile = "/etc/nixos-secrets/wireguard/peer-10.0.0.2.psk";
+        presharedKeyFile = config.sops.secrets.peer_10_0_0_2_psk.path;
         allowedIPs = [ "10.0.0.2/32" ];
         endpoint = "125.14.64.70:59706";
       }
       {
         publicKey = "Hm+KOv+BNllpMsYghno5wWIDYpEuWdaOHcXWntcSMGM=";
-        presharedKeyFile = "/etc/nixos-secrets/wireguard/peer-10.0.0.3.psk";
+        presharedKeyFile = config.sops.secrets.peer_10_0_0_3_psk.path;
         allowedIPs = [ "10.0.0.3/32" ];
         endpoint = "125.14.64.115:40304";
       }
