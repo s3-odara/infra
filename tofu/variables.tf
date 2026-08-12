@@ -8,10 +8,11 @@ variable "public_ipv4" {
 
 variable "guests" {
   type = map(object({
-    image  = string
-    ipv4   = string
-    cpu    = number
-    memory = string
+    image         = string
+    ipv4          = string
+    cpu_allowance = string
+    memory        = string
+    disk_size     = string
 
     public_ports = optional(list(object({
       protocol = string

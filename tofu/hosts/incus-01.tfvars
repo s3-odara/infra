@@ -3,10 +3,11 @@ public_ipv4  = "167.179.72.51"
 
 guests = {
   nsd = {
-    image  = "images:nixos/unstable"
-    ipv4   = "10.77.1.11"
-    cpu    = 1
-    memory = "512MiB"
+    image         = "images:nixos/unstable"
+    ipv4          = "10.77.1.11"
+    cpu_allowance = "100ms/100ms"
+    memory        = "512MiB"
+    disk_size     = "10GiB"
 
     public_ports = [
       {
@@ -21,10 +22,11 @@ guests = {
   }
 
   prosody = {
-    image  = "images:nixos/unstable"
-    ipv4   = "10.77.1.10"
-    cpu    = 1
-    memory = "1GiB"
+    image         = "images:nixos/unstable"
+    ipv4          = "10.77.1.10"
+    cpu_allowance = "100ms/100ms"
+    memory        = "1GiB"
+    disk_size     = "10GiB"
 
     public_ports = [
       {
@@ -47,10 +49,11 @@ guests = {
   }
 
   wireguard = {
-    image  = "images:nixos/unstable"
-    ipv4   = "10.77.1.12"
-    cpu    = 1
-    memory = "512MiB"
+    image         = "images:nixos/unstable"
+    ipv4          = "10.77.1.12"
+    cpu_allowance = "100ms/100ms"
+    memory        = "512MiB"
+    disk_size     = "10GiB"
 
     public_ports = [
       {

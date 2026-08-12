@@ -3,19 +3,30 @@ resource "incus_instance" "guest" {
 
   name    = each.key
   project = incus_project.user.name
-  type  = "container"
-  image = each.value.image
+  type    = "container"
+  image   = each.value.image
 
   profiles = [
     incus_profile.default.name
   ]
 
   config = {
-    "boot.autostart"   = "true"
-    "security.nesting" = "true"
+    "boot.autostart"          = "true"
+    "security.nesting"        = "true"
     "security.idmap.isolated" = "true"
-    "limits.cpu"    = tostring(each.value.cpu)
-    "limits.memory" = each.value.memory
+    "limits.cpu.allowance"    = each.value.cpu_allowance
+    "limits.memory"           = each.value.memory
+  }
+
+  device {
+    name = "root"
+    type = "disk"
+
+    properties = {
+      pool = incus_storage_pool.default.name
+      path = "/"
+      size = each.value.disk_size
+    }
   }
 
   device {
@@ -23,10 +34,10 @@ resource "incus_instance" "guest" {
     type = "nic"
 
     properties = {
-      network = incus_network.incusbr0.name
-      "ipv4.address"            = each.value.ipv4
-      "security.ipv4_filtering" = "true"
-      "security.acls" = incus_network_acl.guest[each.key].name
+      network                                = incus_network.incusbr0.name
+      "ipv4.address"                         = each.value.ipv4
+      "security.ipv4_filtering"              = "true"
+      "security.acls"                        = incus_network_acl.guest[each.key].name
       "security.acls.default.ingress.action" = "reject"
       "security.acls.default.egress.action"  = "allow"
     }
