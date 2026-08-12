@@ -13,20 +13,6 @@
   networking.useDHCP = true;
   networking.firewall.enable = false;
 
-  system.autoUpgrade = {
-    enable = true;
-    flake = "github:s3-odara/infra#${configurationName}";
-    upgrade = false;
-    allowReboot = false;
-    randomizedDelaySec = "1h";
-    fixedRandomDelay = true;
-  };
-
-  nix.settings.experimental-features = [
-    "nix-command"
-    "flakes"
-  ];
-
   sops.secrets = {
     wg0_private_key.restartUnits = [ "wg-quick-wg0.service" ];
     peer_10_0_0_2_psk.restartUnits = [ "wg-quick-wg0.service" ];

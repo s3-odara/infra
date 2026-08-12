@@ -55,6 +55,7 @@
           specialArgs.configurationName = "prosody";
           modules = [
             sops-nix.nixosModules.sops
+            ./modules/guest.nix
             ./modules/guest-secrets.nix
             ./guests/prosody/configuration.nix
           ];
@@ -64,6 +65,7 @@
           system = "x86_64-linux";
           specialArgs.configurationName = "nsd";
           modules = [
+            ./modules/guest.nix
             ./guests/nsd/configuration.nix
           ];
         };
@@ -73,6 +75,7 @@
           specialArgs.configurationName = "wireguard";
           modules = [
             sops-nix.nixosModules.sops
+            ./modules/guest.nix
             ./modules/guest-secrets.nix
             ./guests/wireguard/configuration.nix
           ];
