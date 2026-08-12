@@ -9,10 +9,12 @@
   services.prosody = {
     enable = true;
     checkConfig = true;
-    admins = [ ];
+    admins = [
+      "odara@xmpp.odarah.org"
+    ];
     httpPorts = [ 80 ];
     httpsPorts = [ 443 ];
-    allowRegistration = false;
+    allowRegistration = true;
     authentication = "internal_hashed";
     c2sRequireEncryption = true;
     s2sRequireEncryption = true;
@@ -32,6 +34,12 @@
     muc = [
       {
         domain = "conference.xmpp.odarah.org";
+        restrictRoomCreation = "local";
+        roomDefaultPublic = false;
+
+        extraConfig = ''
+          muc_room_default_persistent = true
+        '';
       }
     ];
 
@@ -57,7 +65,6 @@
       "invites_adhoc"
       "invites_register"
       "turn_external"
-      "vcard4"
     ];
 
     extraConfig = ''
@@ -66,8 +73,8 @@
         s2sin = { rate = "30kb/s" };
       }
       storage = "internal"
-      archive_store = "memory"
-      archive_expires_after = "1w"
+      archive_expires_after = "2w"
+      registration_invite_only = true
       turn_external_host = "xmpp.odarah.org"
       turn_external_secret = "$TURN_EXTERNAL_SECRET"
     '';
