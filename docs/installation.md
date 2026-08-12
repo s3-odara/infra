@@ -10,11 +10,7 @@
 make install-host CONFIG=incus-01 TARGET=root@HOST
 ```
 
-初回実行時に`me`ユーザーのdoas用パスワードを入力する。スクリプトはハッシュを次へ保存する。このディレクトリはGitに含めない。
-
-```text
-bootstrap/etc/nixos-secrets/me-password-hash
-```
+実行時に`me`ユーザーのdoas用パスワードを入力する。パスワードハッシュは一時ディレクトリに生成され、スクリプト終了時に削除される。
 
 ## リポジトリ
 
@@ -65,7 +61,7 @@ make deploy
 
 `make deploy`は次の順で処理する。
 
-1. OpenTofu `init`、`apply`（構成とtfvarsも適用前に検証）
+1. OpenTofu `init`、`validate`、`apply`
 2. Incusゲストの起動待ち
 3. 対応するSOPS暗号文の配送
 4. 未構築ゲストへの`nixos-rebuild switch`
