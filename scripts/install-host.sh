@@ -57,4 +57,4 @@ nix run "path:$repo_root#nixos-anywhere" -- \
 
 echo
 echo "Installation finished. Log in with: ssh me@${target#*@}"
-echo "Copy or clone this repository onto the host, then run: nix run .#infra -- deploy"
+echo "Copy or clone this repository onto the host, then run: make deploy"
