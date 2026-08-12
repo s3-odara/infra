@@ -36,6 +36,7 @@ make help
 ## ドキュメント
 
 - [構成とホスト・ゲストの追加](docs/architecture.md)
+- [IPv6実装方針](docs/ipv6.md)
 - [初回導入](docs/installation.md)
 - [運用と復旧](docs/operations.md)
 - [シークレット管理](docs/secrets.md)
