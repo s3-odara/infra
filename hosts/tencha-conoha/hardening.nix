@@ -15,8 +15,6 @@
       "vsyscall=none"
       "vdso32=0"
       "hash_pointers=always"
-      "iommu.passthrough=0"
-      "iommu.strict=1"
       "randomize_kstack_offset=on"
       "hardened_usercopy=1"
       "proc_mem.force_override=ptrace"

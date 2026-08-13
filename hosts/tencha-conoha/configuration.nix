@@ -24,6 +24,8 @@
     "virtio_blk"
   ];
   boot.kernelModules = [ "wireguard" ];
+  boot.initrd.systemd.tpm2.enable = false;
+  systemd.tpm2.enable = false;
 
   networking = {
     useNetworkd = true;
