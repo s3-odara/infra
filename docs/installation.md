@@ -35,14 +35,14 @@ make plan
 シークレットを使うゲストは、OpenTofuでinstanceを作成した後、初回NixOS適用の前にage identityと暗号文を用意する。
 
 ```bash
-make tofu-apply
-./scripts/secrets.sh init GUEST
+just apply-tofu
+just manage-secrets init GUEST
 ```
 
 GPG鍵を管理端末だけで使う場合は、管理端末から実行する。
 
 ```bash
-./scripts/secrets.sh --target me@HOST init GUEST
+just manage-secrets --target me@HOST init GUEST
 ```
 
 手順は[シークレット管理](secrets.md)を参照する。
@@ -50,7 +50,7 @@ GPG鍵を管理端末だけで使う場合は、管理端末から実行する�
 全ゲストへNixOS構成を適用する。
 
 ```bash
-make guests
+just upgrade-guests
 ```
 
 シークレットを使わない場合や、すでにidentityと暗号文がある場合は、OpenTofuとゲスト適用をまとめて実行できる。

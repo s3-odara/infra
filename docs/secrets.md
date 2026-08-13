@@ -4,6 +4,7 @@
 
 ```text
 secrets/guests/HOST/GUEST/
+├── recipient.txt       # ゲストage鍵の公開recipient
 ├── identity.sops.json  # PGPで暗号化したage秘密鍵
 └── secrets.sops.yaml   # PGPとゲストage鍵に暗号化した実データ
 ```
@@ -15,39 +16,30 @@ secrets/guests/HOST/GUEST/
 管理端末からIncusホストを操作する場合：
 
 ```bash
-./scripts/secrets.sh --target me@HOST init GUEST
+just manage-secrets --target me@HOST init GUEST
 ```
 
 GPG agent forwarding済みのIncusホストで実行する場合：
 
 ```bash
-./scripts/secrets.sh init GUEST
+just manage-secrets init GUEST
 ```
 
-スクリプトはage鍵を作り、秘密鍵をPGP recipientへ暗号化してGit作業ツリーに保存する。平文のage鍵はゲストの次の場所へ入る。
+スクリプトはage鍵を作り、秘密鍵をPGP recipientへ暗号化してGit作業ツリーに保存する。公開recipientは`recipient.txt`へ保存し、`.sops.yaml`は自動生成される。必要なら`just regenerate-sops`で明示的に再生成できる。手動では編集しない。
+
+平文のage鍵はゲストの次の場所へ入る。
 
 ```text
 /var/lib/sops-nix/key.txt
 ```
 
-表示された`age1...` recipientを`.sops.yaml`へ追加する。
-
-```yaml
-- path_regex: ^secrets/guests/HOST/GUEST/secrets\.sops\.yaml$
-  key_groups:
-    - pgp:
-        - *admin_pgp
-      age:
-        - age1...
-```
-
-実データを作成する。
+続いて実データを作成する。
 
 ```bash
-./scripts/secrets.sh --target me@HOST edit GUEST
+just manage-secrets --target me@HOST edit GUEST
 ```
 
-`scripts/secrets.sh`はsecretの項目を検査しない。現在のNixOS構成が使うkeyは次のとおり。
+`manage-secrets`はsecretの項目を検査しない。現在のNixOS構成が使うkeyは次のとおり。
 
 ```yaml
 # Prosody
@@ -62,23 +54,23 @@ peer_10_0_0_3_psk: ...
 `.sops.yaml`と暗号文をcommitしてpushする。Incusホストのcheckoutを更新してから対象ゲストへ配送する。
 
 ```bash
-make guests GUESTS=GUEST
+just upgrade-guests GUEST
 ```
 
 ## 編集
 
 ```bash
-./scripts/secrets.sh --target me@HOST edit GUEST
+just manage-secrets --target me@HOST edit GUEST
 ```
 
-暗号文をcommit、pushした後に`make guests GUESTS=GUEST`を実行する。ゲストの`system.autoUpgrade`だけでは、ホスト上のGitにある暗号文をゲストへ配送できない。
+暗号文をcommit、pushした後に`just upgrade-guests GUEST`を実行する。ゲストの`system.autoUpgrade`だけでは、ホスト上のGitにある暗号文をゲストへ配送できない。
 
 ## ゲスト再作成
 
 Gitに保存した`identity.sops.json`から同じage鍵を戻す。
 
 ```bash
-./scripts/secrets.sh --target me@HOST restore GUEST
+just manage-secrets --target me@HOST restore GUEST
 ```
 
 スクリプトは既存のage鍵を上書きしない。別の鍵が残っている場合は、状況を確認してから手動で対処する。

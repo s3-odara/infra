@@ -82,7 +82,7 @@ ssh -t me@HOST 'cd ~/infra && make plan'
 1. `guests/GUEST/configuration.nix`
 2. `flake.nix`の`nixosConfigurations.GUEST`
 3. 配置先の`tofu/hosts/HOST.tfvars`に`guests.GUEST`
-4. シークレットを使う場合は`.sops.yaml`のruleと暗号文
+4. シークレットを使う場合はage identityを初期化し、暗号文を作成
 
 管理端末でNixOS構成を確認する。
 
@@ -100,5 +100,5 @@ make deploy
 失敗したゲストだけ再実行できる。
 
 ```bash
-make guests GUESTS=GUEST
+just upgrade-guests GUEST
 ```

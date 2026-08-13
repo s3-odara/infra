@@ -82,7 +82,7 @@ EOF
 
 init_guest() {
   local namespace=$1
-  local identity recipient encrypted_identity
+  local identity recipient recipient_file encrypted_identity
 
   mkdir -p "${namespace%/*}"
   mkdir "$namespace" 2>/dev/null ||
@@ -93,6 +93,7 @@ init_guest() {
   recipient=$(age-keygen -y "$identity")
 
   encrypted_identity="$namespace/identity.sops.json"
+  recipient_file="$namespace/recipient.txt"
   if ! sops --config /dev/null encrypt \
     --pgp "$admin_pgp_fingerprint" \
     --input-type binary \
@@ -103,6 +104,10 @@ init_guest() {
     fail "failed to encrypt the age identity"
   fi
 
+  printf '%s\n' "$recipient" >"$recipient_file"
+  chmod 0644 "$recipient_file"
+  "$script_dir/regenerate-sops.sh"
+
   if ! install_key "$identity"; then
     echo "secrets: identity was archived but not installed; retry with restore" >&2
     return 1
@@ -110,7 +115,7 @@ init_guest() {
 
   echo "Initialized the age identity for $host/$guest"
   echo "Age recipient: $recipient"
-  echo "Add its creation rule to .sops.yaml, then run: secrets.sh edit $guest"
+  echo "Updated .sops.yaml; next run: secrets.sh edit $guest"
 }
 
 restore_guest() {

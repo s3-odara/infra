@@ -8,11 +8,11 @@
 
 ```bash
 out=$(nix build --no-link --print-out-paths \
-  .#nixosConfigurations.HOST_CONFIG.config.system.build.toplevel) && \
+  ".#nixosConfigurations.<EXAMPLE_HOST_CONFIG_NAME>.config.system.build.toplevel") && \
 nix-store --export $(nix-store --query --requisites "$out") |
-  ssh -T me@HOST \
+  ssh -T me@<EXAMPLE_HOST> \
     'umask 077; cat > ~/.nixos-system.nar' && \
-ssh -t me@HOST \
+ssh -t me@<EXAMPLE_HOST> \
   "doas sh -c 'nix-store --import < /home/me/.nixos-system.nar >/dev/null && \
     rm -f /home/me/.nixos-system.nar && \
     nix-env --profile /nix/var/nix/profiles/system --set $out && \

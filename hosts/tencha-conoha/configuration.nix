@@ -100,6 +100,7 @@
 
   environment.systemPackages = with pkgs; [
     git
+    just
   ];
 
   system.stateVersion = "26.05";
