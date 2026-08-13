@@ -3,25 +3,15 @@
 {
   disko.devices.disk.main = {
     type = "disk";
-
-    # Vultr Cloud Compute commonly exposes the system disk as /dev/vda.
-    # Verify with `lsblk` on the temporary OS before installing.
     device = "/dev/vda";
 
     content = {
       type = "gpt";
 
       partitions = {
-        ESP = {
-          size = "512M";
-          type = "EF00";
-
-          content = {
-            type = "filesystem";
-            format = "vfat";
-            mountpoint = "/boot";
-            mountOptions = [ "umask=0077" ];
-          };
+        boot = {
+          size = "1M";
+          type = "EF02";
         };
         swap = {
           size = "4G";

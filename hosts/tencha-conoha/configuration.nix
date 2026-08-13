@@ -1,0 +1,106 @@
+{ configurationName, pkgs, ... }:
+
+{
+  imports = [
+    ./hardening.nix
+    ./kernel.nix
+  ];
+
+  networking.hostName = configurationName;
+
+  system.autoUpgrade = {
+    enable = true;
+    flake = "github:s3-odara/infra#${configurationName}";
+    upgrade = false;
+    allowReboot = true;
+  };
+
+  # ConoHa presents this VPS through legacy SeaBIOS, not UEFI.
+  boot.loader.grub.enable = true;
+
+  boot.initrd.includeDefaultModules = false;
+  boot.initrd.availableKernelModules = [
+    "virtio_pci"
+    "virtio_blk"
+  ];
+  boot.kernelModules = [ "wireguard" ];
+
+  networking = {
+    useNetworkd = true;
+    useDHCP = false;
+    enableIPv6 = false;
+    nameservers = [
+      "150.95.10.8"
+      "150.95.10.9"
+    ];
+  };
+
+  systemd.network.networks."10-uplink" = {
+    matchConfig.MACAddress = "fa:16:3e:7e:a8:02";
+
+    networkConfig = {
+      Address = "133.117.77.64/23";
+      Gateway = "133.117.76.1";
+    };
+  };
+
+  services.openssh = {
+    enable = true;
+    openFirewall = true;
+    settings = {
+      PasswordAuthentication = false;
+      KbdInteractiveAuthentication = false;
+      PermitRootLogin = "no";
+    };
+  };
+
+  users.users.root.hashedPassword = "!";
+
+  users.users.me = {
+    isNormalUser = true;
+    uid = 1000;
+    extraGroups = [ "incus" ];
+
+    openssh.authorizedKeys.keys = [
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICblPjqCTllD9zDPGS++Urlw4XqyXixufgn8iFEoDnkK"
+    ];
+
+    # nixos-anywhere --extra-files ./bootstrap
+    hashedPasswordFile = "/etc/nixos-secrets/me-password-hash";
+  };
+
+  security.sudo.enable = false;
+  security.doas = {
+    enable = true;
+    extraRules = [
+      {
+        users = [ "me" ];
+        persist = true;
+      }
+    ];
+  };
+
+  virtualisation.incus.enable = true;
+  networking.nftables.enable = true;
+  networking.nftables.flushRuleset = false;
+
+  # instanceからIncus bridge上のホストが提供するDHCP/DNSへ到達できるようにする
+  networking.firewall.interfaces.incusbr0 = {
+    allowedTCPPorts = [ 53 ];
+    allowedUDPPorts = [
+      53
+      67
+    ];
+  };
+
+  nix.settings.experimental-features = [
+    "nix-command"
+    "flakes"
+  ];
+
+  environment.systemPackages = with pkgs; [
+    git
+  ];
+
+  system.stateVersion = "26.05";
+}

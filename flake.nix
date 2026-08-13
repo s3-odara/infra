@@ -50,6 +50,17 @@
           ];
         };
 
+        tencha-conoha = nixpkgs.lib.nixosSystem {
+          system = "x86_64-linux";
+          specialArgs.configurationName = "tencha-conoha";
+
+          modules = [
+            disko.nixosModules.disko
+            ./hosts/tencha-conoha/disko.nix
+            ./hosts/tencha-conoha/configuration.nix
+          ];
+        };
+
         prosody = nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
           specialArgs.configurationName = "prosody";
