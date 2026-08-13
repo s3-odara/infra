@@ -6,7 +6,7 @@ guests = {
     image         = "images:nixos/unstable"
     ipv4          = "10.77.2.11"
     cpu_allowance = "100ms/100ms"
-    memory        = "512MiB"
+    memory        = "2GiB"
     disk_size     = "10GiB"
 
     public_ports = [
@@ -26,7 +26,7 @@ guests = {
     image         = "images:nixos/unstable"
     ipv4          = "10.77.2.10"
     cpu_allowance = "100ms/100ms"
-    memory        = "1GiB"
+    memory        = "2GiB"
     disk_size     = "10GiB"
 
     public_ports = [
@@ -54,7 +54,7 @@ guests = {
     image         = "images:nixos/unstable"
     ipv4          = "10.77.2.12"
     cpu_allowance = "100ms/100ms"
-    memory        = "512MiB"
+    memory        = "2GiB"
     disk_size     = "10GiB"
 
     public_ports = [
