@@ -8,3 +8,17 @@ creation_rules:
     key_groups:
       - pgp:
           - *admin_pgp
+
+  - path_regex: ^secrets/guests/tencha-conoha/prosody/secrets\.sops\.yaml$
+    key_groups:
+      - pgp:
+          - *admin_pgp
+        age:
+          - age1m2txm3g7hv9paqxdema7snznr3elqe4xvzr4ldhus9aqnqkjrc7q3l2fqx
+
+  - path_regex: ^secrets/guests/tencha-conoha/wireguard/secrets\.sops\.yaml$
+    key_groups:
+      - pgp:
+          - *admin_pgp
+        age:
+          - age10ennx8q5u9c6ca5eveymj8f3u0f5j6djd45c43vzu5yz290depuqxfrqur
