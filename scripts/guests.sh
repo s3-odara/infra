@@ -27,7 +27,7 @@ copy_secrets() {
   local source="$repo_root/secrets/guests/$host/$guest/secrets.sops.yaml"
   local guest_script
 
-  [[ -f $source ]] || return
+  [[ -f $source ]] || return 0
   guest_script=$(cat <<'EOF'
 set -eu
 directory=/var/lib/sops-nix
