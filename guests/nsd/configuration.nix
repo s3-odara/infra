@@ -91,6 +91,7 @@
     RestrictNamespaces = true;
     RestrictAddressFamilies = [
       "AF_UNIX"
+      "AF_NETLINK"
       "AF_INET"
       "AF_INET6"
     ];
