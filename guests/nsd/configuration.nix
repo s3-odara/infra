@@ -8,11 +8,12 @@
 
   services.nsd = {
     enable = true;
-    interfaces = [
-      "0.0.0.0"
-      "::"
-    ];
+    interfaces = [ "0.0.0.0" ];
+    ipv6 = false;
     serverCount = 1;
+    tcpCount = 100;
+    tcpQueryCount = 0;
+    tcpTimeout = 120;
     hideVersion = true;
     ipv4EDNSSize = 512;
     ipv6EDNSSize = 512;
@@ -33,7 +34,7 @@
 
     zones = {
       "odarah.org.".data = ''
-        odarah.org. 3600 IN SOA ns.odarah.org. HOSTMASTER.S3-ODARA.NET. 2024090204 3600 1800 604800 600
+        odarah.org. 3600 IN SOA ns.odarah.org. HOSTMASTER.S3-ODARA.NET. 2026081201 3600 1800 604800 600
         odarah.org. 3600 IN NS ns.odarah.org.
         odarah.org. 3600 IN A 127.0.0.1
         ns.odarah.org. 3600 IN A 167.179.72.51
@@ -41,11 +42,6 @@
         conference.xmpp.odarah.org. 3600 IN A 167.179.72.51
         share.xmpp.odarah.org. 3600 IN A 167.179.72.51
         www.odarah.org. 3600 IN A 35.185.44.232
-        odarah.org. 3600 IN AAAA ::1
-        ns.odarah.org. 3600 IN AAAA 2001:19f0:7001:42b3:5400:05ff:fe13:a48d
-        xmpp.odarah.org. 3600 IN AAAA 2001:19f0:7001:42b3:5400:05ff:fe13:a48d
-        conference.xmpp.odarah.org. 3600 IN AAAA 2001:19f0:7001:42b3:5400:05ff:fe13:a48d
-        share.xmpp.odarah.org. 3600 IN AAAA 2001:19f0:7001:42b3:5400:05ff:fe13:a48d
         www.odarah.org. 3600 IN AAAA 2600:1901:0:7b8a::
         odarah.org. 3600 IN CAA 0 issuemail ";"
         odarah.org. 3600 IN CAA 0 issuewild ";"
@@ -83,6 +79,32 @@
         51.72.179.167.in-addr.arpa. 3600 IN PTR odarah.org.
       '';
     };
+  };
+
+  systemd.services.nsd.serviceConfig = {
+    NoNewPrivileges = true;
+    RestrictRealtime = true;
+    RestrictSUIDSGID = true;
+    LockPersonality = true;
+    MemoryDenyWriteExecute = true;
+    SystemCallArchitectures = "native";
+    RestrictNamespaces = true;
+    RestrictAddressFamilies = [
+      "AF_UNIX"
+      "AF_INET"
+      "AF_INET6"
+    ];
+    SystemCallFilter = [
+      "~@clock"
+      "~@cpu-emulation"
+      "~@debug"
+      "~@keyring"
+      "~@module"
+      "~@mount"
+      "chroot"
+      "~@obsolete"
+      "~@resources"
+    ];
   };
 
   system.stateVersion = "26.05";
