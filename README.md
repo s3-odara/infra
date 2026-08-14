@@ -7,7 +7,7 @@ hosts/       ホストのNixOS構成
 guests/      ゲストのNixOS構成
 tofu/        Incusのnetwork、instance、ACL、forward、storage
 secrets/     SOPS暗号文
-scripts/     Makeから呼ぶ処理
+scripts/     justから呼ぶ処理
 ```
 
 ## デプロイ
@@ -15,22 +15,22 @@ scripts/     Makeから呼ぶ処理
 Incusホストのリポジトリrootで実行する。
 
 ```bash
-make check
-make plan
-make deploy
+just check
+just plan-tofu
+just deploy-guests
 ```
 
-`make check`はNix、OpenTofu構成、シェル構文を静的に検証する。ホスト固有のtfvarsと実環境との差分は`make plan`で検証する。
+`just check`はNix、OpenTofu構成、シェル構文を静的に検証する。ホスト固有のtfvarsと実環境との差分は`just plan-tofu`で検証する。
 
-`make deploy`はOpenTofuを適用した後、暗号文を各ゲストへ送り、NixOS構成を適用する。
+`just deploy-guests`はOpenTofuを適用した後、暗号文を各ゲストへ送り、NixOS構成を適用する。
 
 個別の処理も実行できる。
 
 ```bash
-make tofu-apply
-make guests GUESTS=prosody
-make host-update
-make help
+just apply-tofu
+just upgrade-guests prosody
+just upgrade-host
+just help
 ```
 
 ## ドキュメント
