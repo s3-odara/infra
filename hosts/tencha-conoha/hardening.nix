@@ -12,20 +12,22 @@
       "page_alloc.shuffle=1"
       "slab_nomerge"
       "mitigations=auto"
+      "pti=on"
       "vsyscall=none"
       "vdso32=0"
       "hash_pointers=always"
       "randomize_kstack_offset=on"
       "hardened_usercopy=1"
-      "proc_mem.force_override=ptrace"
+      "proc_mem.force_override=never"
+      "cfi=kcfi"
       "oops=panic"
-      "lockdown=integrity"
+      "lockdown=confidentiality"
       "panic=10"
     ];
 
     kernel.sysctl = {
       "kernel.kptr_restrict" = 2;
-      "kernel.yama.ptrace_scope" = 1;
+      "kernel.yama.ptrace_scope" = 3;
       "kernel.dmesg_restrict" = 1;
       "kernel.randomize_va_space" = 2;
       "dev.tty.ldisc_autoload" = 0;
