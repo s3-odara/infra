@@ -25,7 +25,7 @@ IPv6対応は次の規則に従う。
 
 - uplinkのaddress、gateway、route、MTU
 - DHCPv6とRouter Advertisementの受信
-- IPv6 forwardingとproxy NDP
+- IPv6 forwarding
 - ホストのfirewall
 
 `tofu/*.tf`と`tofu/hosts/HOST.tfvars`はIncus内のネットワークを管理する。
@@ -33,7 +33,7 @@ IPv6対応は次の規則に従う。
 - Incus bridgeのprefix、RA、DHCPv6
 - ゲストのaddressとNIC
 - network ACL
-- routed NICを使う場合のparent interface
+- bridgeへ接続するparent interface
 
 `guests/GUEST/configuration.nix`はゲスト側の受信設定とサービスを管理する。ゲストはVultrやConoHaなどのprovider名を参照しない。
 
@@ -41,7 +41,7 @@ IPv6対応は次の規則に従う。
 - サービスのIPv6 listen address
 - ゲスト内のfirewall
 
-同じproviderでも契約やリージョンによってIPv6の提供方法が異なることがある。接続方式にはrouted prefix、routed NIC、L2 bridgeなどがある。
+同じproviderでも契約やリージョンによってIPv6の提供方法が異なることがある。guest IPv6はIncus ACLを維持できる接続方式だけに対応する。
 
 ## DHCPとRA
 
@@ -59,34 +59,44 @@ DHCPとRAは区間ごとに管理者が異なる。
 
 ## 対応する接続方式
 
-guestのIPv6は`routed-prefix`、`routed-nic`、`l2-bridge`のいずれかで実装する。これらは設計上の名前であり、一方式しか実装していない間はmode変数を作らない。
-
 ### `routed-prefix`
 
-上流ルーターがguest用prefix全体をIncusホストへrouteする方式を優先する。Incus bridgeにprefixを設定し、各ゲストへpublic IPv6 addressを割り当てる。IPv6 NATとnetwork forwardは使わない。上流ルーターがprefixのnext hopを知っているため、通常はguestごとのproxy NDPも要らない。
+上流ルーターがguest用prefix全体をIncus hostへrouteする方式を優先する。Incus managed bridgeにprefixを設定し、各guestへpublic IPv6 addressを割り当てる。IPv6 NATとnetwork forwardは使わない。Incus ACLをIPv4と同じ場所で管理できる。
 
 実装前に次を確認する。
 
 - prefixとprefix length
 - next hopまたはgateway
-- prefix全体がホストへrouteされていること
+- prefix全体がhostへrouteされていること
 - source addressや追加addressに対するproviderの制限
-
-### `routed-nic`
-
-上流ルーターが各guest addressを同一link上にあるものとして探索する方式では、ホストがNeighbor Solicitationへ応答する必要がある。Incusのrouted NICとproxy NDPを使う構成を候補とする。ホストにはuplinkごとのforwarding、proxy NDP、firewall設定が要る。
-
-同じprefixをuplinkとIncus bridgeの両方へ設定しない。経路とNeighbor Discoveryの責任が曖昧になる。
 
 ### `l2-bridge`
 
-ベアメタルや自宅LANで複数MAC addressが許可される場合は、物理NICまたはVLANをbridgeへ参加させてguestを上流L2へ接続できる。上流ルーターがRAまたはDHCPv6を提供する。OpenTofuは動的なprefixやguest addressを管理しない。公開guestのaddressが変わる場合は、OpenTofuとは別にDDNSを管理する。
+上流networkが複数MAC addressを正式に許可する場合は、物理NICまたはVLANをLinux bridgeへ参加させ、Incus bridged NICを接続できる。bridged NICにはIncus ACLを適用する。
 
-ホスト自身のuplink設定も変わるため、`routed-prefix`や`routed-nic`とは別の接続方式として実装する。
+自宅LANでは専用VLANを使う。VPSでは複数MACとpromiscuous modeがproviderの仕様として保証される場合だけ採用する。動作確認だけでは採用しない。
+
+上流ルーターがRAまたはDHCPv6を提供する。OpenTofuは動的なprefixやguest addressを管理しない。公開guestのaddressが変わる場合は、OpenTofuとは別にDDNSを管理する。
+
+## 検証したが採用しない方式
+
+### `routed-nic`
+
+ConoHa VPSでは、割り当てられた追加IPv6をIncus routed NICへ設定し、外向き通信と外部からの通信が通ることを確認した。Incusはguestごとのrouteとproxy NDPを管理できる。
+
+このリポジトリでは採用しない。routed NICはIncus network ACLに対応せず、IPv4とIPv6でservice policyの管理場所が分かれる。
+
+### OVN
+
+OVN networkはIncus ACLに対応し、on-link addressを扱う構成も設計できる。現在の三つのguestには導入しない。
+
+OVNを使うにはOpen vSwitch、OVN Northbound/Southbound DB、`ovn-northd`、`ovn-controller`が要る。DBを永続化せず再生成する運用も可能だが、OVN DBだけを失うとOpenTofu state、Incus DB、OVN DBの状態が一致しなくなる。再生成時はOVN networkとNICを削除またはforce-replaceして作り直す手順が要る。
+
+複数network、複数host、guestから変更できないeast-west policyが必要になった時点で再検討する。
 
 ## 対応しない方式
 
-三方式のどれも使えないhostではguestのIPv6を有効にしない。host自身のIPv6は利用できる。
+`routed-prefix`と`l2-bridge`のどちらも使えないhostではguestのIPv6を有効にしない。host自身のIPv6は利用できる。
 
 共通構成では次の方式に対応しない。
 
@@ -109,13 +119,13 @@ guestのIPv6は`routed-prefix`、`routed-nic`、`l2-bridge`のいずれかで実
 - RA、DHCPv6、NIC、ACLの生成規則は共通のOpenTofu構成
 - RAやDHCPv6を受ける設定とserviceのlisten設定はguestのNixOS構成
 
-IPv4の`public_ports`はhost addressからguest IPv4へのforwardにも使う。public IPv6をguestへ直接routeする場合、同じ`public_ports`をIPv6 ACLへ使い、IPv6 forwardは作らない。
+IPv4の`public_ports`はhost addressからguest IPv4へのforwardとmanaged NICのACLに使う。public IPv6もIncus ACLで同じportを許可する。IPv6 forwardは作らない。
 
 `private_ports`の`source = "network"`をIPv6へ対応させる場合は、IPv4とIPv6のnetwork prefixからACL ruleをそれぞれ生成する。明示したCIDRは、そのaddress familyだけに適用する。
 
 ICMPv6を一括で拒否してはならない。Neighbor Discovery、Router Advertisement、Packet Too Big、Destination Unreachable、Time Exceededに必要な通信を通す。ACLを絞る前に、Incus NICへACLを適用した状態でRA、DHCPv6、NDP、Path MTU Discoveryを確認する。
 
-複数uplink、policy routing、VRFは共通modeへ含めない。対象ホストのNixOS構成へ明示する。Incus側の構造まで変わる場合は、三方式のいずれかとして表現できるときだけOpenTofuへ追加する。
+複数uplink、policy routing、VRFは共通modeへ含めない。対象hostのNixOS構成へ明示する。Incus側の構造まで変わる場合は、`routed-prefix`または`l2-bridge`として表現できるときだけOpenTofuへ追加する。
 
 ## 実装手順
 
