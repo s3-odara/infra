@@ -14,7 +14,10 @@ let
     configfile = ./kernel.config;
     features = kernelBase.features;
     stdenv = pkgs.llvmPackages.stdenv;
-    extraMakeFlags = [ "LLVM=1" ];
+    extraMakeFlags = [
+      "LLVM=1"
+      "LD=${pkgs.llvmPackages.lld}/bin/ld.lld"
+    ];
   };
 
   # Normalize the checked-in config against the same source, patches, compiler,
