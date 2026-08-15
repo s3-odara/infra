@@ -80,7 +80,10 @@
   # instanceからIncus bridge上のホストが提供するDHCP/DNSへ到達できるようにする
   networking.firewall.interfaces.incusbr0 = {
     allowedTCPPorts = [ 53 ];
-    allowedUDPPorts = [ 53 67 ];
+    allowedUDPPorts = [
+      53
+      67
+    ];
   };
 
   nix.settings.experimental-features = [

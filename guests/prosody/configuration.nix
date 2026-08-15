@@ -112,13 +112,13 @@
   systemd.timers."acme-renew-xmpp.odarah.org".timerConfig.AccuracySec = lib.mkForce "15min";
 
   systemd.services."acme-order-renew-xmpp.odarah.org" = {
-  serviceConfig = {
-    Restart = "on-failure";
-    RestartSteps = 4;
-    RestartMaxDelaySec = "6h";
-  };
+    serviceConfig = {
+      Restart = "on-failure";
+      RestartSteps = 4;
+      RestartMaxDelaySec = "6h";
+    };
 
-  unitConfig.StartLimitIntervalSec = 0;
+    unitConfig.StartLimitIntervalSec = 0;
   };
 
   sops = {

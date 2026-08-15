@@ -28,7 +28,8 @@ copy_secrets() {
   local guest_script
 
   [[ -f $source ]] || return 0
-  guest_script=$(cat <<'EOF'
+  guest_script=$(
+    cat <<'EOF'
 set -eu
 directory=/var/lib/sops-nix
 destination="$directory/secrets.sops.yaml"
@@ -42,7 +43,7 @@ chmod 0600 "$temporary"
 mv -f "$temporary" "$destination"
 trap - EXIT
 EOF
-)
+  )
   incus exec "$guest" -- sh -c "$guest_script" <"$source" ||
     fail "failed to copy encrypted secrets into $guest"
 }
