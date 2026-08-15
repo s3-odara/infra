@@ -37,10 +37,10 @@
         odarah.org. 3600 IN SOA ns.odarah.org. HOSTMASTER.S3-ODARA.NET. 2026081201 3600 1800 604800 600
         odarah.org. 3600 IN NS ns.odarah.org.
         odarah.org. 3600 IN A 127.0.0.1
-        ns.odarah.org. 3600 IN A 167.179.72.51
-        xmpp.odarah.org. 3600 IN A 167.179.72.51
-        conference.xmpp.odarah.org. 3600 IN A 167.179.72.51
-        share.xmpp.odarah.org. 3600 IN A 167.179.72.51
+        ns.odarah.org. 3600 IN A 133.117.77.64
+        xmpp.odarah.org. 3600 IN A 133.117.77.64
+        conference.xmpp.odarah.org. 3600 IN A 133.117.77.64
+        share.xmpp.odarah.org. 3600 IN A 133.117.77.64
         www.odarah.org. 3600 IN A 35.185.44.232
         www.odarah.org. 3600 IN AAAA 2600:1901:0:7b8a::
         odarah.org. 3600 IN CAA 0 issuemail ";"
