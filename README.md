@@ -16,13 +16,12 @@ Incusホストのリポジトリrootで実行する。
 
 ```bash
 just check
-just plan-tofu
 just deploy-guests
 ```
 
-`just check`はNix、OpenTofu構成、シェル構文を静的に検証する。ホスト固有のtfvarsと実環境との差分は`just plan-tofu`で検証する。
+`just check`はNix、ホストごとのOpenTofu構成、シェル構文を静的に検証する。
 
-`just deploy-guests`はOpenTofuを適用した後、暗号文を各ゲストへ送り、NixOS構成を適用する。
+`just deploy-guests`はOpenTofuが表示する実環境との差分を確認して承認した後、暗号文を各ゲストへ送り、NixOS構成を適用する。
 
 個別の処理も実行できる。
 

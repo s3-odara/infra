@@ -18,7 +18,6 @@ help topic="":
     Commands:
       check                   Validate the configuration statically
       install-host            Install a NixOS host
-      plan-tofu               Validate the OpenTofu configuration
       deploy-guests           Deploy Incus resources and guest configurations
       manage-secrets          Manage guest secrets
 
@@ -30,7 +29,6 @@ help topic="":
 
     Examples:
       just install-host incus-01 root@HOST
-      just plan-tofu
       just deploy-guests
       just manage-secrets init prosody
 
@@ -81,18 +79,13 @@ _check-tofu:
 _check-shell:
     bash -n scripts/*.sh
 
-# 実行中のホストに対するIncusリソースの変更予定を表示する
-plan-tofu:
-    ./scripts/tofu.sh plan
-
 # Incusリソースを適用してから全ゲストを更新する。初回デプロイにも。
-deploy-guests:
-    ./scripts/tofu.sh apply
+deploy-guests: apply-tofu
     ./scripts/guests.sh
 
 # Incusリソースの変更をOpenTofuで適用する
 apply-tofu:
-    ./scripts/tofu.sh apply
+    ./scripts/tofu.sh
 
 # 全ゲスト、または指定したゲストを更新する（例: just upgrade-guests prosody wireguard）
 upgrade-guests *guests:
