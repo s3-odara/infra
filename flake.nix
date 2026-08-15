@@ -30,11 +30,14 @@
       ...
     }:
     {
+      formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.nixfmt;
+
       packages.x86_64-linux = {
         age = nixpkgs.legacyPackages.x86_64-linux.age;
         mkpasswd = nixpkgs.legacyPackages.x86_64-linux.mkpasswd;
         nixos-anywhere = nixos-anywhere.packages.x86_64-linux.nixos-anywhere;
         opentofu = nixpkgs.legacyPackages.x86_64-linux.opentofu;
+        shfmt = nixpkgs.legacyPackages.x86_64-linux.shfmt;
         sops = nixpkgs.legacyPackages.x86_64-linux.sops;
       };
 
