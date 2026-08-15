@@ -71,9 +71,12 @@ _check-nix:
 _check-tofu:
     nix shell "path:{{ repo_root }}#opentofu" -c sh -eu -c '\
       tofu=$(command -v tofu); \
-      "$tofu" -chdir=tofu fmt -check; \
+      "$tofu" -chdir=tofu fmt -check -recursive; \
       doas "$tofu" -chdir=tofu init -backend=false -lockfile=readonly; \
-      "$tofu" -chdir=tofu validate'
+      "$tofu" -chdir=tofu validate; \
+      for var_file in tofu/hosts/*.tfvars; do \
+        "$tofu" -chdir=tofu test -var-file="${var_file#tofu/}"; \
+      done'
 
 _check-shell:
     bash -n scripts/*.sh
