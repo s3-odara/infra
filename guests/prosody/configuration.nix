@@ -1,4 +1,10 @@
-{ config, configurationName, pkgs, ... }:
+{
+  config,
+  configurationName,
+  lib,
+  pkgs,
+  ...
+}:
 
 {
   boot.isContainer = true;
@@ -12,8 +18,12 @@
     admins = [
       "odara@xmpp.odarah.org"
     ];
-    httpPorts = [ 80 ];
+    httpPorts = [ ];
     httpsPorts = [ 443 ];
+    ssl = {
+      cert = "/var/lib/acme/xmpp.odarah.org/fullchain.pem";
+      key = "/var/lib/acme/xmpp.odarah.org/key.pem";
+    };
     allowRegistration = true;
     authentication = "internal_hashed";
     c2sRequireEncryption = true;
@@ -80,6 +90,38 @@
     '';
   };
 
+  # ACME
+  security.acme = {
+    acceptTerms = true;
+    defaults.email = "hostmaster@s3-odara.net";
+    certs."xmpp.odarah.org" = {
+      profile = "shortlived";
+      validMinDays = 4;
+      renewInterval = "*-*-* 00,06,12,18:00:00";
+      renewJitter = "1h";
+      extraDomainNames = [
+        "conference.xmpp.odarah.org"
+        "share.xmpp.odarah.org"
+      ];
+      group = "prosody";
+      listenHTTP = "0.0.0.0:80";
+      reloadServices = [ "prosody.service" ];
+    };
+  };
+
+  systemd.timers."acme-renew-xmpp.odarah.org".timerConfig.AccuracySec = lib.mkForce "15min";
+
+  systemd.services."acme-order-renew-xmpp.odarah.org" = {
+  serviceConfig = {
+    Restart = "on-failure";
+    RestartSec = "15min";
+    RestartSteps = 4;
+    RestartMaxDelaySec = "6h";
+  };
+
+  unitConfig.StartLimitIntervalSec = 0;
+  };
+
   sops = {
     secrets = {
       turn_external_secret = { };
@@ -113,10 +155,7 @@
   services.restic.backups = {
     prosody-short = {
       repository = "s3:https://6ecd930c8cd4dc63f87c9398762626e8.r2.cloudflarestorage.com/prosody/prosody-short";
-      paths = [
-        "/var/lib/prosody"
-        "/etc/prosody/certs"
-      ];
+      paths = [ "/var/lib/prosody" ];
       environmentFile = config.sops.templates."restic-r2.env".path;
       passwordFile = config.sops.secrets.restic_repository_password.path;
       initialize = true;
@@ -143,10 +182,7 @@
 
     prosody-long = {
       repository = "s3:https://6ecd930c8cd4dc63f87c9398762626e8.r2.cloudflarestorage.com/prosody/prosody-long";
-      paths = [
-        "/var/lib/prosody"
-        "/etc/prosody/certs"
-      ];
+      paths = [ "/var/lib/prosody" ];
       exclude = [
         "/var/lib/prosody/**/archive"
         "/var/lib/prosody/**/muc_log"
@@ -179,7 +215,11 @@
     };
   };
 
-  systemd.services.prosody.serviceConfig.EnvironmentFile = config.sops.templates."prosody.env".path;
+  systemd.services.prosody = {
+    after = [ "acme-xmpp.odarah.org.service" ];
+    wants = [ "acme-xmpp.odarah.org.service" ];
+    serviceConfig.EnvironmentFile = config.sops.templates."prosody.env".path;
+  };
 
   system.stateVersion = "26.05";
 }

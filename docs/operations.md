@@ -105,21 +105,3 @@ doas tofu validate
 doas tofu plan -var-file=hosts/HOST.tfvars
 doas tofu apply -var-file=hosts/HOST.tfvars
 ```
-
-## Prosody TLS
-
-証明書の発行と更新は自動化していない。NixOSのProsody moduleは`/etc/prosody/certs`を作成し、Prosodyのdomain別探索を使う。
-
-```text
-/etc/prosody/certs/xmpp.odarah.org.{crt,key}
-/etc/prosody/certs/conference.xmpp.odarah.org.{crt,key}
-/etc/prosody/certs/share.xmpp.odarah.org.{crt,key}
-```
-
-完全なcertificate chainと対応するprivate keyを置く。
-
-- directory: `prosody:prosody`, `0750`
-- certificate: `prosody:prosody`, `0644`
-- private key: `prosody:prosody`, `0600`
-
-更新後に`systemctl reload prosody`を実行する。ACME clientを使う場合は、deploy hookで所有者、mode、reloadを処理する。
