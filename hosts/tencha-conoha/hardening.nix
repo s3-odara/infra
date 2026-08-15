@@ -27,7 +27,7 @@
 
     kernel.sysctl = {
       "kernel.kptr_restrict" = 2;
-      "kernel.yama.ptrace_scope" = 3;
+      "kernel.yama.ptrace_scope" = 2;
       "kernel.dmesg_restrict" = 1;
       "kernel.randomize_va_space" = 2;
       "dev.tty.ldisc_autoload" = 0;
