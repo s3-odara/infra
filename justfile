@@ -65,6 +65,7 @@ check: _check-nix _check-tofu _check-shell
 
 _check-nix:
     nix flake check --no-build "path:{{ repo_root }}"
+    nix eval --json "path:{{ repo_root }}#nixosConfigurations" --apply 'configs: builtins.mapAttrs (_: cfg: cfg.config.system.build.toplevel.drvPath) configs' >/dev/null
 
 # tfvarsや実環境を使わずOpenTofuの書式と構成を検証する
 _check-tofu:

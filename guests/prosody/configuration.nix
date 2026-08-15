@@ -114,7 +114,6 @@
   systemd.services."acme-order-renew-xmpp.odarah.org" = {
   serviceConfig = {
     Restart = "on-failure";
-    RestartSec = "15min";
     RestartSteps = 4;
     RestartMaxDelaySec = "6h";
   };
