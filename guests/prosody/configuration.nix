@@ -14,6 +14,14 @@
 
   services.prosody = {
     enable = true;
+    package = pkgs.prosody.override {
+      withCommunityModules = [
+        "sasl_ssdp"
+        "sasl2"
+        "sasl2_bind2"
+        "sasl2_sm"
+      ];
+    };
     checkConfig = true;
     admins = [ ];
     httpPorts = [ ];
@@ -83,6 +91,7 @@
 
     extraConfig = ''
       c2s_direct_tls_ports = { 5223 }
+      tls_server_end_point_hash = "auto"
       limits = {
         c2s = { rate = "10kb/s" };
         s2sin = { rate = "30kb/s" };
