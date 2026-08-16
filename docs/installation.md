@@ -7,7 +7,7 @@
 管理端末で実行する。
 
 ```bash
-make install-host CONFIG=incus-01 TARGET=root@HOST
+just install-host incus-01 root@HOST
 ```
 
 実行時に`me`ユーザーのdoas用パスワードを入力する。パスワードハッシュは一時ディレクトリに生成され、スクリプト終了時に削除される。
@@ -21,15 +21,12 @@ git archive --format=tar HEAD |
   ssh me@HOST 'mkdir -p ~/infra && tar -xf - -C ~/infra'
 ```
 
-通常のcloneを使ってもよい。
-
 ## Incusとゲスト
 
-ホスト上のリポジトリrootで差分を確認する。
+ホスト上のリポジトリrootへ移動する。
 
 ```bash
 cd ~/infra
-make plan
 ```
 
 シークレットを使うゲストは、OpenTofuでinstanceを作成した後、初回NixOS適用の前にage identityと暗号文を用意する。
@@ -56,12 +53,12 @@ just upgrade-guests
 シークレットを使わない場合や、すでにidentityと暗号文がある場合は、OpenTofuとゲスト適用をまとめて実行できる。
 
 ```bash
-make deploy
+just deploy-guests
 ```
 
-`make deploy`は次の順で処理する。
+`just deploy-guests`は次の順で処理する。
 
-1. OpenTofu `init`、`validate`、`apply`
+1. OpenTofu `init`、`apply`
 2. Incusゲストの起動待ち
 3. 対応するSOPS暗号文の配送
 4. 未構築ゲストへの`nixos-rebuild switch`

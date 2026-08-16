@@ -1,30 +1,26 @@
 # 運用と復旧
 
-## Make targets
+## Just tasks
 
 ```bash
-make help
-make check
-make plan
-make deploy
-make tofu-apply
-make guests
-make guests GUESTS="prosody wireguard"
-make host-update
-make update-flake
+just help
+just check
+just deploy-guests
+just apply-tofu
+just upgrade-guests
+just upgrade-guests prosody wireguard
+just upgrade-host
+just update-flake
 ```
 
-- `check`: Nix、OpenTofu構成、シェル構文を静的に検証する
-- `plan`: 実行中のホストに対応するtfvarsを検証し、OpenTofuの差分を表示する
-- `deploy`: OpenTofuを適用し、全ゲストへNixOS構成を適用する
-- `tofu-apply`: OpenTofuだけを適用する
-- `guests`: OpenTofuを触らずゲストを適用する
-- `host-update`: ホストの`nixos-upgrade.service`を起動して完了を待つ
+- `check`: Nix、OpenTofu、シェル構文を検証する
+- `deploy-guests`: OpenTofuを適用し、全ゲストへNixOS構成を適用する
+- `apply-tofu`: OpenTofuだけを適用する
+- `upgrade-guests`: OpenTofuを触らず、全ゲストまたは指定したゲストを適用する
+- `upgrade-host`: ホストの`nixos-upgrade.service`を起動して完了を待つ
 - `update-flake`: flake inputと生成済みkernel configを更新し、Nix構成を評価する
 
-`check`のOpenTofu検証はtfvarsや実環境を読まない。ホスト固有の入力値は`plan`または`apply`で検証する。
-
-ホストとゲストでは`system.autoUpgrade`も動く。ゲストの自動更新はSOPS暗号文を配送しない。暗号文を変更したら`make guests GUESTS=GUEST`を実行する。
+ホストとゲストでは`system.autoUpgrade`も動く。ゲストの自動更新はSOPS暗号文を配送しない。暗号文を変更したら`just upgrade-guests GUEST`を実行する。
 
 ## 状態とログ
 
@@ -96,12 +92,10 @@ incus exec GUEST -- systemctl reboot
 
 ## OpenTofuを直接使う
 
-Makeを使わない場合も、stateの所有者を混在させないため全コマンドを`doas`で実行する。
+Justを使わない場合も、stateの所有者を混在させないため全コマンドを`doas`で実行する。事前の検証にはリポジトリrootで`just check`を使う。
 
 ```bash
 cd tofu
-doas tofu init
-doas tofu validate
-doas tofu plan -var-file=hosts/HOST.tfvars
-doas tofu apply -var-file=hosts/HOST.tfvars
+doas /run/current-system/sw/bin/tofu init
+doas /run/current-system/sw/bin/tofu apply -var-file=hosts/HOST.tfvars
 ```

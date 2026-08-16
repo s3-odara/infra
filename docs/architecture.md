@@ -10,7 +10,7 @@ tofu/hosts/HOST.tfvars
 flake.nix の nixosConfigurations.HOST
 ```
 
-`scripts/tofu.sh`と`scripts/guests.sh`は`uname -n`の最初の`.`より前をホスト名として使う。各ホストに`tofu/hosts/HOST.tfvars`を1ファイル置く。
+`just apply-tofu`と`scripts/guests.sh`は実行中のホスト名に対応するtfvarsを使う。各ホストに`tofu/hosts/HOST.tfvars`を1ファイル置く。
 
 `hosts/HOST/`はホストOSを定義する。`tofu/hosts/HOST.tfvars`は、そのホスト上のIncus networkとゲストを定義する。ファイル名を揃える規約はあるが、一方から他方を生成する処理はない。
 
@@ -62,19 +62,6 @@ guests = {
 
 必要に応じて`hardening.nix`、`kernel.nix`、`kernel.config`も置く。既存の`hosts/incus-01/`を複製する場合は、ディスク名、boot方式、kernel module、public IP、Incus subnetを対象ホストに合わせる。
 
-管理端末のリポジトリrootでNixOS構成を確認する。
-
-```bash
-make check-nix
-nix build .#nixosConfigurations.HOST.config.system.build.toplevel
-```
-
-OpenTofuの確認は対象ホストで行う。`make check`は構成を静的に検証し、`make plan`は実行中のホスト名に対応するtfvarsと実環境を検証する。
-
-```bash
-ssh -t me@HOST 'cd ~/infra && make plan'
-```
-
 ## ゲストを追加する
 
 `GUEST`について次を追加する。
@@ -83,22 +70,3 @@ ssh -t me@HOST 'cd ~/infra && make plan'
 2. `flake.nix`の`nixosConfigurations.GUEST`
 3. 配置先の`tofu/hosts/HOST.tfvars`に`guests.GUEST`
 4. シークレットを使う場合はage identityを初期化し、暗号文を作成
-
-管理端末でNixOS構成を確認する。
-
-```bash
-nix build .#nixosConfigurations.GUEST.config.system.build.toplevel
-```
-
-対象ホストでOpenTofuの差分を確認し、デプロイする。
-
-```bash
-make plan
-make deploy
-```
-
-失敗したゲストだけ再実行できる。
-
-```bash
-just upgrade-guests GUEST
-```

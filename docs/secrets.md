@@ -33,17 +33,21 @@ just manage-secrets init GUEST
 /var/lib/sops-nix/key.txt
 ```
 
-続いて実データを作成する。
+続いて管理端末上で実データを作成する。
 
 ```bash
-just manage-secrets --target me@HOST edit GUEST
+nix run .#sops -- edit secrets/guests/HOST/GUEST/secrets.sops.yaml
 ```
 
-`manage-secrets`はsecretの項目を検査しない。現在のNixOS構成が使うkeyは次のとおり。
+`sops edit`はsecretの項目を検査しない。現在のNixOS構成が使うkeyは次のとおり。
 
 ```yaml
 # Prosody
 turn_external_secret: ...
+ntfy_topic: ...
+r2_access_key_id: ...
+r2_secret_access_key: ...
+restic_repository_password: ...
 
 # WireGuard
 wg0_private_key: ...
@@ -60,7 +64,7 @@ just upgrade-guests GUEST
 ## 編集
 
 ```bash
-just manage-secrets --target me@HOST edit GUEST
+nix run .#sops -- edit secrets/guests/HOST/GUEST/secrets.sops.yaml
 ```
 
 暗号文をcommit、pushした後に`just upgrade-guests GUEST`を実行する。ゲストの`system.autoUpgrade`だけでは、ホスト上のGitにある暗号文をゲストへ配送できない。
