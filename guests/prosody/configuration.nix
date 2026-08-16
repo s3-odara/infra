@@ -48,6 +48,8 @@
         enabled = true;
         domain = "xmpp.odarah.org";
         extraConfig = ''
+          password_hash = "SHA-256"
+          default_iteration_count = 600000
           admins = { "admin@xmpp.odarah.org" }
           site_name = "odarah.org XMPP"
           invites_page = "https://xmpp.odarah.org/invites_page?{invite.token}"
