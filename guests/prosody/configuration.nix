@@ -82,6 +82,7 @@
     ];
 
     extraConfig = ''
+      c2s_direct_tls_ports = { 5223 }
       limits = {
         c2s = { rate = "10kb/s" };
         s2sin = { rate = "30kb/s" };

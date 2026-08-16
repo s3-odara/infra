@@ -40,6 +40,7 @@
         ns.odarah.org. 3600 IN A 133.117.77.64
         xmpp.odarah.org. 3600 IN A 133.117.77.64
         _xmpp-client._tcp.xmpp.odarah.org. 3600 IN SRV 0 5 5222 xmpp.odarah.org.
+        _xmpps-client._tcp.xmpp.odarah.org. 3600 IN SRV 0 5 5223 xmpp.odarah.org.
         _xmpp-server._tcp.xmpp.odarah.org. 3600 IN SRV 0 5 5269 xmpp.odarah.org.
         conference.xmpp.odarah.org. 3600 IN A 133.117.77.64
         share.xmpp.odarah.org. 3600 IN A 133.117.77.64
