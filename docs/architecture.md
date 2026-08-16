@@ -47,7 +47,7 @@ guests = {
 }
 ```
 
-`public_ports`と`private_ports`は、使わない場合も`[]`を明記する。private portの`source`も必須で、同じIncus network全体を許可するときは`source = "network"`、範囲を限定するときはCIDRを指定する。
+`public_ports`と`private_ports`は、使わない場合も`[]`を明記する。`port`には単一portのほか、`"49160-49200"`のような両端を含む範囲を指定できる。private portの`source`も必須で、同じIncus network全体を許可するときは`source = "network"`、範囲を限定するときはCIDRを指定する。guestからの接続を拒否する宛先は、任意の`denied_egress`へIP address、IP range、またはnetwork prefixを指定する。managed bridgeのDHCP/DNSを残して同一networkのguestを拒否する場合は、bridge addressを拒否範囲から除外する。
 
 同名ゲストを複数ホストに置くときは、同じNixOS構成を使う。シークレットは`HOST/GUEST`ごとに分ける。
 

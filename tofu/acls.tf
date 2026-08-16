@@ -9,7 +9,7 @@ resource "incus_network_acl" "guest" {
       for port in each.value.public_ports : {
         action           = "allow"
         protocol         = port.protocol
-        destination_port = tostring(port.port)
+        destination_port = port.port
         state            = "enabled"
       }
     ],
@@ -18,9 +18,17 @@ resource "incus_network_acl" "guest" {
         action           = "allow"
         protocol         = port.protocol
         source           = port.source == "network" ? cidrsubnet(var.network_ipv4, 0, 0) : port.source
-        destination_port = tostring(port.port)
+        destination_port = port.port
         state            = "enabled"
       }
     ],
   )
+
+  egress = [
+    for destination in each.value.denied_egress : {
+      action      = "reject"
+      destination = destination
+      state       = "enabled"
+    }
+  ]
 }

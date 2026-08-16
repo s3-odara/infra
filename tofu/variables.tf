@@ -26,14 +26,16 @@ variable "guests" {
 
     public_ports = list(object({
       protocol = string
-      port     = number
+      port     = string
     }))
 
     private_ports = list(object({
       protocol = string
-      port     = number
+      port     = string
       source   = string
     }))
+
+    denied_egress = optional(list(string), [])
   }))
 
   validation {
@@ -70,18 +72,22 @@ variable "guests" {
 
   validation {
     condition = alltrue(flatten([
-      for guest in values(var.guests) : concat(
-        [
-          for port in guest.public_ports :
-          port.port >= 1 && port.port <= 65535 && floor(port.port) == port.port
-        ],
-        [
-          for port in guest.private_ports :
-          port.port >= 1 && port.port <= 65535 && floor(port.port) == port.port
-        ],
-      )
+      for guest in values(var.guests) : [
+        for port in concat(
+          guest.public_ports[*].port,
+          guest.private_ports[*].port,
+        ) :
+        can(regex("^[1-9][0-9]{0,4}(-[1-9][0-9]{0,4})?$", port)) &&
+        try(tonumber(split("-", port)[0]) <= 65535, false) &&
+        try(tonumber(split("-", port)[length(split("-", port)) - 1]) <= 65535, false) &&
+        try(
+          tonumber(split("-", port)[0]) <=
+          tonumber(split("-", port)[length(split("-", port)) - 1]),
+          false,
+        )
+      ]
     ]))
-    error_message = "Ports must be integers between 1 and 65535."
+    error_message = "Ports must be between 1 and 65535, optionally as an inclusive start-end range."
   }
 
   validation {
@@ -92,6 +98,24 @@ variable "guests" {
       ]
     ]))
     error_message = "Private port sources must be \"network\" or a valid network prefix."
+  }
+
+  # OpenTofuにはIP addressの比較関数がないため、rangeの順序とaddress familyは検査しない。
+  validation {
+    condition = alltrue(flatten([
+      for guest in values(var.guests) : [
+        for destination in guest.denied_egress :
+        can(cidrhost(destination, 0)) ||
+        can(cidrhost("${destination}/0", 0)) ||
+        try(
+          length(split("-", destination)) == 2 &&
+          can(cidrhost("${split("-", destination)[0]}/0", 0)) &&
+          can(cidrhost("${split("-", destination)[1]}/0", 0)),
+          false,
+        )
+      ]
+    ]))
+    error_message = "Denied egress destinations must be an IP address, IP range, or network prefix."
   }
 
   validation {
