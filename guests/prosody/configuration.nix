@@ -42,6 +42,16 @@
         domain = "xmpp.odarah.org";
         extraConfig = ''
           admins = { "admin@xmpp.odarah.org" }
+          custom_roles = {
+            {
+              name = "xmpp:inviter";
+              inherits = { "prosody:member" };
+              allow = {
+                "adhoc:urn:xmpp:invite#create-account";
+                ":invite-users";
+              };
+            };
+          }
         '';
       };
     };
