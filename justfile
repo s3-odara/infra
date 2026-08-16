@@ -38,16 +38,14 @@ help topic="":
       manage-secrets)
         cat <<'EOF'
     Usage:
-      just manage-secrets [--target USER@HOST] <init|restore|edit> GUEST
+      just manage-secrets [--target USER@HOST] <init|restore> GUEST
 
     Commands:
       init      Create an age identity
       restore   Restore an age identity to a guest
-      edit      Edit the SOPS-encrypted secrets
 
     Examples:
       just manage-secrets init prosody
-      just manage-secrets edit prosody
       just manage-secrets --target me@HOST restore prosody
     EOF
         ;;
@@ -58,7 +56,6 @@ help topic="":
         ;;
     esac
 
-# Nix、OpenTofu、シェルスクリプトを順番に静的検証する
 check: _check-nix _check-tofu _check-shell
 
 _check-nix:
@@ -66,7 +63,6 @@ _check-nix:
     nix eval --json "path:{{ repo_root }}#nixosConfigurations" --apply 'configs: builtins.mapAttrs (_: cfg: cfg.config.system.build.toplevel.drvPath) configs' >/dev/null
     git ls-files -z -- '*.nix' | xargs -0 -r nix fmt -- --check
 
-# tfvarsや実環境を使わずOpenTofuの書式と構成を検証する
 _check-tofu:
     nix shell "path:{{ repo_root }}#opentofu" -c sh -eu -c '\
       tofu=$(command -v tofu); \
@@ -81,23 +77,19 @@ _check-shell:
     bash -n scripts/*.sh
     nix shell "path:{{ repo_root }}#shfmt" -c shfmt -d -i 2 scripts/*.sh
 
-# Incusリソースを適用してから全ゲストを更新する。初回デプロイにも。
 deploy-guests: apply-tofu
     ./scripts/guests.sh
 
-# Incusリソースの変更をOpenTofuで適用する
 apply-tofu:
-    ./scripts/tofu.sh
+    doas /run/current-system/sw/bin/tofu -chdir=tofu init
+    doas /run/current-system/sw/bin/tofu -chdir=tofu apply -var-file="hosts/$(hostname -s).tfvars"
 
-# 全ゲスト、または指定したゲストを更新する（例: just upgrade-guests prosody wireguard）
 upgrade-guests *guests:
     ./scripts/guests.sh "$@"
 
-# NixOSホストの更新を開始して完了を待つ
 upgrade-host:
     doas systemctl start --wait nixos-upgrade.service
 
-# ゲストのシークレットを管理する（例: just manage-secrets --target me@HOST init prosody）
 manage-secrets *args:
     ./scripts/secrets.sh "$@"
 
@@ -105,7 +97,6 @@ manage-secrets *args:
 regenerate-sops:
     ./scripts/regenerate-sops.sh
 
-# ホストを新規インストールする（例: just install-host incus-01 root@HOST）
 install-host configuration target:
     ./scripts/install-host.sh "$@"
 

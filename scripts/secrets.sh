@@ -15,7 +15,7 @@ trap cleanup EXIT
 
 usage() {
   cat <<'EOF'
-Usage: secrets.sh [--target <user@address>] <init|restore|edit> <guest>
+Usage: secrets.sh [--target <user@address>] <init|restore> <guest>
 
 If --target is omitted, run directly on the current Incus host.
 EOF
@@ -115,7 +115,8 @@ init_guest() {
 
   echo "Initialized the age identity for $host/$guest"
   echo "Age recipient: $recipient"
-  echo "Updated .sops.yaml; next run: secrets.sh edit $guest"
+  echo "Updated .sops.yaml"
+  echo "Next, edit secrets/guests/$host/$guest/secrets.sops.yaml with sops"
 }
 
 restore_guest() {
@@ -137,19 +138,6 @@ restore_guest() {
   echo "Restored the age identity for $host/$guest"
 }
 
-edit_guest() {
-  local namespace=$1
-  local secrets_file="$namespace/secrets.sops.yaml"
-  local status
-
-  [[ -d $namespace ]] || fail "secret namespace not found: $namespace"
-  set +e
-  sops edit "$secrets_file"
-  status=$?
-  set -e
-  ((status == 0 || status == 200)) || return "$status"
-}
-
 main() {
   if [[ ${1:-} == --target ]]; then
     (($# >= 2)) || fail "--target requires user@address"
@@ -165,7 +153,7 @@ main() {
   }
   command=$1
   guest=$2
-  case $command in init | restore | edit) ;; *) fail "unknown command: $command" ;; esac
+  case $command in init | restore) ;; *) fail "unknown command: $command" ;; esac
   if [[ ! $guest =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]] ||
     ((${#guest} > 63)); then
     fail "invalid guest name: $guest"
@@ -178,15 +166,12 @@ main() {
     ((${#host} > 63)); then
     fail "invalid Incus host name: $host"
   fi
-  if [[ $command != edit ]]; then
-    host_command incus info "$guest" >/dev/null || fail "Incus guest not found: $guest"
-  fi
+  host_command incus info "$guest" >/dev/null || fail "Incus guest not found: $guest"
 
   namespace="$repo_root/secrets/guests/$host/$guest"
   case $command in
   init) init_guest "$namespace" ;;
   restore) restore_guest "$namespace" ;;
-  edit) edit_guest "$namespace" ;;
   esac
 }
 
