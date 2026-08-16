@@ -155,7 +155,7 @@
           TURN_EXTERNAL_SECRET=${config.sops.placeholder.turn_external_secret}
         '';
         mode = "0400";
-        reloadUnits = [ "prosody.service" ];
+        restartUnits = [ "prosody.service" ];
       };
 
       "restic-r2.env" = {
@@ -236,10 +236,29 @@
     };
   };
 
+  systemd.services.coturn = {
+    after = [ "acme-xmpp.odarah.org.service" ];
+    wants = [ "acme-xmpp.odarah.org.service" ];
+    serviceConfig.LoadCredential = [
+      "turn-secret:${config.sops.secrets.turn_external_secret.path}"
+      "tls-cert:/var/lib/acme/xmpp.odarah.org/fullchain.pem"
+      "tls-key:/var/lib/acme/xmpp.odarah.org/key.pem"
+    ];
+  };
+
   systemd.services.prosody = {
     after = [ "acme-xmpp.odarah.org.service" ];
     wants = [ "acme-xmpp.odarah.org.service" ];
-    serviceConfig.EnvironmentFile = config.sops.templates."prosody.env".path;
+    preStart = lib.mkAfter ''
+      ${lib.getExe' config.services.prosody.package "prosodyctl"} \
+        --config /run/prosody/prosody.cfg.lua \
+        check config
+    '';
+    serviceConfig = {
+      EnvironmentFile = config.sops.templates."prosody.env".path;
+      RuntimeDirectoryMode = "0700";
+      UMask = "0077";
+    };
   };
 
   system.stateVersion = "26.05";
