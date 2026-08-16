@@ -116,6 +116,19 @@
       Restart = "on-failure";
       RestartSteps = 4;
       RestartMaxDelaySec = "6h";
+      LoadCredential = [ "ntfy-topic:${config.sops.secrets.ntfy_topic.path}" ];
+      ExecStopPost = pkgs.writeShellScript "notify-acme-failure" ''
+        if [ "$SERVICE_RESULT" != "success" ]; then
+          topic="$(<"$CREDENTIALS_DIRECTORY/ntfy-topic")"
+          ${pkgs.curl}/bin/curl \
+            --silent \
+            --show-error \
+            --fail \
+            --max-time 15 \
+            --data-binary 'TLS証明書更新が失敗しました。' \
+            "https://ntfy.sh/$topic" || true
+        fi
+      '';
     };
 
     unitConfig.StartLimitIntervalSec = 0;
@@ -124,6 +137,7 @@
   sops = {
     secrets = {
       turn_external_secret = { };
+      ntfy_topic = { };
       r2_access_key_id = { };
       r2_secret_access_key = { };
       restic_repository_password = { };
