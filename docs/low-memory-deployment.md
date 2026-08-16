@@ -20,6 +20,9 @@
     ssh -T "me@${HOST}" \
       'umask 077; cat > ~/.nixos-system.nar'
 
+  printf '\033Ptmux;\033\033]9;archiveの転送が完了しました。\033\033\\\033\\' >/dev/tty
+  read -r -p 'doas認証を開始するにはEnterを押してください: ' _ </dev/tty
+
   ssh -t "me@${HOST}" \
     "doas sh -c 'nix-store --import < /home/me/.nixos-system.nar >/dev/null &&
       rm -f /home/me/.nixos-system.nar &&
@@ -28,9 +31,9 @@
 )
 ```
 
-最初のSSH接続はbinary archiveをTTYなしで送る。2番目の接続でdoas認証、import、profile更新、activationを行う。
+最初のSSH接続はbinary archiveをTTYなしで送る。転送完了時にtmux passthrough経由のOSC 9でfootのdesktop notificationを送り、Enter入力を待つ。それから2番目の接続でdoas認証、import、profile更新、activationを行う。待機中は2番目のSSH接続をまだ開始していないため、認証待ちのtimeoutは発生しない。tmuxでは`allow-passthrough`を有効にしておく。
 
-archiveは`/home/me/.nixos-system.nar`へmode `0600`で置く。importに失敗した場合は手動で削除する。
+archiveは`/home/me/.nixos-system.nar`へmode `0600`で置く。2番目のSSH接続またはdoas認証に失敗してもarchiveは残るため、転送部分を再実行せず、同じ`out`を指定して2番目の`ssh -t`だけを再実行できる。importに失敗した場合は手動で削除する。
 
 この方法は`me`をNix daemonの`trusted-users`へ追加しない。`trusted-users`はパスワードレスroot相当の権限を持つので。
 
