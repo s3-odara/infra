@@ -14,21 +14,56 @@
 
   services.prosody = {
     enable = true;
-    package = pkgs.prosody.override {
-      withCommunityModules = [
-        "sasl_ssdp"
-        "sasl2"
-        "sasl2_bind2"
-        "sasl2_sm"
-        "sasl2_fast"
-        "csi_grace_period"
-        "invites_page"
-        "invites_register_web"
-        "register_apps"
-        "password_policy"
-        "cloud_notify_encrypted"
-      ];
-    };
+    package =
+      (pkgs.prosody.override {
+        withCommunityModules = [
+          "sasl_ssdp"
+          "sasl2"
+          "sasl2_bind2"
+          "sasl2_sm"
+          "sasl2_fast"
+          "csi_grace_period"
+          "invites_page"
+          "invites_register_web"
+          "register_apps"
+          "password_policy"
+          "cloud_notify_encrypted"
+        ];
+      }).overrideAttrs
+        (old: {
+          postInstall = (old.postInstall or "") + ''
+            invites_page="$out/lib/prosody/modules/mod_invites_page"
+            invites_register_web="$out/lib/prosody/modules/mod_invites_register_web"
+            register_apps="$out/lib/prosody/modules/mod_register_apps/mod_register_apps.lua"
+            http_server="$out/lib/prosody/net/http/server.lua"
+
+            chmod -R u+w "$invites_page" "$invites_register_web" "$(dirname "$register_apps")"
+            chmod u+w "$http_server"
+            install -m 0644 ${./invites/invite.html} "$invites_page/html/invite.html"
+            install -m 0644 ${./invites/client.html} "$invites_page/html/client.html"
+            install -m 0644 ${./invites/invite_invalid.html} "$invites_page/html/invite_invalid.html"
+            install -m 0644 ${./invites/static/style.css} "$invites_page/static/style.css"
+            install -m 0644 ${./invites/static/qr-only.js} "$invites_page/static/qr-only.js"
+            install -m 0644 ${./invites/register.html} "$invites_register_web/html/register.html"
+            install -m 0644 ${./invites/register_error.html} "$invites_register_web/html/register_error.html"
+            install -m 0644 ${./invites/register_success.html} "$invites_register_web/html/register_success.html"
+            install -m 0644 ${./invites/register_success_setup.html} "$invites_register_web/html/register_success_setup.html"
+
+            substituteInPlace "$invites_page/mod_invites_page.lua" \
+              --replace-fail 'js  = "application/javascript";' 'js  = "application/javascript"; css = "text/css";'
+            substituteInPlace "$register_apps" \
+              --replace-fail 'platforms = { "Linux" };' 'platforms = { "Linux", "OpenBSD" };' \
+              --replace-fail 'platforms = { "Windows", "Linux", "macOS" };' 'platforms = { "Windows", "Linux", "macOS", "OpenBSD" };' \
+              --replace-fail 'magic_link_format = "{app.link!}&referrer={invite.uri}";' "" \
+              --replace-fail \
+                'text  = [[A modern open-source chat client for Mac. It is easy to use and has a clean user interface.]];' \
+                $'id = "monal-macos";\n\t\ttext  = [[A modern open-source chat client for Mac. It is easy to use and has a clean user interface.]];'
+
+            patch --batch --forward -d "$invites_page" -p1 < ${./invites/patches/invites-page-security.patch}
+            patch --batch --forward -d "$invites_register_web" -p1 < ${./invites/patches/invites-register-web-security.patch}
+            patch --batch --forward -d "$(dirname "$http_server")" -p1 < ${./invites/patches/http-redact-query.patch}
+          '';
+        });
     checkConfig = true;
     admins = [ ];
     httpPorts = [ ];
@@ -56,13 +91,6 @@
           password_policy = {
             length = 20;
             exclude_username = true;
-          }
-          site_apps_show = {
-            "conversations";
-            "siskin-im";
-            "monal";
-            "gajim";
-            "dino";
           }
           custom_roles = {
             {

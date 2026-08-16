@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{site_name}への招待</title>
+  <link rel="alternate" href="{uri}">
+  <link rel="stylesheet" href="{static}/style.css">
+</head>
+<body>
+  <main>
+    <h1>{site_name}への招待</h1>
+    <p>{inviter&{inviter} から}XMPPチャットへの招待が届いています。</p>
+
+    <details>
+      <summary>QRコードを表示</summary>
+      <p>スマートフォンで読み取ると、この招待ページを開けます。</p>
+      <div id="invite-qr"></div>
+    </details>
+
+    <h2>利用するクライアントを選ぶ</h2>
+    <ul class="apps">
+      {apps#
+      <li>
+        <img class="app-logo" src="{item.image|relurl}" alt="">
+        <div>
+          <strong>{item.name}</strong>
+          <div class="platforms">{item.platforms#{item} }</div>
+          <a href="{item.proceed_url?#}" rel="noopener noreferrer">このクライアントを利用する</a>
+        </div>
+      </li>
+      }
+    </ul>
+
+    <h2>ほかのXMPPクライアントを利用する</h2>
+    <p>一覧にないXMPPクライアントでも接続できます。</p>
+    <p><a class="action" href="register?t={token}">ブラウザでアカウントを作成</a></p>
+  </main>
+  <script src="{static}/qrcode.min.js"></script>
+  <script src="{static}/qr-only.js"></script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{app.name}で{site_name}を利用する</title>
+  <link rel="stylesheet" href="{static}/style.css">
+</head>
+<body>
+  <main>
+    <h1>{app.name}で{site_name}を利用する</h1>
+    <p>{inviter&{inviter} から}XMPPチャットへの招待が届いています。</p>
+
+    <p>
+      <img class="app-logo" src="{app.image|relurl}" alt="">
+      <strong>{app.name}</strong>
+      <span class="platforms">{app.platforms#{item} }</span>
+    </p>
+
+    <h2>1. {app.name}をインストール</h2>
+    <p>次のリンクからクライアントをインストールしてください。</p>
+    {app.download.buttons#
+      <p><a class="action" href="{item.url}" {item.target&target="{item.target}"} rel="noopener noreferrer">{app.name}を入手</a></p>
+    }
+
+    <h2>2. 招待を承認</h2>
+    <p>インストール後、次のリンクを開いてアカウント設定を続けてください。</p>
+    <p><a class="action" href="{uri}" rel="noopener noreferrer">{app.name}で招待を開く</a></p>
+
+    <details>
+      <summary>QRコードを表示</summary>
+      <p>このページを別の端末で開くためのQRコードです。</p>
+      <div id="invite-qr"></div>
+    </details>
+  </main>
+  <script src="{static}/qrcode.min.js"></script>
+  <script src="{static}/qr-only.js"></script>
+</body>
+</html>

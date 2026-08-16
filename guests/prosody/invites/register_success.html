@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>登録完了 - {site_name}</title>
+  <link rel="stylesheet" href="/invites_page/static/style.css">
+</head>
+<body>
+  <main>
+    <h1>アカウントを作成しました</h1>
+    <p>次のJIDをXMPPクライアントに登録してください。</p>
+
+    <p><strong>JID</strong><br><span class="account">{username}@{domain}</span></p>
+
+    {password&
+    <details>
+      <summary>パスワードを表示</summary>
+      <input type="text" readonly value="{password}" aria-label="パスワード">
+    </details>
+    }
+
+    <div class="notice">
+      <p>サーバー: <span class="account">xmpp.odarah.org</span></p>
+      <p>STARTTLS: 5222 / Direct TLS: 5223</p>
+    </div>
+
+    {webchat_url&<p><a class="action" href="{webchat_url}" rel="noopener noreferrer">Webチャットを開く</a></p>}
+
+    <p>パスワードはこのページを閉じる前にパスワードマネージャーへ保存してください。</p>
+  </main>
+</body>
+</html>

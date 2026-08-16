@@ -1,0 +1,30 @@
+--- a/mod_invites_page.lua
++++ b/mod_invites_page.lua
+@@ -20,6 +20,12 @@
+ 		return (url:gsub("^[^:]+:", ""));
+ 	end;
+ });
++
++local function secure_invite_response(response)
++	response.headers["Cache-Control"] = "no-store, private";
++	response.headers["Referrer-Policy"] = "no-referrer";
++	response.headers["Content-Security-Policy"] = "default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:; form-action 'self'; base-uri 'none'; frame-ancestors 'none'";
++end
+ 
+ local site_name = module:get_option_string("site_name", module.host);
+ local site_apps;
+@@ -94,6 +100,7 @@
+ end
+ 
+ function serve_invite_page(event)
++	secure_invite_response(event.response);
+ 	local invite_page_template = assert(module:load_resource("html/invite.html")):read("*a");
+ 	local invalid_invite_page_template = assert(module:load_resource("html/invite_invalid.html")):read("*a");
+ 
+@@ -125,6 +132,7 @@
+ end
+ 
+ function serve_setup_page(event, app_id)
++	secure_invite_response(event.response);
+ 	local invite_page_template = assert(module:load_resource("html/client.html")):read("*a");
+ 	local invalid_invite_page_template = assert(module:load_resource("html/invite_invalid.html")):read("*a");

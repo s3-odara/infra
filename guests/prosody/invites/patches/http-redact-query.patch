@@ -1,0 +1,11 @@
+--- a/server.lua
++++ b/server.lua
+@@ -241,7 +241,7 @@
+ 	request.headers = headers;
+ 	request.conn = conn;
+ 
+-	request.log("debug", "%s %s HTTP/%s", request.method, request.path, request.httpversion);
++	request.log("debug", "%s %s HTTP/%s", request.method, request.path:match("^[^?]*"), request.httpversion);
+ 
+ 	local conn_header = request.headers.connection;
+ 	local conn_close = conn_header and conn_header:lower() == "close";
