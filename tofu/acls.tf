@@ -4,7 +4,8 @@ resource "incus_network_acl" "guest" {
   project = incus_project.user.name
   name    = each.key
 
-  ingress = concat(
+  # Provider reads an empty rule set back as null.
+  ingress = length(each.value.public_ports) + length(each.value.private_ports) > 0 ? concat(
     [
       for port in each.value.public_ports : {
         action           = "allow"
@@ -22,13 +23,14 @@ resource "incus_network_acl" "guest" {
         state            = "enabled"
       }
     ],
-  )
+  ) : null
 
-  egress = [
+  # Bridge ACL egress cannot use nftables reject.
+  egress = length(each.value.denied_egress) > 0 ? [
     for destination in each.value.denied_egress : {
-      action      = "reject"
+      action      = "drop"
       destination = destination
       state       = "enabled"
     }
-  ]
+  ] : null
 }
