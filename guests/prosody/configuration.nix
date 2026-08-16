@@ -20,6 +20,13 @@
         "sasl2"
         "sasl2_bind2"
         "sasl2_sm"
+        "sasl2_fast"
+        "csi_grace_period"
+        "invites_page"
+        "invites_register_web"
+        "register_apps"
+        "password_policy"
+        "cloud_notify_encrypted"
       ];
     };
     checkConfig = true;
@@ -42,6 +49,19 @@
         domain = "xmpp.odarah.org";
         extraConfig = ''
           admins = { "admin@xmpp.odarah.org" }
+          site_name = "odarah.org XMPP"
+          invites_page = "https://xmpp.odarah.org/invites_page?{invite.token}"
+          password_policy = {
+            length = 20;
+            exclude_username = true;
+          }
+          site_apps_show = {
+            "conversations";
+            "siskin-im";
+            "monal";
+            "gajim";
+            "dino";
+          }
           custom_roles = {
             {
               name = "xmpp:inviter";
