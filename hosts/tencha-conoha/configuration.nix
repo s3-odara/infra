@@ -1,4 +1,9 @@
-{ configurationName, pkgs, ... }:
+{
+  configurationName,
+  lib,
+  pkgs,
+  ...
+}:
 
 {
   imports = [
@@ -18,12 +23,11 @@
   # ConoHa presents this VPS through legacy SeaBIOS, not UEFI.
   boot.loader.grub.enable = true;
 
+  # Required storage, network, and WireGuard drivers are built into the kernel.
   boot.initrd.includeDefaultModules = false;
-  boot.initrd.availableKernelModules = [
-    "virtio_pci"
-    "virtio_blk"
-  ];
-  boot.kernelModules = [ "wireguard" ];
+  boot.initrd.allowMissingModules = true;
+  # Incus requests this for VM support, which this container-only host omits.
+  boot.kernelModules.vhost_vsock = lib.mkForce false;
   boot.initrd.systemd.tpm2.enable = false;
   systemd.tpm2.enable = false;
 

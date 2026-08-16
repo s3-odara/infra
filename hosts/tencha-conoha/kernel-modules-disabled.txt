@@ -1,0 +1,98 @@
+tencha-conoha CONFIG_MODULES=n migration record
+================================================
+
+Basis
+-----
+Collected from the running tencha-conoha host before the migration:
+- loaded modules and their modprobe dependency closure
+- bound Virtio block/network devices
+- mounted filesystems
+- Incus bridge, veth, nftables, and Btrfs storage use
+
+Policy
+------
+- Convert modules required by the current boot path and services to built-ins.
+- Disable unused modules instead of building every former module into the kernel.
+- KVM is not used.
+- Incus uses Btrfs storage; nested Docker/Podman and TUN/TAP users are not used.
+- Keep loaded Virtio console, balloon, and RNG support.
+
+Global change
+-------------
+CONFIG_MODULES: y => n
+
+Former modules converted to built-ins (m => y)
+------------------------------------------------
+CONFIG_NET_IP_TUNNEL
+CONFIG_NET_UDP_TUNNEL
+CONFIG_BRIDGE_NETFILTER
+CONFIG_NETFILTER_XT_TARGET_CHECKSUM
+CONFIG_NETFILTER_XT_TARGET_MASQUERADE
+CONFIG_NETFILTER_XT_MATCH_COMMENT
+CONFIG_NETFILTER_XT_MATCH_CONNTRACK
+CONFIG_NETFILTER_XT_MATCH_PKTTYPE
+CONFIG_IP_NF_IPTABLES
+CONFIG_IP_NF_MATCH_RPFILTER
+CONFIG_IP6_NF_IPTABLES
+CONFIG_IP6_NF_MATCH_RPFILTER
+CONFIG_NF_TABLES_BRIDGE
+CONFIG_NFT_BRIDGE_META
+CONFIG_NF_CONNTRACK_BRIDGE
+CONFIG_STP
+CONFIG_BRIDGE
+CONFIG_LLC
+CONFIG_VIRTIO_BLK
+CONFIG_WIREGUARD
+CONFIG_VETH
+CONFIG_VIRTIO_NET
+CONFIG_VIRTIO_CONSOLE
+CONFIG_HW_RANDOM_VIRTIO
+CONFIG_VIRTIO
+CONFIG_VIRTIO_PCI_LIB
+CONFIG_VIRTIO_PCI_LIB_LEGACY
+CONFIG_VIRTIO_PCI
+CONFIG_VIRTIO_BALLOON
+CONFIG_AUTOFS_FS
+CONFIG_FUSE_FS
+CONFIG_CRYPTO_LIB_CHACHA
+CONFIG_CRYPTO_LIB_CURVE25519
+CONFIG_CRYPTO_LIB_POLY1305
+CONFIG_CRYPTO_LIB_CHACHA20POLY1305
+
+Note: CONFIG_NET_IP_TUNNEL was initially requested as n, but Kconfig selected it as
+a built-in dependency during olddefconfig normalization.
+
+Former modules disabled (m => n)
+--------------------------------
+CONFIG_PERF_EVENTS_INTEL_RAPL
+CONFIG_NF_LOG_SYSLOG
+CONFIG_NF_LOG_ARP
+CONFIG_NF_LOG_IPV4
+CONFIG_NF_LOG_IPV6
+CONFIG_NFT_BRIDGE_REJECT
+CONFIG_TUN
+CONFIG_X86_PKG_TEMP_THERMAL
+CONFIG_USB_HID
+CONFIG_VIRTIO_INPUT
+CONFIG_QUOTA_TREE
+CONFIG_QFMT_V2
+CONFIG_OVERLAY_FS
+CONFIG_EFIVAR_FS
+CONFIG_NLS_ASCII
+CONFIG_CRYPTO_BLAKE2B
+CONFIG_CRYPTO_XXHASH
+CONFIG_CRYPTO_CRC32C
+CONFIG_PKCS8_PRIVATE_KEY_PARSER
+
+NixOS configuration adjustment
+------------------------------
+Removed boot.initrd.availableKernelModules entries for virtio_pci and virtio_blk,
+and boot.kernelModules entry for wireguard, because these drivers are now built in.
+Set boot.initrd.allowMissingModules=true because NixOS otherwise requires module
+files for supported filesystems even when all required support is built in.
+The kernel package installs lib/modules/<version>/modules.{order,builtin,builtin.modinfo}
+and runs depmod because NixOS and systemd use the resulting indexes to recognize
+built-in functionality even when loadable module support is disabled.
+Incus' generic vhost_vsock module request is disabled because this host does not
+run Incus VMs. Host-specific assertions verify required built-ins and verify that
+MODULES and MODULE_SIG remain disabled.
