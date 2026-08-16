@@ -15,9 +15,7 @@
   services.prosody = {
     enable = true;
     checkConfig = true;
-    admins = [
-      "odara@xmpp.odarah.org"
-    ];
+    admins = [ ];
     httpPorts = [ ];
     httpsPorts = [ 443 ];
     ssl = {
@@ -31,13 +29,12 @@
     s2sSecureAuth = true;
 
     virtualHosts = {
-      localhost = {
-        enabled = true;
-        domain = "localhost";
-      };
       main = {
         enabled = true;
         domain = "xmpp.odarah.org";
+        extraConfig = ''
+          admins = { "admin@xmpp.odarah.org" }
+        '';
       };
     };
 
@@ -46,9 +43,12 @@
         domain = "conference.xmpp.odarah.org";
         restrictRoomCreation = "local";
         roomDefaultPublic = false;
+        roomDefaultMembersOnly = true;
 
         extraConfig = ''
+          admins = { "admin@xmpp.odarah.org" }
           muc_room_default_persistent = true
+          muc_log_expires_after = "2w"
         '';
       }
     ];
@@ -58,10 +58,14 @@
       size_limit = 100 * 1024 * 1024;
       daily_quota = 1024 * 1024 * 1024;
       global_quota = 10 * 1024 * 1024 * 1024;
+      expires_after = "1w";
+      access = [
+        "xmpp.odarah.org"
+      ];
     };
 
     modules = {
-      admin_adhoc = false;
+      admin_adhoc = true;
       bosh = true;
       limits = true;
       proxy65 = false;
@@ -85,6 +89,8 @@
       storage = "internal"
       archive_expires_after = "2w"
       registration_invite_only = true
+      invite_expiry = 86400
+      allow_user_invites = false
       turn_external_host = "xmpp.odarah.org"
       turn_external_secret = "$TURN_EXTERNAL_SECRET"
     '';
@@ -169,6 +175,7 @@
     prosody-short = {
       repository = "s3:https://6ecd930c8cd4dc63f87c9398762626e8.r2.cloudflarestorage.com/prosody/prosody-short";
       paths = [ "/var/lib/prosody" ];
+      exclude = [ "/var/lib/prosody/share%2exmpp%2eodarah%2eorg" ];
       environmentFile = config.sops.templates."restic-r2.env".path;
       passwordFile = config.sops.secrets.restic_repository_password.path;
       initialize = true;
@@ -199,6 +206,7 @@
       exclude = [
         "/var/lib/prosody/**/archive"
         "/var/lib/prosody/**/muc_log"
+        "/var/lib/prosody/share%2exmpp%2eodarah%2eorg"
       ];
       environmentFile = config.sops.templates."restic-r2.env".path;
       passwordFile = config.sops.secrets.restic_repository_password.path;
