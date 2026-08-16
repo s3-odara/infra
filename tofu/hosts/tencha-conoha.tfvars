@@ -46,8 +46,24 @@ guests = {
         protocol = "tcp"
         port     = 5269
       },
+      {
+        protocol = "udp"
+        port     = 3478
+      },
+      {
+        protocol = "tcp"
+        port     = 5349
+      },
+      {
+        protocol = "udp"
+        port     = "49160-49200"
+      },
     ]
     private_ports = []
+    denied_egress = [
+      "10.77.2.0",
+      "10.77.2.2-10.77.2.255",
+    ]
   }
 
   wireguard = {

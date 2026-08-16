@@ -93,6 +93,31 @@
       allow_user_invites = false
       turn_external_host = "xmpp.odarah.org"
       turn_external_secret = "$TURN_EXTERNAL_SECRET"
+      turn_external_tls_port = 5349
+    '';
+  };
+
+  services.coturn = {
+    enable = true;
+    listening-ips = [ "10.77.2.10" ];
+    relay-ips = [ "10.77.2.10" ];
+    min-port = 49160;
+    max-port = 49200;
+    realm = "xmpp.odarah.org";
+    use-auth-secret = true;
+    static-auth-secret-file = "/run/credentials/coturn.service/turn-secret";
+    cert = "/run/credentials/coturn.service/tls-cert";
+    pkey = "/run/credentials/coturn.service/tls-key";
+    no-cli = true;
+    no-tcp = true;
+    no-dtls = true;
+    no-tcp-relay = true;
+    extraConfig = ''
+      external-ip=133.117.77.64/10.77.2.10
+      no-multicast-peers
+      denied-peer-ip=10.0.0.0-10.255.255.255
+      denied-peer-ip=172.16.0.0-172.31.255.255
+      denied-peer-ip=192.168.0.0-192.168.255.255
     '';
   };
 
@@ -111,7 +136,10 @@
       ];
       group = "prosody";
       listenHTTP = "0.0.0.0:80";
-      reloadServices = [ "prosody.service" ];
+      reloadServices = [
+        "coturn.service"
+        "prosody.service"
+      ];
     };
   };
 
@@ -142,7 +170,7 @@
 
   sops = {
     secrets = {
-      turn_external_secret = { };
+      turn_external_secret.restartUnits = [ "coturn.service" ];
       ntfy_topic = { };
       r2_access_key_id = { };
       r2_secret_access_key = { };
