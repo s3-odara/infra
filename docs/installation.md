@@ -7,7 +7,7 @@
 管理端末で実行する。
 
 ```bash
-just install-host incus-01 root@HOST
+just install-host mecha-vultr root@HOST
 ```
 
 実行時に`me`ユーザーのdoas用パスワードを入力する。パスワードハッシュは一時ディレクトリに生成され、スクリプト終了時に削除される。

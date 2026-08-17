@@ -42,14 +42,14 @@
       };
 
       nixosConfigurations = {
-        incus-01 = nixpkgs.lib.nixosSystem {
+        mecha-vultr = nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
-          specialArgs.configurationName = "incus-01";
+          specialArgs.configurationName = "mecha-vultr";
 
           modules = [
             disko.nixosModules.disko
-            ./hosts/incus-01/disko.nix
-            ./hosts/incus-01/configuration.nix
+            ./hosts/mecha-vultr/disko.nix
+            ./hosts/mecha-vultr/configuration.nix
           ];
         };
 
@@ -61,6 +61,17 @@
             disko.nixosModules.disko
             ./hosts/tencha-conoha/disko.nix
             ./hosts/tencha-conoha/configuration.nix
+          ];
+        };
+
+        aracha-ovh = nixpkgs.lib.nixosSystem {
+          system = "x86_64-linux";
+          specialArgs.configurationName = "aracha-ovh";
+
+          modules = [
+            disko.nixosModules.disko
+            ./hosts/aracha-ovh/disko.nix
+            ./hosts/aracha-ovh/configuration.nix
           ];
         };
 

@@ -28,7 +28,7 @@ help topic="":
       update-flake            Update flake inputs and generated files
 
     Examples:
-      just install-host incus-01 root@HOST
+      just install-host mecha-vultr root@HOST
       just deploy-guests
       just manage-secrets init prosody
 

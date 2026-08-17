@@ -1,4 +1,9 @@
-{ configurationName, pkgs, ... }:
+{
+  configurationName,
+  lib,
+  pkgs,
+  ...
+}:
 
 {
   imports = [
@@ -15,27 +20,31 @@
     allowReboot = true;
   };
 
-  # UEFI mode
+  # Vultr presents this VPS through UEFI.
   boot.loader.systemd-boot = {
     enable = true;
     bootCounting.enable = true;
   };
   boot.loader.efi.canTouchEfiVariables = true;
 
-  # minimal kernelにNixOSの汎用initrd module群を要求せず、VPSに必要なmoduleだけを含める
+  # Required storage, network, and WireGuard drivers are built into the kernel.
   boot.initrd.includeDefaultModules = false;
-  boot.initrd.availableKernelModules = [
-    "virtio_pci"
-    "virtio_blk"
-    "virtio_scsi"
-    "nvme"
-    "ahci"
-    "ata_piix"
-  ];
-  boot.kernelModules = [ "wireguard" ];
+  boot.initrd.allowMissingModules = true;
+  # Incus requests this for VM support, which this container-only host omits.
+  boot.kernelModules.vhost_vsock = lib.mkForce false;
+  boot.initrd.systemd.tpm2.enable = false;
+  systemd.tpm2.enable = false;
 
-  networking.useNetworkd = true;
-  networking.useDHCP = true;
+  networking = {
+    useNetworkd = true;
+    useDHCP = false;
+    enableIPv6 = false;
+  };
+
+  systemd.network.networks."10-uplink" = {
+    matchConfig.MACAddress = "56:00:05:13:a4:8d";
+    networkConfig.DHCP = "ipv4";
+  };
 
   services.openssh = {
     enable = true;

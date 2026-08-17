@@ -1,6 +1,6 @@
 # IPv6実装方針
 
-現在のOpenTofu構成はIncus bridgeのIPv6を無効にしている。IPv6を有効にする前に、上流ネットワークがprefixをどうホストへ渡すか確認する。
+現在は全ホストとIncus bridgeでIPv6を無効にしている。guestへIPv6を提供できないhostで有効にする運用上の利点がないため、`routed-prefix`または`l2-bridge`を採用するときだけ有効にする。
 
 ## 設計規則
 
@@ -21,10 +21,10 @@ IPv6対応は次の規則に従う。
 
 上流ネットワーク、Incus network、ゲストOSの設定を分ける。
 
-`hosts/HOST/configuration.nix`はホストと上流ネットワークの接続を管理する。
+`hosts/HOST/configuration.nix`はホストと上流ネットワークの接続を管理する。provider固有の設定は`systemd.network.networks."10-uplink"`へ集約する。
 
-- uplinkのaddress、gateway、route、MTU
-- DHCPv6とRouter Advertisementの受信
+- uplinkのMAC address、address、gateway、route、MTU
+- DHCPとRouter Advertisementの受信
 - IPv6 forwarding
 - ホストのfirewall
 
@@ -44,8 +44,6 @@ IPv6対応は次の規則に従う。
 同じproviderでも契約やリージョンによってIPv6の提供方法が異なることがある。guest IPv6はIncus ACLを維持できる接続方式だけに対応する。
 
 ## DHCPとRA
-
-DHCPとRAは区間ごとに管理者が異なる。
 
 | 区間 | 管理場所 |
 | --- | --- |
@@ -96,7 +94,7 @@ OVNを使うにはOpen vSwitch、OVN Northbound/Southbound DB、`ovn-northd`、`
 
 ## 対応しない方式
 
-`routed-prefix`と`l2-bridge`のどちらも使えないhostではguestのIPv6を有効にしない。host自身のIPv6は利用できる。
+`routed-prefix`と`l2-bridge`のどちらも使えないhostでは、hostとguestのIPv6を有効にしない。
 
 共通構成では次の方式に対応しない。
 

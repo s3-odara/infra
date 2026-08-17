@@ -14,6 +14,22 @@ flake.nix の nixosConfigurations.HOST
 
 `hosts/HOST/`はホストOSを定義する。`tofu/hosts/HOST.tfvars`は、そのホスト上のIncus networkとゲストを定義する。ファイル名を揃える規約はあるが、一方から他方を生成する処理はない。
 
+## ホストのuplink
+
+ホストごとの上流ネットワーク差分を`systemd.network.networks."10-uplink"`へ集約する。そのためnetworkdの汎用DHCP設定は使わない。
+
+```nix
+networking = {
+  useNetworkd = true;
+  useDHCP = false;
+  enableIPv6 = false;
+};
+```
+
+`10-uplink`は対象MAC addressに一致させ、DHCPv4なら`DHCP = "ipv4"`、静的IPv4ならaddress、gateway、route、DNSを指定する。
+
+IPv6はguestへ提供できる`routed-prefix`または`l2-bridge`でのみ有効にする。ホストのuplinkはNixOS、Incusの接続方式とprefixはOpenTofuで管理する。詳細は[IPv6実装方針](ipv6.md)を参照する。
+
 ## ゲスト名
 
 ゲスト名を`GUEST`とする。次の名前を揃える。
@@ -60,7 +76,7 @@ guests = {
 3. `flake.nix`の`nixosConfigurations.HOST`
 4. `tofu/hosts/HOST.tfvars`
 
-必要に応じて`hardening.nix`、`kernel.nix`、`kernel.config`も置く。既存の`hosts/incus-01/`を複製する場合は、ディスク名、boot方式、kernel module、public IP、Incus subnetを対象ホストに合わせる。
+必要に応じて`hardening.nix`、`kernel.nix`、`kernel.config`も置く。既存のホスト構成を複製する場合は、ディスク名、boot方式、kernel module、public IP、Incus subnetを対象ホストに合わせる。
 
 ## ゲストを追加する
 

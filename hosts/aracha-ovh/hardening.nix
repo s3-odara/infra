@@ -16,8 +16,6 @@
       "vsyscall=none"
       "vdso32=0"
       "hash_pointers=always"
-      "iommu.passthrough=0"
-      "iommu.strict=1"
       "randomize_kstack_offset=on"
       "hardened_usercopy=1"
       "proc_mem.force_override=never"
@@ -39,8 +37,16 @@
       "fs.protected_symlinks" = 1;
       "fs.protected_hardlinks" = 1;
       "fs.suid_dumpable" = 0;
-      "kernel.io_uring_disabled" = 1;
-      "kernel.io_uring_group" = -1;
+
+      # io_uring is disabled at compile time. Restore these if it is re-enabled.
+      # "kernel.io_uring_disabled" = 2;
+      # "kernel.io_uring_group" = -1;
+
+      # CONFIG_BPF_SYSCALL and CONFIG_BPF_JIT are disabled at compile time.
+      # Restore these if it is re-enabled.
+      # "kernel.unprivileged_bpf_disabled" = 1;
+      # "net.core.bpf_jit_harden" = 2;
+
       "kernel.warn_limit" = 0;
       "kernel.oops_limit" = 1;
 
