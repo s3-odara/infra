@@ -163,7 +163,7 @@
       invite_expiry = 86400
       allow_user_invites = false
       turn_external_host = "xmpp.odarah.org"
-      turn_external_secret = "$TURN_EXTERNAL_SECRET"
+      turn_external_secret = ENV_TURN_EXTERNAL_SECRET
       turn_external_tls_port = 5349
       -- used only by prosody check dns
       external_addresses = { "15.235.184.173" }
