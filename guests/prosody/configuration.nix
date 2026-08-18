@@ -169,8 +169,8 @@
 
   services.coturn = {
     enable = true;
-    listening-ips = [ "10.77.2.10" ];
-    relay-ips = [ "10.77.2.10" ];
+    listening-ips = [ "10.77.3.10" ];
+    relay-ips = [ "10.77.3.10" ];
     min-port = 49160;
     max-port = 49200;
     realm = "xmpp.odarah.org";
@@ -183,7 +183,7 @@
     no-dtls = true;
     no-tcp-relay = true;
     extraConfig = ''
-      external-ip=133.117.77.64/10.77.2.10
+      external-ip=15.235.184.173/10.77.3.10
       no-multicast-peers
       denied-peer-ip=10.0.0.0-10.255.255.255
       denied-peer-ip=172.16.0.0-172.31.255.255
