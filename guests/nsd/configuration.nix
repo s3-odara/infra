@@ -34,16 +34,16 @@
 
     zones = {
       "odarah.org.".data = ''
-        odarah.org. 3600 IN SOA ns.odarah.org. HOSTMASTER.S3-ODARA.NET. 2026081601 3600 1800 604800 600
+        odarah.org. 3600 IN SOA ns.odarah.org. HOSTMASTER.S3-ODARA.NET. 2026081801 3600 1800 604800 600
         odarah.org. 3600 IN NS ns.odarah.org.
         odarah.org. 3600 IN A 127.0.0.1
-        ns.odarah.org. 120 IN A 133.117.77.64
-        xmpp.odarah.org. 120 IN A 133.117.77.64
+        ns.odarah.org. 120 IN A 15.235.184.173
+        xmpp.odarah.org. 120 IN A 15.235.184.173
         _xmpp-client._tcp.xmpp.odarah.org. 3600 IN SRV 0 5 5222 xmpp.odarah.org.
         _xmpps-client._tcp.xmpp.odarah.org. 3600 IN SRV 0 5 5223 xmpp.odarah.org.
         _xmpp-server._tcp.xmpp.odarah.org. 3600 IN SRV 0 5 5269 xmpp.odarah.org.
-        conference.xmpp.odarah.org. 120 IN A 133.117.77.64
-        share.xmpp.odarah.org. 120 IN A 133.117.77.64
+        conference.xmpp.odarah.org. 120 IN A 15.235.184.173
+        share.xmpp.odarah.org. 120 IN A 15.235.184.173
         odarah.org. 3600 IN CAA 0 issuemail ";"
         odarah.org. 3600 IN CAA 0 issuewild ";"
         odarah.org. 3600 IN CAA 0 issue "letsencrypt.org"
