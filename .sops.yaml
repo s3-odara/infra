@@ -9,6 +9,13 @@ creation_rules:
       - pgp:
           - *admin_pgp
 
+  - path_regex: ^secrets/guests/aracha-ovh/prosody/secrets\.sops\.yaml$
+    key_groups:
+      - pgp:
+          - *admin_pgp
+        age:
+          - age1tfqcej7pw3d6h2mnl4zu4umhf06yc5zlsy6hadsxtt78m6cuxcqs6kp0y4
+
   - path_regex: ^secrets/guests/tencha-conoha/prosody/secrets\.sops\.yaml$
     key_groups:
       - pgp:
