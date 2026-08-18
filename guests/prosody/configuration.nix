@@ -151,6 +151,7 @@
 
     extraConfig = ''
       c2s_direct_tls_ports = { 5223 }
+      s2s_direct_tls_ports = { 5270 }
       tls_server_end_point_hash = "auto"
       limits = {
         c2s = { rate = "10kb/s" };
@@ -164,6 +165,8 @@
       turn_external_host = "xmpp.odarah.org"
       turn_external_secret = "$TURN_EXTERNAL_SECRET"
       turn_external_tls_port = 5349
+      -- used only by prosody check dns
+      external_addresses = { "15.235.184.173" }
     '';
   };
 
