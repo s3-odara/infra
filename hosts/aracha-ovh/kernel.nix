@@ -15,10 +15,6 @@ let
       configfile = ./kernel.config;
       features = kernelBase.features;
       stdenv = pkgs.llvmPackages.stdenv;
-      extraMakeFlags = [
-        "LLVM=1"
-        "LD=${pkgs.llvmPackages.lld}/bin/ld.lld"
-      ];
     }).overrideAttrs
       (oldAttrs: {
         # NixOS uses the built-in module metadata when constructing the initrd,
