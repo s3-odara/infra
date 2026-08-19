@@ -8,6 +8,7 @@
     allowReboot = false;
     randomizedDelaySec = "1h";
     fixedRandomDelay = true;
+    persistent = false;
   };
 
   nix.settings.experimental-features = [
