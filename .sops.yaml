@@ -16,6 +16,13 @@ creation_rules:
         age:
           - age1tfqcej7pw3d6h2mnl4zu4umhf06yc5zlsy6hadsxtt78m6cuxcqs6kp0y4
 
+  - path_regex: ^secrets/guests/aracha-ovh/wireguard/secrets\.sops\.yaml$
+    key_groups:
+      - pgp:
+          - *admin_pgp
+        age:
+          - age1lv7mzet28vhehe2jl9fsplm2lmaawm04uxdcpzvjyp764dfxs3msf0vqc8
+
   - path_regex: ^secrets/guests/tencha-conoha/prosody/secrets\.sops\.yaml$
     key_groups:
       - pgp:
