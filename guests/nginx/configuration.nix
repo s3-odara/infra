@@ -13,6 +13,7 @@ let
   prosodyAddress = "10.77.3.10";
   tuwunelAddress = "10.77.3.14";
   rtcAddress = "10.77.3.15";
+  oidcAccountCss = ./tuwunel-oidc.css;
 
   cinnySecurityHeaders = ''
     add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-dT6noyex1I8o5CS9Sx/y8UOqwpZYIridpGz92gcObIM=' 'sha256-pQY0fuQAnnVQH5nQfjo80rzGkQzeN3JeAtAJ+1KcD4k=' 'sha256-3042zLa3JXvrJe/2n8P/XpIKwqBdNTu7fwbLZUNrzZQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://matrix.odarah.org; font-src 'self' data:; media-src 'self' blob: https://matrix.odarah.org; connect-src 'self' https://matrix.odarah.org wss://matrix.odarah.org https://${rtcHost} wss://${rtcHost}; worker-src 'self' blob:" always;
@@ -46,29 +47,31 @@ let
     JSON
   '';
 
-  element = pkgs.element-web.override {
-    conf = {
-      default_server_config = {
-        "m.homeserver" = {
-          base_url = "https://${matrixHost}";
-          server_name = matrixHost;
-        };
-        "m.identity_server" = null;
-      };
-      disable_custom_urls = true;
-      disable_guests = true;
-      integrations_ui_url = null;
-      integrations_rest_url = null;
-      integrations_widgets_urls = null;
-      room_directory.servers = [ ];
-      map_style_url = null;
-      jitsi = null;
-      element_call = {
-        disable = false;
-        use_exclusively = true;
-      };
+  elementConfig = {
+    default_server_config."m.homeserver" = {
+      base_url = "https://${matrixHost}";
+      server_name = matrixHost;
+    };
+    disable_custom_urls = true;
+    disable_guests = true;
+    disable_3pid_login = true;
+    integrations_ui_url = null;
+    integrations_rest_url = null;
+    integrations_widgets_urls = null;
+    room_directory.servers = [ ];
+    map_style_url = null;
+    element_call = {
+      disable = false;
+      use_exclusively = true;
     };
   };
+  elementConfigFile = pkgs.writeText "element-config.json" (builtins.toJSON elementConfig);
+  element = pkgs.runCommand "element-web-${pkgs.element-web-unwrapped.version}-odarah" { } ''
+    mkdir -p "$out"
+    ln -s ${pkgs.element-web-unwrapped}/* "$out"
+    rm "$out/config.json"
+    ln -s ${elementConfigFile} "$out/config.json"
+  '';
 in
 {
   boot.isContainer = true;
@@ -168,8 +171,6 @@ in
         ~^/config(?:\.[^/]+)?\.json$ "no-store";
         ~^/bundles/[0-9a-f]+/ "public, max-age=31536000, immutable";
         ~^/widgets/element-call/assets/ "public, max-age=31536000, immutable";
-        ~^/(?:fonts|icons|img|vector-icons)/.*\.[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]+\. "public, max-age=31536000, immutable";
-        ~^/[^/]+\.[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]+\.(?:css|js|wasm)$ "public, max-age=31536000, immutable";
       }
       map $http_upgrade $connection_upgrade {
         default upgrade;
@@ -211,6 +212,13 @@ in
             default_type application/json;
             add_header Access-Control-Allow-Origin "*" always;
             return 200 '{"contacts":[{"role":"m.role.admin","matrix_id":"@odara:matrix.odarah.org","email_address":"hostmaster@s3-odara.net"}]}';
+          '';
+
+          "= /_tuwunel/oidc/account.css".extraConfig = ''
+            alias ${oidcAccountCss};
+            default_type text/css;
+            add_header Cache-Control "no-cache" always;
+            add_header X-Content-Type-Options "nosniff" always;
           '';
 
           "~ ^/(?:_matrix|_tuwunel)/" = {
