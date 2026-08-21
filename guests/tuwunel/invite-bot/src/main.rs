@@ -26,7 +26,7 @@ const ADMIN_API: &str = "http://127.0.0.1:8008/_synapse/admin/v1/registration_to
 const INVITER: &str = "@odara:matrix.odarah.org";
 const BOT_USER: &str = "@invite-bot:matrix.odarah.org";
 const INVITE_BASE: &str = "https://cinny.matrix.odarah.org/register/matrix.odarah.org/?token=";
-const TOKEN_TTL_SECS: u64 = 30 * 60;
+const TOKEN_TTL_SECS: u64 = 24 * 60 * 60;
 
 #[derive(Clone)]
 struct App {

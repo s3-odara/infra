@@ -166,7 +166,7 @@
       allow_user_invites = false
       turn_external_host = "turn.odarah.org"
       turn_external_secret = ENV_TURN_EXTERNAL_SECRET
-      turn_external_tls_port = 5349
+      turn_external_tls_port = 443
       -- used only by prosody check dns
       external_addresses = { "15.235.184.173" }
     '';

@@ -77,6 +77,7 @@ in
       turn_uris = [
         "turn:turn.odarah.org:3478?transport=udp"
         "turn:turn.odarah.org:3478?transport=tcp"
+        "turns:turn.odarah.org:443?transport=tcp"
         "turns:turn.odarah.org:5349?transport=tcp"
       ];
       turn_ttl = 86400;

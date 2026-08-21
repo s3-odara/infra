@@ -69,8 +69,8 @@ in
 
     # The public stream listener preserves Prosody's TLS termination while
     # forwarding Matrix TLS to the local HTTP virtual host. The intermediate
-    # listeners remove PROXY protocol before Prosody, but retain it for Matrix
-    # so the HTTP proxy can pass the real client address to tuwunel.
+    # listeners remove PROXY protocol before Prosody and coturn, but retain it
+    # for Matrix so the HTTP proxy can pass the real client address to tuwunel.
     streamConfig = ''
       set_real_ip_from 127.0.0.1;
 
@@ -78,6 +78,7 @@ in
         ${matrixHost} 127.0.0.1:9443;
         ${cinnyHost} 127.0.0.1:9443;
         ${rtcHost} 127.0.0.1:9443;
+        turn.odarah.org 127.0.0.1:9446;
         xmpp.odarah.org 127.0.0.1:9444;
         conference.xmpp.odarah.org 127.0.0.1:9444;
         share.xmpp.odarah.org 127.0.0.1:9444;
@@ -105,6 +106,11 @@ in
       server {
         listen 127.0.0.1:9445 proxy_protocol;
         return "";
+      }
+
+      server {
+        listen 127.0.0.1:9446 proxy_protocol;
+        proxy_pass ${rtcAddress}:5349;
       }
     '';
 

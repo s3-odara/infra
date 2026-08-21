@@ -42,10 +42,28 @@ in
         use_external_ip = true;
         external_ip_only = true;
         enable_loopback_candidate = false;
+        turn_servers = [
+          {
+            host = turnHost;
+            port = 3478;
+            protocol = "udp";
+            secret_file = "/run/credentials/livekit.service/turn-secret";
+          }
+          {
+            host = turnHost;
+            port = 443;
+            protocol = "tls";
+            secret_file = "/run/credentials/livekit.service/turn-secret";
+          }
+        ];
       };
       room.auto_create = false;
     };
   };
+
+  systemd.services.livekit.serviceConfig.LoadCredential = [
+    "turn-secret:${config.sops.secrets.turn_external_secret.path}"
+  ];
 
   systemd.services.lk-jwt-service = {
     description = "MatrixRTC LiveKit JWT authorization service";
@@ -170,7 +188,10 @@ in
     secrets = {
       livekit_api_key = { };
       livekit_api_secret = { };
-      turn_external_secret.restartUnits = [ "coturn.service" ];
+      turn_external_secret.restartUnits = [
+        "coturn.service"
+        "livekit.service"
+      ];
     };
     templates."livekit-key-file" = {
       content = "${config.sops.placeholder.livekit_api_key}: ${config.sops.placeholder.livekit_api_secret}\n";
