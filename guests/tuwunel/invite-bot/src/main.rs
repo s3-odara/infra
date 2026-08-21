@@ -1,6 +1,6 @@
 use std::{
     env,
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::Arc,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
@@ -21,27 +21,17 @@ use matrix_sdk::{
     store::StateStoreDataKey,
 };
 use serde::{Deserialize, Serialize};
-use tokio::sync::Mutex;
-
 const HOMESERVER: &str = "http://127.0.0.1:8008";
 const ADMIN_API: &str = "http://127.0.0.1:8008/_synapse/admin/v1/registration_tokens/new";
 const INVITER: &str = "@odara:matrix.odarah.org";
 const BOT_USER: &str = "@invite-bot:matrix.odarah.org";
 const INVITE_BASE: &str = "https://cinny.matrix.odarah.org/register/matrix.odarah.org/?token=";
-const TOKEN_TTL_SECS: u64 = 60 * 60;
-const COOLDOWN_SECS: u64 = 10 * 60;
+const TOKEN_TTL_SECS: u64 = 30 * 60;
 
 #[derive(Clone)]
 struct App {
     http: reqwest::Client,
     access_token: Arc<str>,
-    state_path: PathBuf,
-    state: Arc<Mutex<PersistentState>>,
-}
-
-#[derive(Default, Deserialize, Serialize)]
-struct PersistentState {
-    last_issued_at: Option<u64>,
 }
 
 #[derive(Serialize)]
@@ -61,23 +51,6 @@ fn now_secs() -> Result<u64> {
         .duration_since(UNIX_EPOCH)
         .context("system clock is before the Unix epoch")?
         .as_secs())
-}
-
-fn load_state(path: &Path) -> Result<PersistentState> {
-    match std::fs::read(path) {
-        Ok(bytes) => serde_json::from_slice(&bytes).context("parse invite-bot state"),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            Ok(PersistentState::default())
-        }
-        Err(error) => Err(error).context("read invite-bot state"),
-    }
-}
-
-fn save_state(path: &Path, state: &PersistentState) -> Result<()> {
-    let temporary = path.with_extension("json.new");
-    std::fs::write(&temporary, serde_json::to_vec(state)?)?;
-    std::fs::rename(temporary, path)?;
-    Ok(())
 }
 
 async fn is_expected_dm(room: &Room) -> Result<bool> {
@@ -146,23 +119,6 @@ async fn try_handle_message(
     }
 
     let now = now_secs()?;
-    {
-        let mut state = app.state.lock().await;
-        if state
-            .last_issued_at
-            .is_some_and(|last| now.saturating_sub(last) < COOLDOWN_SECS)
-        {
-            save_state(&app.state_path, &state)?;
-            room.send(RoomMessageEventContent::text_plain(
-                "An invite was issued recently; try again later.",
-            ))
-            .await?;
-            return Ok(());
-        }
-        state.last_issued_at = Some(now);
-        save_state(&app.state_path, &state)?;
-    }
-
     let requested_expiry_ms = now
         .checked_add(TOKEN_TTL_SECS)
         .and_then(|seconds| seconds.checked_mul(1000))
@@ -217,7 +173,6 @@ async fn main() -> Result<()> {
     let state_dir = PathBuf::from(
         env::var("STATE_DIRECTORY").unwrap_or_else(|_| "/var/lib/matrix-invite-bot".to_owned()),
     );
-    let state_path = state_dir.join("cooldown.json");
     let client = Client::builder()
         .homeserver_url(HOMESERVER)
         .sqlite_store(state_dir.join("matrix-sdk"), None)
@@ -249,8 +204,6 @@ async fn main() -> Result<()> {
             .timeout(Duration::from_secs(15))
             .build()?,
         access_token,
-        state_path: state_path.clone(),
-        state: Arc::new(Mutex::new(load_state(&state_path)?)),
     };
     // Join room invitations only when they come from the sole authorized MXID.
     client.add_event_handler(handle_invite);
