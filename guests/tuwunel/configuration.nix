@@ -63,8 +63,7 @@ in
       refresh_token_hard_logout = false;
       allow_encryption = true;
       encryption_enabled_by_default_for_room_type = "invite";
-      # Switch to false after @odara:matrix.odarah.org is registered and the dedicated invite bot is made admin.
-      grant_admin_to_first_user = true;
+      grant_admin_to_first_user = false;
       admin_escape_commands = false;
       federate_admin_room = false;
       allow_unlisted_room_search_by_id = false;
