@@ -8,6 +8,7 @@
 let
   matrixHost = "matrix.odarah.org";
   cinnyHost = "cinny.matrix.odarah.org";
+  elementHost = "element.matrix.odarah.org";
   rtcHost = "rtc.matrix.odarah.org";
   prosodyAddress = "10.77.3.10";
   tuwunelAddress = "10.77.3.14";
@@ -15,6 +16,15 @@ let
 
   cinnySecurityHeaders = ''
     add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-dT6noyex1I8o5CS9Sx/y8UOqwpZYIridpGz92gcObIM=' 'sha256-pQY0fuQAnnVQH5nQfjo80rzGkQzeN3JeAtAJ+1KcD4k=' 'sha256-3042zLa3JXvrJe/2n8P/XpIKwqBdNTu7fwbLZUNrzZQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://matrix.odarah.org; font-src 'self' data:; media-src 'self' blob: https://matrix.odarah.org; connect-src 'self' https://matrix.odarah.org wss://matrix.odarah.org https://${rtcHost} wss://${rtcHost}; worker-src 'self' blob:" always;
+    add_header Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=(), usb=()" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+  '';
+
+  elementSecurityHeaders = ''
+    add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-pQY0fuQAnnVQH5nQfjo80rzGkQzeN3JeAtAJ+1KcD4k=' 'sha256-3042zLa3JXvrJe/2n8P/XpIKwqBdNTu7fwbLZUNrzZQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://${matrixHost}; font-src 'self' data:; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self' blob:; worker-src 'self' blob:; manifest-src 'self'" always;
     add_header Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=(), usb=()" always;
     add_header Referrer-Policy "no-referrer" always;
     add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
@@ -35,6 +45,30 @@ let
     }
     JSON
   '';
+
+  element = pkgs.element-web.override {
+    conf = {
+      default_server_config = {
+        "m.homeserver" = {
+          base_url = "https://${matrixHost}";
+          server_name = matrixHost;
+        };
+        "m.identity_server" = null;
+      };
+      disable_custom_urls = true;
+      disable_guests = true;
+      integrations_ui_url = null;
+      integrations_rest_url = null;
+      integrations_widgets_urls = null;
+      room_directory.servers = [ ];
+      map_style_url = null;
+      jitsi = null;
+      element_call = {
+        disable = false;
+        use_exclusively = true;
+      };
+    };
+  };
 in
 {
   boot.isContainer = true;
@@ -48,6 +82,7 @@ in
     certs.${matrixHost} = {
       extraDomainNames = [
         cinnyHost
+        elementHost
         rtcHost
       ];
       profile = "shortlived";
@@ -77,6 +112,7 @@ in
       map $ssl_preread_server_name $tls_dispatch {
         ${matrixHost} 127.0.0.1:9443;
         ${cinnyHost} 127.0.0.1:9443;
+        ${elementHost} 127.0.0.1:9443;
         ${rtcHost} 127.0.0.1:9443;
         turn.odarah.org 127.0.0.1:9446;
         xmpp.odarah.org 127.0.0.1:9444;
@@ -126,6 +162,14 @@ in
         default "no-cache";
         ~^/assets/ "public, max-age=31536000, immutable";
         ~^/register/ "no-store";
+      }
+      map $request_uri $element_cache_control {
+        default "no-cache";
+        ~^/config(?:\.[^/]+)?\.json$ "no-store";
+        ~^/bundles/[0-9a-f]+/ "public, max-age=31536000, immutable";
+        ~^/widgets/element-call/assets/ "public, max-age=31536000, immutable";
+        ~^/(?:fonts|icons|img|vector-icons)/.*\.[0-9a-f]{7,}\. "public, max-age=31536000, immutable";
+        ~^/[^/]+\.[0-9a-f]{7,}\.(?:css|js|wasm)$ "public, max-age=31536000, immutable";
       }
       map $http_upgrade $connection_upgrade {
         default upgrade;
@@ -222,6 +266,38 @@ in
           "^~ /public/".extraConfig = ''
             try_files $uri =404;
           '';
+          "/".extraConfig = ''
+            try_files $uri $uri/ /index.html;
+          '';
+        };
+      };
+
+      ${elementHost} = {
+        useACMEHost = matrixHost;
+        forceSSL = true;
+        root = element;
+        listen = [
+          {
+            addr = "0.0.0.0";
+            port = 80;
+          }
+          {
+            addr = "127.0.0.1";
+            port = 8443;
+            ssl = true;
+            proxyProtocol = true;
+          }
+        ];
+        extraConfig = ''
+          ${elementSecurityHeaders}
+          add_header Cache-Control $element_cache_control always;
+        '';
+
+        locations = {
+          "~ ^/config(?:\\.[^/]+)?\\.json$".tryFiles = "$uri =404";
+          "= /index.html".tryFiles = "$uri =404";
+          "^~ /bundles/".tryFiles = "$uri =404";
+          "^~ /widgets/element-call/assets/".tryFiles = "$uri =404";
           "/".extraConfig = ''
             try_files $uri $uri/ /index.html;
           '';
