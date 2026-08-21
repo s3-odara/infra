@@ -50,6 +50,10 @@ guests = {
         protocol = "tcp"
         port     = 5269
       },
+      {
+        protocol = "tcp"
+        port     = 5270
+      },
     ]
     private_ports = []
   }

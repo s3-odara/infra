@@ -95,6 +95,37 @@
           ];
         };
 
+        nginx = nixpkgs.lib.nixosSystem {
+          system = "x86_64-linux";
+          specialArgs.configurationName = "nginx";
+          modules = [
+            ./modules/guest.nix
+            ./guests/nginx/configuration.nix
+          ];
+        };
+
+        tuwunel = nixpkgs.lib.nixosSystem {
+          system = "x86_64-linux";
+          specialArgs.configurationName = "tuwunel";
+          modules = [
+            sops-nix.nixosModules.sops
+            ./modules/guest.nix
+            ./modules/guest-secrets.nix
+            ./guests/tuwunel/configuration.nix
+          ];
+        };
+
+        rtc = nixpkgs.lib.nixosSystem {
+          system = "x86_64-linux";
+          specialArgs.configurationName = "rtc";
+          modules = [
+            sops-nix.nixosModules.sops
+            ./modules/guest.nix
+            ./modules/guest-secrets.nix
+            ./guests/rtc/configuration.nix
+          ];
+        };
+
         wireguard = nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
           specialArgs.configurationName = "wireguard";

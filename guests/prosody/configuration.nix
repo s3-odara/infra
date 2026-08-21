@@ -67,7 +67,7 @@
     checkConfig = true;
     admins = [ ];
     httpPorts = [ ];
-    httpsPorts = [ 443 ];
+    httpsPorts = [ ];
     ssl = {
       cert = "/var/lib/acme/xmpp.odarah.org/fullchain.pem";
       key = "/var/lib/acme/xmpp.odarah.org/key.pem";
@@ -146,10 +146,12 @@
       "invites"
       "invites_adhoc"
       "invites_register"
+      "net_multiplex"
       "turn_external"
     ];
 
     extraConfig = ''
+      ssl_ports = { 443 }
       c2s_direct_tls_ports = { 5223 }
       s2s_direct_tls_ports = { 5270 }
       tls_server_end_point_hash = "auto"
@@ -162,35 +164,11 @@
       registration_invite_only = true
       invite_expiry = 86400
       allow_user_invites = false
-      turn_external_host = "xmpp.odarah.org"
+      turn_external_host = "turn.odarah.org"
       turn_external_secret = ENV_TURN_EXTERNAL_SECRET
       turn_external_tls_port = 5349
       -- used only by prosody check dns
       external_addresses = { "15.235.184.173" }
-    '';
-  };
-
-  services.coturn = {
-    enable = true;
-    listening-ips = [ "10.77.3.10" ];
-    relay-ips = [ "10.77.3.10" ];
-    min-port = 49160;
-    max-port = 49200;
-    realm = "xmpp.odarah.org";
-    use-auth-secret = true;
-    static-auth-secret-file = "/run/credentials/coturn.service/turn-secret";
-    cert = "/run/credentials/coturn.service/tls-cert";
-    pkey = "/run/credentials/coturn.service/tls-key";
-    no-cli = true;
-    no-tcp = true;
-    no-dtls = true;
-    no-tcp-relay = true;
-    extraConfig = ''
-      external-ip=15.235.184.173/10.77.3.10
-      no-multicast-peers
-      denied-peer-ip=10.0.0.0-10.255.255.255
-      denied-peer-ip=172.16.0.0-172.31.255.255
-      denied-peer-ip=192.168.0.0-192.168.255.255
     '';
   };
 
@@ -209,10 +187,7 @@
       ];
       group = "prosody";
       listenHTTP = "0.0.0.0:80";
-      reloadServices = [
-        "coturn.service"
-        "prosody.service"
-      ];
+      reloadServices = [ "prosody.service" ];
     };
   };
 
@@ -243,7 +218,7 @@
 
   sops = {
     secrets = {
-      turn_external_secret.restartUnits = [ "coturn.service" ];
+      turn_external_secret = { };
       ntfy_topic = { };
       r2_access_key_id = { };
       r2_secret_access_key = { };
@@ -313,7 +288,7 @@
       passwordFile = config.sops.secrets.restic_repository_password.path;
       initialize = true;
       pruneOpts = [
-        "--keep-weekly 4"
+        "--keep-weekly 8"
         "--keep-monthly 6"
       ];
       backupPrepareCommand = ''
@@ -335,16 +310,6 @@
         Persistent = true;
       };
     };
-  };
-
-  systemd.services.coturn = {
-    after = [ "acme-xmpp.odarah.org.service" ];
-    wants = [ "acme-xmpp.odarah.org.service" ];
-    serviceConfig.LoadCredential = [
-      "turn-secret:${config.sops.secrets.turn_external_secret.path}"
-      "tls-cert:/var/lib/acme/xmpp.odarah.org/fullchain.pem"
-      "tls-key:/var/lib/acme/xmpp.odarah.org/key.pem"
-    ];
   };
 
   systemd.services.prosody = {

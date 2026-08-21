@@ -21,4 +21,9 @@
     dates = "daily";
     options = "--delete-older-than 7d";
   };
+
+  services.journald.extraConfig = ''
+    SystemMaxUse=200M
+    MaxRetentionSec=14day
+  '';
 }

@@ -51,6 +51,10 @@ guests = {
         port     = 5269
       },
       {
+        protocol = "tcp"
+        port     = 5270
+      },
+      {
         protocol = "udp"
         port     = 3478
       },

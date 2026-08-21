@@ -34,18 +34,25 @@
 
     zones = {
       "odarah.org.".data = ''
-        odarah.org. 3600 IN SOA ns.odarah.org. HOSTMASTER.S3-ODARA.NET. 2026081801 3600 1800 604800 600
+        odarah.org. 3600 IN SOA ns.odarah.org. HOSTMASTER.S3-ODARA.NET. 2026082105 3600 1800 604800 600
         odarah.org. 3600 IN NS ns.odarah.org.
         odarah.org. 3600 IN A 127.0.0.1
         ns.odarah.org. 3600 IN A 15.235.184.173
+        matrix.odarah.org. 3600 IN A 15.235.184.173
+        rtc.matrix.odarah.org. 3600 IN A 15.235.184.173
+        cinny.matrix.odarah.org. 3600 IN A 15.235.184.173
         xmpp.odarah.org. 3600 IN A 15.235.184.173
-        _xmpp-client._tcp.xmpp.odarah.org. 3600 IN SRV 20 5 5222 xmpp.odarah.org.
-        _xmpps-client._tcp.xmpp.odarah.org. 3600 IN SRV 10 5 5223 xmpp.odarah.org.
-        _xmpp-server._tcp.xmpp.odarah.org. 3600 IN SRV 20 5 5269 xmpp.odarah.org.
-        _xmpps-server._tcp.xmpp.odarah.org. 3600 IN SRV 10 5 5270 xmpp.odarah.org.
+        turn.odarah.org. 3600 IN A 15.235.184.173
+        _xmpp-client._tcp.xmpp.odarah.org. 3600 IN SRV 30 5 5222 xmpp.odarah.org.
+        _xmpps-client._tcp.xmpp.odarah.org. 3600 IN SRV 10 5 443 xmpp.odarah.org.
+        _xmpps-client._tcp.xmpp.odarah.org. 3600 IN SRV 20 5 5223 xmpp.odarah.org.
+        _xmpp-server._tcp.xmpp.odarah.org. 3600 IN SRV 30 5 5269 xmpp.odarah.org.
+        _xmpps-server._tcp.xmpp.odarah.org. 3600 IN SRV 10 5 443 xmpp.odarah.org.
+        _xmpps-server._tcp.xmpp.odarah.org. 3600 IN SRV 20 5 5270 xmpp.odarah.org.
         conference.xmpp.odarah.org. 3600 IN A 15.235.184.173
-        _xmpp-server._tcp.conference.xmpp.odarah.org. IN SRV 20 5 5269 xmpp.odarah.org.
-        _xmpps-server._tcp.conference.xmpp.odarah.org. 3600 IN SRV 10 5 5270 xmpp.odarah.org.
+        _xmpp-server._tcp.conference.xmpp.odarah.org. IN SRV 30 5 5269 xmpp.odarah.org.
+        _xmpps-server._tcp.conference.xmpp.odarah.org. 3600 IN SRV 10 5 443 xmpp.odarah.org.
+        _xmpps-server._tcp.conference.xmpp.odarah.org. 3600 IN SRV 20 5 5270 xmpp.odarah.org.
         share.xmpp.odarah.org. 3600 IN A 15.235.184.173
         odarah.org. 3600 IN CAA 0 issuemail ";"
         odarah.org. 3600 IN CAA 0 issuewild ";"
