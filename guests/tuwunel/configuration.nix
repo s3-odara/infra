@@ -18,7 +18,6 @@ let
   };
   registrationToken = "/var/lib/tuwunel/registration-token";
   backupDirectory = "/var/lib/tuwunel-backups";
-  inviteBotCredentials = "/var/lib/matrix-invite-bot-credentials/credentials.env";
 in
 {
   boot.isContainer = true;
@@ -37,10 +36,6 @@ in
     group = "matrix-invite-bot";
     home = "/var/lib/matrix-invite-bot";
   };
-
-  systemd.tmpfiles.rules = [
-    "d /var/lib/matrix-invite-bot-credentials 0750 root matrix-invite-bot -"
-  ];
 
   services.matrix-tuwunel = {
     enable = true;
@@ -140,17 +135,33 @@ in
       r2_access_key_id = { };
       r2_secret_access_key = { };
       restic_repository_password = { };
+      matrix_invite_bot_device_id = { };
+      matrix_invite_bot_access_token = { };
     };
 
-    templates."restic-r2.env" = {
-      content = ''
-        AWS_ACCESS_KEY_ID=${config.sops.placeholder.r2_access_key_id}
-        AWS_SECRET_ACCESS_KEY=${config.sops.placeholder.r2_secret_access_key}
-        AWS_DEFAULT_REGION=auto
-      '';
-      owner = "root";
-      group = "root";
-      mode = "0400";
+    templates = {
+      "restic-r2.env" = {
+        content = ''
+          AWS_ACCESS_KEY_ID=${config.sops.placeholder.r2_access_key_id}
+          AWS_SECRET_ACCESS_KEY=${config.sops.placeholder.r2_secret_access_key}
+          AWS_DEFAULT_REGION=auto
+        '';
+        owner = "root";
+        group = "root";
+        mode = "0400";
+      };
+
+      "matrix-invite-bot.env" = {
+        content = ''
+          MATRIX_USER_ID=@invite-bot:matrix.odarah.org
+          MATRIX_DEVICE_ID=${config.sops.placeholder.matrix_invite_bot_device_id}
+          MATRIX_ACCESS_TOKEN=${config.sops.placeholder.matrix_invite_bot_access_token}
+        '';
+        owner = "matrix-invite-bot";
+        group = "matrix-invite-bot";
+        mode = "0400";
+        restartUnits = [ "matrix-invite-bot.service" ];
+      };
     };
   };
 
@@ -161,7 +172,6 @@ in
       "/var/lib/tuwunel/media"
       registrationToken
       "/var/lib/matrix-invite-bot"
-      "/var/lib/matrix-invite-bot-credentials"
     ];
     environmentFile = config.sops.templates."restic-r2.env".path;
     passwordFile = config.sops.secrets.restic_repository_password.path;
@@ -207,14 +217,14 @@ in
       "network-online.target"
       "tuwunel.service"
     ];
-    unitConfig.ConditionPathExists = inviteBotCredentials;
+    unitConfig.ConditionPathExists = config.sops.templates."matrix-invite-bot.env".path;
 
     serviceConfig = {
       User = "matrix-invite-bot";
       Group = "matrix-invite-bot";
       StateDirectory = "matrix-invite-bot";
       StateDirectoryMode = "0700";
-      EnvironmentFile = inviteBotCredentials;
+      EnvironmentFile = config.sops.templates."matrix-invite-bot.env".path;
       ExecStart = lib.getExe inviteBot;
       Restart = "on-failure";
       RestartSec = "30s";
