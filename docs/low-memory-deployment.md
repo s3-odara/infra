@@ -21,7 +21,8 @@
       'umask 077; cat > ~/.nixos-system.nar'
 
   printf '\033Ptmux;\033\033]9;archiveの転送が完了しました。\033\033\\\033\\' >/dev/tty
-  read -r -p 'doas認証を開始するにはEnterを押してください: ' _ </dev/tty
+  printf 'doas認証を開始するにはEnterを押してください: ' >/dev/tty
+  IFS= read -r _ </dev/tty
 
   ssh -t "me@${HOST}" \
     "doas sh -c 'nix-store --import < /home/me/.nixos-system.nar >/dev/null &&
@@ -55,6 +56,11 @@ archiveは`/home/me/.nixos-system.nar`へmode `0600`で置く。2番目のSSH接
   nix-store --export $(nix-store --query --requisites "$out") |
     ssh -T "$HOST" \
       "incus exec -T \"$GUEST\" -- nix-store --import >/dev/null"
+
+  printf '\033Ptmux;\033\033]9;closureの転送が完了しました。\033\033\\\033\\' >/dev/tty
+  printf 'guestのactivationを開始するにはEnterを押してください: ' >/dev/tty
+  IFS= read -r _ </dev/tty
+
   ssh -t "$HOST" \
     "incus exec -T \"$GUEST\" -- \
        nix-env --profile /nix/var/nix/profiles/system --set \"$out\" && \
