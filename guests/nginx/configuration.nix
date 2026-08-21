@@ -168,8 +168,8 @@ in
         ~^/config(?:\.[^/]+)?\.json$ "no-store";
         ~^/bundles/[0-9a-f]+/ "public, max-age=31536000, immutable";
         ~^/widgets/element-call/assets/ "public, max-age=31536000, immutable";
-        ~^/(?:fonts|icons|img|vector-icons)/.*\.[0-9a-f]{7,}\. "public, max-age=31536000, immutable";
-        ~^/[^/]+\.[0-9a-f]{7,}\.(?:css|js|wasm)$ "public, max-age=31536000, immutable";
+        ~^/(?:fonts|icons|img|vector-icons)/.*\.[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]+\. "public, max-age=31536000, immutable";
+        ~^/[^/]+\.[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]+\.(?:css|js|wasm)$ "public, max-age=31536000, immutable";
       }
       map $http_upgrade $connection_upgrade {
         default upgrade;
