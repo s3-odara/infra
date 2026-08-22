@@ -14,6 +14,7 @@ let
   tuwunelAddress = "10.77.3.14";
   rtcAddress = "10.77.3.15";
   oidcAccountCss = ./tuwunel-oidc.css;
+  matrixLandingPage = ./matrix-landing.html;
 
   cinnySecurityHeaders = ''
     add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-dT6noyex1I8o5CS9Sx/y8UOqwpZYIridpGz92gcObIM=' 'sha256-pQY0fuQAnnVQH5nQfjo80rzGkQzeN3JeAtAJ+1KcD4k=' 'sha256-3042zLa3JXvrJe/2n8P/XpIKwqBdNTu7fwbLZUNrzZQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://matrix.odarah.org; font-src 'self' data:; media-src 'self' blob: https://matrix.odarah.org; connect-src 'self' https://matrix.odarah.org wss://matrix.odarah.org https://${rtcHost} wss://${rtcHost}; worker-src 'self' blob:" always;
@@ -197,6 +198,22 @@ in
         ];
 
         locations = {
+          "= /" = {
+            alias = matrixLandingPage;
+            extraConfig = ''
+              default_type text/html;
+              charset utf-8;
+              add_header Cache-Control "no-store, no-cache, must-revalidate, max-age=0" always;
+              add_header Pragma "no-cache" always;
+              add_header Content-Security-Policy "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" always;
+              add_header Permissions-Policy "accelerometer=(), ambient-light-sensor=(), autoplay=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()" always;
+              add_header Referrer-Policy "no-referrer" always;
+              add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
+              add_header X-Content-Type-Options "nosniff" always;
+              add_header X-Frame-Options "DENY" always;
+            '';
+          };
+
           "= /.well-known/matrix/client".extraConfig = ''
             default_type application/json;
             add_header Access-Control-Allow-Origin "*" always;
