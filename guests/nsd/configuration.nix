@@ -33,47 +33,10 @@
     '';
 
     zones = {
-      "odarah.org.".data = ''
-        odarah.org. 3600 IN SOA ns.odarah.org. HOSTMASTER.S3-ODARA.NET. 2026082106 3600 1800 604800 600
-        odarah.org. 3600 IN NS ns.odarah.org.
-        odarah.org. 3600 IN A 127.0.0.1
-        ns.odarah.org. 3600 IN A 15.235.184.173
-        matrix.odarah.org. 3600 IN A 15.235.184.173
-        rtc.matrix.odarah.org. 3600 IN A 15.235.184.173
-        cinny.matrix.odarah.org. 3600 IN A 15.235.184.173
-        element.matrix.odarah.org. 3600 IN A 15.235.184.173
-        xmpp.odarah.org. 3600 IN A 15.235.184.173
-        turn.odarah.org. 3600 IN A 15.235.184.173
-        _xmpp-client._tcp.xmpp.odarah.org. 3600 IN SRV 30 5 5222 xmpp.odarah.org.
-        _xmpps-client._tcp.xmpp.odarah.org. 3600 IN SRV 10 5 443 xmpp.odarah.org.
-        _xmpps-client._tcp.xmpp.odarah.org. 3600 IN SRV 20 5 5223 xmpp.odarah.org.
-        _xmpp-server._tcp.xmpp.odarah.org. 3600 IN SRV 30 5 5269 xmpp.odarah.org.
-        _xmpps-server._tcp.xmpp.odarah.org. 3600 IN SRV 10 5 443 xmpp.odarah.org.
-        _xmpps-server._tcp.xmpp.odarah.org. 3600 IN SRV 20 5 5270 xmpp.odarah.org.
-        conference.xmpp.odarah.org. 3600 IN A 15.235.184.173
-        _xmpp-server._tcp.conference.xmpp.odarah.org. IN SRV 30 5 5269 xmpp.odarah.org.
-        _xmpps-server._tcp.conference.xmpp.odarah.org. 3600 IN SRV 10 5 443 xmpp.odarah.org.
-        _xmpps-server._tcp.conference.xmpp.odarah.org. 3600 IN SRV 20 5 5270 xmpp.odarah.org.
-        share.xmpp.odarah.org. 3600 IN A 15.235.184.173
-        odarah.org. 3600 IN CAA 0 issuemail ";"
-        odarah.org. 3600 IN CAA 0 issuewild ";"
-        odarah.org. 3600 IN CAA 0 issue "letsencrypt.org"
-        odarah.org. 3600 IN CAA 0 iodef "mailto:hostmaster@s3-odara.net"
-        odarah.org. 3600 IN LOC 35 54 33.931 N 138 36 44.221 E 2418.43m 0.00m 0.00m 0.00m
-        _dmarc.mailinglist.odarah.org. 3600 IN TXT "v=DMARC1; p=none; sp=reject; aspf=s; adkim=s; rua=mailto:mailreport@s3-odara.net; ruf=mailto:postmaster@s3-odara.net; fo=1"
-        _dmarc.odarah.org. 3600 IN TXT "v=DMARC1; p=reject; sp=reject; aspf=s; adkim=s; rua=mailto:mailreport@s3-odara.net; ruf=mailto:postmaster@s3-odara.net; fo=1"
-        mailinglist.odarah.org. 3600 IN TXT "v=spf1 ~all"
-        mailinglist.odarah.org._report._dmarc.odarah.org. 3600 IN TXT "v=DMARC1;"
-        _mta-sts.odarah.org. 3600 IN TXT "v=STSv1; id=20240407003138"
-        odarah.org. 3600 IN TXT "my pgp fpr: B353 1E57 3A66 76E8 A920 60B3 879D 4D00 108D 4015"
-        odarah.org. 3600 IN TXT "v=spf1 ~all"
-      '';
+      "odarah.org.".data = builtins.readFile ./zones/odarah.org.zone;
 
-      "173.184.235.15.in-addr.arpa.".data = ''
-        173.184.235.15.in-addr.arpa. 3600 IN SOA NS.ODARAH.ORG. HOSTMASTER.S3-ODARA.NET. 20240902 3600 1800 604800 600
-        173.184.235.15.in-addr.arpa. 86400 IN NS ns.odarah.org.
-        173.184.235.15.in-addr.arpa. 3600 IN PTR odarah.org.
-      '';
+      "173.184.235.15.in-addr.arpa.".data =
+        builtins.readFile ./zones/173.184.235.15.in-addr.arpa.zone;
     };
   };
 
