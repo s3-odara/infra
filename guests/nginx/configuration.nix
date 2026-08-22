@@ -126,6 +126,8 @@ in
 
   services.nginx = {
     enable = true;
+    recommendedOptimisation = true;
+    recommendedTlsSettings = true;
     recommendedGzipSettings = true;
     recommendedBrotliSettings = true;
 
