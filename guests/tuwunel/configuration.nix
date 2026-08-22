@@ -26,6 +26,7 @@ in
   networking.firewall.enable = false;
 
   environment.systemPackages = [
+    inviteBot
     pkgs.curl
     pkgs.jq
   ];
@@ -157,8 +158,8 @@ in
           MATRIX_DEVICE_ID=${config.sops.placeholder.matrix_invite_bot_device_id}
           MATRIX_ACCESS_TOKEN=${config.sops.placeholder.matrix_invite_bot_access_token}
         '';
-        owner = "matrix-invite-bot";
-        group = "matrix-invite-bot";
+        owner = "root";
+        group = "root";
         mode = "0400";
         restartUnits = [ "matrix-invite-bot.service" ];
       };

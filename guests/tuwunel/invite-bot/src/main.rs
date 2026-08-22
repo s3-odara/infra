@@ -1,5 +1,8 @@
 use std::{
+    collections::BTreeMap,
     env,
+    ffi::OsString,
+    io::BufRead,
     path::PathBuf,
     sync::Arc,
     time::{Duration, SystemTime, UNIX_EPOCH},
@@ -13,6 +16,11 @@ use matrix_sdk::{
     deserialized_responses::EncryptionInfo,
     ruma::{
         OwnedDeviceId, OwnedUserId,
+        api::client::{
+            keys::get_keys,
+            uiaa::{AuthData, Password},
+        },
+        encryption::{CrossSigningKey, KeyUsage},
         events::room::{
             member::{MembershipState, StrippedRoomMemberEvent},
             message::{MessageType, RoomMessageEventContent, SyncRoomMessageEvent},
@@ -27,6 +35,12 @@ const INVITER: &str = "@odara:matrix.odarah.org";
 const BOT_USER: &str = "@invite-bot:matrix.odarah.org";
 const INVITE_BASE: &str = "https://cinny.matrix.odarah.org/register/matrix.odarah.org/?token=";
 const TOKEN_TTL_SECS: u64 = 24 * 60 * 60;
+
+#[derive(Debug, Eq, PartialEq)]
+enum Mode {
+    Service,
+    BootstrapCrossSigning,
+}
 
 #[derive(Clone)]
 struct App {
@@ -44,6 +58,35 @@ struct CreateTokenRequest {
 #[derive(Deserialize)]
 struct CreateTokenResponse {
     token: String,
+}
+
+fn parse_mode(args: impl IntoIterator<Item = OsString>) -> Result<Mode> {
+    let args: Vec<_> = args.into_iter().collect();
+    match args.as_slice() {
+        [] => Ok(Mode::Service),
+        [arg] if arg == "bootstrap-cross-signing" => Ok(Mode::BootstrapCrossSigning),
+        _ => bail!("usage: matrix-invite-bot [bootstrap-cross-signing]"),
+    }
+}
+
+fn read_password_line(mut input: impl BufRead) -> Result<String> {
+    let mut password = String::new();
+    let bytes_read = input
+        .read_line(&mut password)
+        .context("read bot password from stdin")?;
+    if bytes_read == 0 {
+        bail!("bot password was not provided on stdin");
+    }
+    if password.ends_with('\n') {
+        password.pop();
+        if password.ends_with('\r') {
+            password.pop();
+        }
+    }
+    if password.is_empty() {
+        bail!("bot password must not be empty");
+    }
+    Ok(password)
 }
 
 fn now_secs() -> Result<u64> {
@@ -154,8 +197,7 @@ async fn try_handle_message(
     Ok(())
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+async fn restore_configured_session() -> Result<(Client, Arc<str>, OwnedUserId, OwnedDeviceId)> {
     let access_token: Arc<str> = env::var("MATRIX_ACCESS_TOKEN")
         .context("MATRIX_ACCESS_TOKEN is not set")?
         .into();
@@ -199,6 +241,179 @@ async fn main() -> Result<()> {
         bail!("restored Matrix session is not the configured dedicated bot device");
     }
 
+    Ok((client, access_token, user_id, device_id))
+}
+
+fn validate_server_cross_signing_key(
+    key: CrossSigningKey,
+    user_id: &OwnedUserId,
+    expected_usage: KeyUsage,
+) -> Result<()> {
+    if key.user_id != *user_id {
+        bail!("server returned a cross-signing key for an unexpected user");
+    }
+    if key.usage.len() != 1 || key.usage[0] != expected_usage {
+        bail!("server returned a cross-signing key with inconsistent usage");
+    }
+    if key.keys.len() != 1 {
+        bail!("server returned a cross-signing key without exactly one public key");
+    }
+    Ok(())
+}
+
+async fn server_cross_signing_identity_exists(
+    client: &Client,
+    user_id: &OwnedUserId,
+) -> Result<bool> {
+    let mut request = get_keys::v3::Request::new();
+    request.device_keys = BTreeMap::from([(user_id.clone(), Vec::new())]);
+    let mut response = client
+        .send(request)
+        .await
+        .context("query server-authoritative cross-signing keys")?;
+    if !response.failures.is_empty() {
+        bail!("server key query reported failures");
+    }
+
+    let master = response.master_keys.remove(user_id);
+    let self_signing = response.self_signing_keys.remove(user_id);
+    match (master, self_signing) {
+        (None, None) => Ok(false),
+        (Some(master), Some(self_signing)) => {
+            validate_server_cross_signing_key(
+                master.deserialize().context("decode server master key")?,
+                user_id,
+                KeyUsage::Master,
+            )?;
+            validate_server_cross_signing_key(
+                self_signing
+                    .deserialize()
+                    .context("decode server self-signing key")?,
+                user_id,
+                KeyUsage::SelfSigning,
+            )?;
+            Ok(true)
+        }
+        _ => bail!("server returned an incomplete cross-signing identity"),
+    }
+}
+
+async fn refresh_own_identity(client: &Client, user_id: &OwnedUserId) -> Result<bool> {
+    Ok(client
+        .encryption()
+        .request_user_identity(user_id)
+        .await
+        .context("refresh own cross-signing identity")?
+        .is_some())
+}
+
+async fn configured_device_is_cross_signed(
+    client: &Client,
+    user_id: &OwnedUserId,
+    device_id: &OwnedDeviceId,
+) -> Result<bool> {
+    let device = client
+        .encryption()
+        .get_device(user_id, device_id)
+        .await
+        .context("read configured device from crypto store")?
+        .context("configured device is absent from the crypto store after key query")?;
+    Ok(device.is_cross_signed_by_owner())
+}
+
+async fn assert_configured_device_cross_signed(
+    client: &Client,
+    user_id: &OwnedUserId,
+    device_id: &OwnedDeviceId,
+) -> Result<()> {
+    if !server_cross_signing_identity_exists(client, user_id).await? {
+        bail!("server still has no cross-signing identity for the bot account");
+    }
+    if !refresh_own_identity(client, user_id).await? {
+        bail!("server cross-signing identity was not refreshed into the crypto store");
+    }
+    if !configured_device_is_cross_signed(client, user_id, device_id).await? {
+        bail!("configured device is still not cross-signed by the bot account");
+    }
+    Ok(())
+}
+
+async fn bootstrap_cross_signing(
+    client: &Client,
+    user_id: &OwnedUserId,
+    device_id: &OwnedDeviceId,
+) -> Result<()> {
+    client
+        .sync_once(SyncSettings::default())
+        .await
+        .context("initial sync for E2EE bootstrap")?;
+    client
+        .encryption()
+        .wait_for_e2ee_initialization_tasks()
+        .await;
+
+    let identity_exists = server_cross_signing_identity_exists(client, user_id).await?;
+    refresh_own_identity(client, user_id).await?;
+    if identity_exists && configured_device_is_cross_signed(client, user_id, device_id).await? {
+        assert_configured_device_cross_signed(client, user_id, device_id).await?;
+        println!("configured Matrix device is already cross-signed by its owner");
+        return Ok(());
+    }
+
+    if identity_exists {
+        let status = client
+            .encryption()
+            .cross_signing_status()
+            .await
+            .context("E2EE machine is unavailable")?;
+        if !status.has_self_signing {
+            bail!(
+                "a cross-signing identity already exists, but this store lacks its private self-signing key; refusing to reset or replace cross-signing"
+            );
+        }
+
+        let device = client
+            .encryption()
+            .get_device(user_id, device_id)
+            .await
+            .context("read configured device from crypto store")?
+            .context("configured device is absent from the crypto store after key query")?;
+        device
+            .verify()
+            .await
+            .context("sign configured device with existing self-signing key")?;
+    } else {
+        let uiaa = match client.encryption().bootstrap_cross_signing(None).await {
+            Ok(()) => {
+                assert_configured_device_cross_signed(client, user_id, device_id).await?;
+                println!("cross-signing bootstrapped without an interactive-auth challenge");
+                return Ok(());
+            }
+            Err(error) => error
+                .as_uiaa_response()
+                .cloned()
+                .context("cross-signing bootstrap did not return a UIAA challenge")?,
+        };
+        let session = uiaa
+            .session
+            .context("cross-signing UIAA challenge omitted its session")?;
+
+        let password = read_password_line(std::io::stdin().lock())?;
+        let mut password_auth = Password::new(user_id.into(), password);
+        password_auth.session = Some(session);
+        client
+            .encryption()
+            .bootstrap_cross_signing(Some(AuthData::Password(password_auth)))
+            .await
+            .context("complete password-authenticated cross-signing bootstrap")?;
+    }
+
+    assert_configured_device_cross_signed(client, user_id, device_id).await?;
+    println!("configured Matrix device is now cross-signed by its owner");
+    Ok(())
+}
+
+async fn run_service(client: Client, access_token: Arc<str>) -> Result<()> {
     let app = App {
         http: reqwest::Client::builder()
             .timeout(Duration::from_secs(15))
@@ -224,4 +439,53 @@ async fn main() -> Result<()> {
 
     client.sync(SyncSettings::default()).await?;
     Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    let mode = parse_mode(env::args_os().skip(1))?;
+    let (client, access_token, user_id, device_id) = restore_configured_session().await?;
+
+    match mode {
+        Mode::Service => run_service(client, access_token).await,
+        Mode::BootstrapCrossSigning => bootstrap_cross_signing(&client, &user_id, &device_id).await,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{ffi::OsString, io::Cursor};
+
+    use super::{Mode, parse_mode, read_password_line};
+
+    #[test]
+    fn parses_supported_modes_and_refuses_other_arguments() {
+        assert_eq!(parse_mode([]).unwrap(), Mode::Service);
+        assert_eq!(
+            parse_mode([OsString::from("bootstrap-cross-signing")]).unwrap(),
+            Mode::BootstrapCrossSigning
+        );
+        assert!(parse_mode([OsString::from("unexpected")]).is_err());
+        assert!(
+            parse_mode([
+                OsString::from("bootstrap-cross-signing"),
+                OsString::from("extra")
+            ])
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn reads_exactly_one_nonempty_password_line() {
+        assert_eq!(
+            read_password_line(Cursor::new(b"secret\nignored\n")).unwrap(),
+            "secret"
+        );
+        assert_eq!(
+            read_password_line(Cursor::new(b"spaces stay \r\n")).unwrap(),
+            "spaces stay "
+        );
+        assert!(read_password_line(Cursor::new(b"\n")).is_err());
+        assert!(read_password_line(Cursor::new(b"")).is_err());
+    }
 }
