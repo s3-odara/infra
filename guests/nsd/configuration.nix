@@ -35,8 +35,7 @@
     zones = {
       "odarah.org.".data = builtins.readFile ./zones/odarah.org.zone;
 
-      "173.184.235.15.in-addr.arpa.".data =
-        builtins.readFile ./zones/173.184.235.15.in-addr.arpa.zone;
+      "173.184.235.15.in-addr.arpa.".data = builtins.readFile ./zones/173.184.235.15.in-addr.arpa.zone;
     };
   };
 

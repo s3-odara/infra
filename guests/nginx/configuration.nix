@@ -39,6 +39,17 @@ let
     add_header X-Frame-Options "SAMEORIGIN" always;
   '';
 
+  http3PrimaryConfig = ''
+    listen 0.0.0.0:443 quic reuseport;
+    http3 on;
+    add_header Alt-Svc 'h3=":443"; ma=86400' always;
+  '';
+  http3Config = ''
+    listen 0.0.0.0:443 quic;
+    http3 on;
+    add_header Alt-Svc 'h3=":443"; ma=86400' always;
+  '';
+
   precompressStaticAssets = pkgs.writeShellScript "precompress-static-assets" ''
     set -euo pipefail
 
@@ -221,6 +232,7 @@ in
             proxyProtocol = true;
           }
         ];
+        extraConfig = http3Config;
 
         locations = {
           "= /" = {
@@ -298,6 +310,7 @@ in
           }
         ];
         extraConfig = ''
+          ${http3PrimaryConfig}
           ${cinnySecurityHeaders}
           add_header Cache-Control $cinny_cache_control always;
         '';
@@ -342,6 +355,7 @@ in
           }
         ];
         extraConfig = ''
+          ${http3Config}
           ${elementSecurityHeaders}
           add_header Cache-Control $element_cache_control always;
         '';

@@ -81,6 +81,10 @@ guests = {
         protocol = "tcp"
         port     = 443
       },
+      {
+        protocol = "udp"
+        port     = 443
+      },
     ]
     private_ports = []
     denied_egress = [
