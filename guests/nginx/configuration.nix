@@ -14,7 +14,12 @@ let
   tuwunelAddress = "10.77.3.14";
   rtcAddress = "10.77.3.15";
   oidcAccountCss = ./tuwunel-oidc.css;
-  matrixLandingPage = ./matrix-landing.html;
+  matrixLandingRoot = pkgs.linkFarm "matrix-landing-root" [
+    {
+      name = "index.html";
+      path = ./matrix-landing.html;
+    }
+  ];
 
   cinnySecurityHeaders = ''
     add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-dT6noyex1I8o5CS9Sx/y8UOqwpZYIridpGz92gcObIM=' 'sha256-pQY0fuQAnnVQH5nQfjo80rzGkQzeN3JeAtAJ+1KcD4k=' 'sha256-3042zLa3JXvrJe/2n8P/XpIKwqBdNTu7fwbLZUNrzZQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://matrix.odarah.org; font-src 'self' data:; media-src 'self' blob: https://matrix.odarah.org; connect-src 'self' https://matrix.odarah.org wss://matrix.odarah.org https://${rtcHost} wss://${rtcHost}; worker-src 'self' blob:" always;
@@ -199,7 +204,8 @@ in
 
         locations = {
           "= /" = {
-            alias = matrixLandingPage;
+            root = matrixLandingRoot;
+            tryFiles = "/index.html =404";
             extraConfig = ''
               default_type text/html;
               charset utf-8;
