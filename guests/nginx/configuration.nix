@@ -39,9 +39,23 @@ let
     add_header X-Frame-Options "SAMEORIGIN" always;
   '';
 
+  precompressStaticAssets = pkgs.writeShellScript "precompress-static-assets" ''
+    set -euo pipefail
+
+    ${pkgs.findutils}/bin/find "$1" -type f -size +256c \
+      \( -iname '*.css' -o -iname '*.csv' -o -iname '*.html' -o -iname '*.js' \
+      -o -iname '*.json' -o -iname '*.map' -o -iname '*.mjs' -o -iname '*.otf' \
+      -o -iname '*.svg' -o -iname '*.ttf' -o -iname '*.txt' -o -iname '*.vtt' \
+      -o -iname '*.wasm' -o -iname '*.webmanifest' -o -iname '*.xml' \) \
+      -print0 | while IFS= read -r -d "" file; do
+        [[ -e "$file.gz" ]] || ${pkgs.gzip}/bin/gzip -9 -n -k "$file"
+        [[ -e "$file.br" ]] || ${pkgs.brotli}/bin/brotli -q 9 -k "$file"
+      done
+  '';
+
   cinny = pkgs.runCommand "cinny-${pkgs.cinny-unwrapped.version}-odarah" { } ''
     cp -R ${pkgs.cinny-unwrapped} "$out"
-    chmod u+w "$out/config.json"
+    chmod -R u+w "$out"
     cat > "$out/config.json" <<'JSON'
     {
       "defaultHomeserver": 0,
@@ -51,6 +65,7 @@ let
       "hashRouter": { "enabled": false, "basename": "/" }
     }
     JSON
+    ${precompressStaticAssets} "$out"
   '';
 
   elementConfig = {
@@ -74,9 +89,10 @@ let
   elementConfigFile = pkgs.writeText "element-config.json" (builtins.toJSON elementConfig);
   element = pkgs.runCommand "element-web-${pkgs.element-web-unwrapped.version}-odarah" { } ''
     mkdir -p "$out"
-    ln -s ${pkgs.element-web-unwrapped}/* "$out"
-    rm "$out/config.json"
-    ln -s ${elementConfigFile} "$out/config.json"
+    cp -R ${pkgs.element-web-unwrapped}/. "$out/"
+    chmod -R u+w "$out"
+    cp ${elementConfigFile} "$out/config.json"
+    ${precompressStaticAssets} "$out"
   '';
 in
 {
@@ -110,6 +126,8 @@ in
 
   services.nginx = {
     enable = true;
+    recommendedGzipSettings = true;
+    recommendedBrotliSettings = true;
 
     # The public stream listener preserves Prosody's TLS termination while
     # forwarding Matrix TLS to the local HTTP virtual host. The intermediate
@@ -247,6 +265,8 @@ in
           "~ ^/(?:_matrix|_tuwunel)/" = {
             proxyPass = "http://${tuwunelAddress}:8008";
             extraConfig = ''
+              gzip off;
+              brotli off;
               client_max_body_size 24M;
               proxy_http_version 1.1;
               proxy_set_header Host $host;
