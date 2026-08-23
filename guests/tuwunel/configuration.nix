@@ -48,7 +48,7 @@ in
       port = [ 8008 ];
       ip_source = "rightmost_x_forwarded_for";
       ip_lookup_strategy = 1;
-      max_request_size = 24 * 1024 * 1024;
+      max_request_size = 16 * 1024 * 1024;
       max_response_size = 128 * 1024 * 1024;
       new_user_displayname_suffix = "";
       allow_registration = true;
@@ -73,7 +73,10 @@ in
       db_write_buffer_capacity_mb = 52;
       database_backup_path = backupDirectory;
       database_backups_to_keep = 2;
-      admin_signal_execute = [ "server backup-database" ];
+      admin_signal_execute = [
+        "server backup-database"
+        "media delete-range 7d --older-than"
+      ];
       turn_uris = [
         "turn:turn.odarah.org:3478?transport=udp"
         "turn:turn.odarah.org:3478?transport=tcp"

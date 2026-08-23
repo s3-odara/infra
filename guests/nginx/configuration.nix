@@ -303,7 +303,7 @@ in
             extraConfig = ''
               gzip off;
               brotli off;
-              client_max_body_size 24M;
+              client_max_body_size 16M;
               proxy_http_version 1.1;
               proxy_set_header Host $host;
               proxy_set_header X-Forwarded-For $remote_addr;
