@@ -87,6 +87,9 @@
           default_iteration_count = 600000
           admins = { "admin@xmpp.odarah.org" }
           site_name = "odarah.org XMPP"
+          -- net_multiplex owns port 443, so no active https service exists for
+          -- module:http_url() to discover; without this it returns http://disabled.invalid/
+          http_external_url = "https://xmpp.odarah.org/"
           invites_page = "https://xmpp.odarah.org/invites_page?{invite.token}"
           password_policy = {
             length = 20;
@@ -123,6 +126,9 @@
 
     httpFileShare = {
       domain = "share.xmpp.odarah.org";
+      # Without this, upload slot URLs point at http://disabled.invalid/ because
+      # net_multiplex owns port 443 and portmanager sees no active https service
+      http_external_url = "https://share.xmpp.odarah.org/";
       size_limit = 100 * 1024 * 1024;
       daily_quota = 1024 * 1024 * 1024;
       global_quota = 10 * 1024 * 1024 * 1024;
