@@ -208,6 +208,11 @@ in
         ~^/config(?:\.[^/]+)?\.json$ "no-store";
         ~^/bundles/[0-9a-f]+/ "public, max-age=31536000, immutable";
         ~^/widgets/element-call/assets/ "public, max-age=31536000, immutable";
+        # element-web emits content-hashed filenames (7 hex chars as of 1.12.x)
+        # outside /bundles/ too: fonts, i18n, img, icons, vector-icons, ...
+        # Must stay below the config.json no-store entry; first regex match wins.
+        # {7,} is spelled out because writeNginxConfig mangles brace quantifiers.
+        ~\.[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]*\.[a-z0-9]+ "public, max-age=31536000, immutable";
       }
       map $http_upgrade $connection_upgrade {
         default upgrade;
