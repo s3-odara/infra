@@ -184,7 +184,6 @@
     defaults.email = "hostmaster@s3-odara.net";
     certs."xmpp.odarah.org" = {
       profile = "shortlived";
-      validMinDays = 4;
       renewInterval = "*-*-* 00,06,12,18:00:00";
       renewJitter = "1h";
       extraDomainNames = [
@@ -213,7 +212,7 @@
             --show-error \
             --fail \
             --max-time 15 \
-            --data-binary 'TLS証明書更新が失敗しました。' \
+            --data-binary 'xmpp のTLS証明書更新が失敗しました。' \
             "https://ntfy.sh/$topic" || true
         fi
       '';

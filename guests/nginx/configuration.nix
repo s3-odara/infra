@@ -1,4 +1,5 @@
 {
+  config,
   configurationName,
   lib,
   pkgs,
@@ -122,17 +123,33 @@ in
         rtcHost
       ];
       profile = "shortlived";
-      validMinDays = 4;
       renewInterval = "*-*-* 00,06,12,18:00:00";
       renewJitter = "1h";
     };
   };
 
   systemd.timers."acme-renew-${matrixHost}".timerConfig.AccuracySec = lib.mkForce "15min";
-  systemd.services."acme-order-renew-${matrixHost}".serviceConfig = {
-    Restart = "on-failure";
-    RestartSteps = 4;
-    RestartMaxDelaySec = "6h";
+  systemd.services."acme-order-renew-${matrixHost}" = {
+    serviceConfig = {
+      Restart = "on-failure";
+      RestartSteps = 4;
+      RestartMaxDelaySec = "6h";
+      LoadCredential = [ "ntfy-topic:${config.sops.secrets.ntfy_topic.path}" ];
+      ExecStopPost = pkgs.writeShellScript "notify-acme-failure" ''
+        if [ "$SERVICE_RESULT" != "success" ]; then
+          topic="$(<"$CREDENTIALS_DIRECTORY/ntfy-topic")"
+          ${pkgs.curl}/bin/curl \
+            --silent \
+            --show-error \
+            --fail \
+            --max-time 15 \
+            --data-binary 'nginx のTLS証明書更新が失敗しました。' \
+            "https://ntfy.sh/$topic" || true
+        fi
+      '';
+    };
+
+    unitConfig.StartLimitIntervalSec = 0;
   };
 
   services.nginx = {
@@ -475,6 +492,8 @@ in
       };
     };
   };
+
+  sops.secrets.ntfy_topic = { };
 
   services.logrotate.settings.nginx = {
     frequency = "daily";

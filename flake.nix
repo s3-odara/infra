@@ -99,7 +99,9 @@
           system = "x86_64-linux";
           specialArgs.configurationName = "nginx";
           modules = [
+            sops-nix.nixosModules.sops
             ./modules/guest.nix
+            ./modules/guest-secrets.nix
             ./guests/nginx/configuration.nix
           ];
         };
