@@ -31,6 +31,9 @@ in
     MaxRetentionSec=14day
   '';
 
+  # The host kernels use CONFIG_MODULES=n.
+  boot.modprobeConfig.enable = false;
+
   systemd.services.host-storage-monitor = lib.mkIf hasSecrets {
     description = "Check host and Incus container storage usage";
     after = [ "incus.service" ];
