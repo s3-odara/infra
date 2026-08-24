@@ -9,6 +9,13 @@ creation_rules:
       - pgp:
           - *admin_pgp
 
+  - path_regex: ^secrets/hosts/aracha-ovh/secrets\.sops\.yaml$
+    key_groups:
+      - pgp:
+          - *admin_pgp
+        age:
+          - age1urd37cm4cpvuthpppxzqyhpplwdtsvz4y0n3hfnqnaecxqxse9csnug88n
+
   - path_regex: ^secrets/guests/aracha-ovh/nginx/secrets\.sops\.yaml$
     key_groups:
       - pgp:
