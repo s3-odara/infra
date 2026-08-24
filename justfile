@@ -19,7 +19,7 @@ help topic="":
       check                   Validate the configuration statically
       install-host            Install a NixOS host
       deploy-guests           Deploy Incus resources and guest configurations
-      manage-secrets          Manage guest secrets
+      manage-secrets          Manage host and guest secrets
 
       apply-tofu              Apply only the OpenTofu configuration
       upgrade-guests          Upgrade guest configurations
@@ -31,6 +31,7 @@ help topic="":
       just install-host mecha-vultr root@HOST
       just deploy-guests
       just manage-secrets init prosody
+      just manage-secrets init host
 
     Run `just help manage-secrets` for secret management usage.
     EOF
@@ -38,15 +39,13 @@ help topic="":
       manage-secrets)
         cat <<'EOF'
     Usage:
-      just manage-secrets [--target USER@HOST] <init|restore> GUEST
+      just manage-secrets [--target USER@HOST] <init|restore> <GUEST|host>
 
-    Commands:
-      init      Create an age identity
-      restore   Restore an age identity to a guest
+    The name "host" is reserved for host secrets.
 
     Examples:
       just manage-secrets init prosody
-      just manage-secrets --target me@HOST restore prosody
+      just manage-secrets init host
     EOF
         ;;
       *)
@@ -74,8 +73,8 @@ _check-tofu:
       done'
 
 _check-shell:
-    bash -n scripts/*.sh
-    nix shell "path:{{ repo_root }}#shfmt" -c shfmt -d -i 2 scripts/*.sh
+    find scripts modules -type f -name '*.sh' -print0 | xargs -0 -r bash -n
+    find scripts modules -type f -name '*.sh' -print0 | xargs -0 -r nix shell "path:{{ repo_root }}#shfmt" -c shfmt -d -i 2
 
 deploy-guests: apply-tofu
     ./scripts/guests.sh

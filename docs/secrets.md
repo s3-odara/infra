@@ -11,6 +11,8 @@ secrets/guests/HOST/GUEST/
 
 平文とage秘密鍵をGitやNix storeへ入れない。
 
+ホスト用secretも同じ仕組みで管理する。`manage-secrets`では`host`をホスト自身を表す予約語として扱う。
+
 ## 初期化
 
 管理端末からIncusホストを操作する場合：

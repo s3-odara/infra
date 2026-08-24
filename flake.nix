@@ -48,6 +48,7 @@
 
           modules = [
             disko.nixosModules.disko
+            ./modules/host
             ./hosts/mecha-vultr/disko.nix
             ./hosts/mecha-vultr/configuration.nix
           ];
@@ -59,6 +60,7 @@
 
           modules = [
             disko.nixosModules.disko
+            ./modules/host
             ./hosts/tencha-conoha/disko.nix
             ./hosts/tencha-conoha/configuration.nix
           ];
@@ -70,6 +72,7 @@
 
           modules = [
             disko.nixosModules.disko
+            ./modules/host
             ./hosts/aracha-ovh/disko.nix
             ./hosts/aracha-ovh/configuration.nix
           ];
@@ -80,8 +83,8 @@
           specialArgs.configurationName = "prosody";
           modules = [
             sops-nix.nixosModules.sops
-            ./modules/guest.nix
-            ./modules/guest-secrets.nix
+            ./modules/guest
+            ./modules/guest/secrets.nix
             ./guests/prosody/configuration.nix
           ];
         };
@@ -90,7 +93,7 @@
           system = "x86_64-linux";
           specialArgs.configurationName = "nsd";
           modules = [
-            ./modules/guest.nix
+            ./modules/guest
             ./guests/nsd/configuration.nix
           ];
         };
@@ -100,8 +103,8 @@
           specialArgs.configurationName = "nginx";
           modules = [
             sops-nix.nixosModules.sops
-            ./modules/guest.nix
-            ./modules/guest-secrets.nix
+            ./modules/guest
+            ./modules/guest/secrets.nix
             ./guests/nginx/configuration.nix
           ];
         };
@@ -111,8 +114,8 @@
           specialArgs.configurationName = "tuwunel";
           modules = [
             sops-nix.nixosModules.sops
-            ./modules/guest.nix
-            ./modules/guest-secrets.nix
+            ./modules/guest
+            ./modules/guest/secrets.nix
             ./guests/tuwunel/configuration.nix
           ];
         };
@@ -122,8 +125,8 @@
           specialArgs.configurationName = "rtc";
           modules = [
             sops-nix.nixosModules.sops
-            ./modules/guest.nix
-            ./modules/guest-secrets.nix
+            ./modules/guest
+            ./modules/guest/secrets.nix
             ./guests/rtc/configuration.nix
           ];
         };
@@ -133,8 +136,8 @@
           specialArgs.configurationName = "wireguard";
           modules = [
             sops-nix.nixosModules.sops
-            ./modules/guest.nix
-            ./modules/guest-secrets.nix
+            ./modules/guest
+            ./modules/guest/secrets.nix
             ./guests/wireguard/configuration.nix
           ];
         };
