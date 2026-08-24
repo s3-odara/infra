@@ -11,7 +11,6 @@ let
   turnHost = "turn.odarah.org";
 in
 {
-  boot.isContainer = true;
   networking.hostName = configurationName;
   networking.useDHCP = true;
   networking.firewall.enable = false;
