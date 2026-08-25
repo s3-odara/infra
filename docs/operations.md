@@ -20,7 +20,7 @@ just update-flake
 - `apply-tofu`: OpenTofuだけを適用する
 - `upgrade-guests`: OpenTofuを触らず、全ゲストまたは指定したゲストを適用する
 - `upgrade-host`: ホストの`nixos-upgrade.service`を起動して完了を待つ
-- `update-eturnal`: eturnalの最新release、`rebar.lock`、Rebar3依存hashへ更新してpackageをbuildする。
+- `update-eturnal`: eturnalの最新releaseとRebar3依存hashへ更新してpackageをbuildする。
 - `update-matrix-invite-bot`: Matrix invite botの`Cargo.lock`を更新し、単体packageをbuildする。deployやsecretの変更は行わない。
 - `update-flake`: flake inputと生成済みkernel configを更新し、Nix構成を評価する
 

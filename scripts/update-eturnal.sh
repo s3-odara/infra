@@ -10,12 +10,11 @@ fail() {
 ((EUID != 0)) || fail "refusing to run as root"
 
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
-target_paths=(packages/eturnal/{pins.json,rebar.lock})
+target_paths=(packages/eturnal/pins.json)
 pins_file="$repo_root/${target_paths[0]}"
-lock_file="$repo_root/${target_paths[1]}"
 
 git -C "$repo_root" ls-files --error-unmatch -- "${target_paths[@]}" >/dev/null 2>&1 ||
-  fail "eturnal pins and lock files must be tracked by Git"
+  fail "eturnal pins file must be tracked by Git"
 [[ -z $(git -C "$repo_root" status --porcelain --untracked-files=no) ]] ||
   fail "tracked changes must be committed or stashed first"
 
@@ -47,11 +46,6 @@ printf '\n==> Fetching eturnal %s\n' "$version"
 src_hash=$(nix store prefetch-file --json --unpack \
   "https://github.com/processone/eturnal/archive/refs/tags/$version.tar.gz" |
   jq --exit-status --raw-output '.hash')
-curl --fail --silent --show-error --location \
-  "https://raw.githubusercontent.com/processone/eturnal/$version/rebar.lock" \
-  --output "$tmp_dir/rebar.lock"
-grep -q '^{"1\.2\.0",' "$tmp_dir/rebar.lock" || fail "unexpected rebar.lock format"
-install -m 0644 "$tmp_dir/rebar.lock" "$lock_file"
 
 # Force a fixed-output hash mismatch so Nix reports the new dependency hash.
 fake_hash="sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="

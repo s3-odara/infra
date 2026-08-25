@@ -104,7 +104,6 @@ install-host configuration target:
 # eturnal本体と固定したErlang依存を更新する
 update-eturnal:
     nix shell "path:{{ repo_root }}#curl" "path:{{ repo_root }}#jq" -c ./scripts/update-eturnal.sh
-    just _check-nix
 
 # Matrix invite botのRust依存を更新する
 update-matrix-invite-bot:

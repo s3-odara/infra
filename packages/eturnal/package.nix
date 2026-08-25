@@ -10,7 +10,6 @@
   libyaml,
   makeWrapper,
   openssl,
-  runCommand,
 }:
 
 let
@@ -18,21 +17,12 @@ let
   inherit (beamPackages) fetchRebar3Deps rebar3Relx;
   pins = builtins.fromJSON (builtins.readFile ./pins.json);
 
-  upstreamSrc = fetchFromGitHub {
+  src = fetchFromGitHub {
     owner = "processone";
     repo = "eturnal";
     rev = pins.version;
     hash = pins.srcHash;
   };
-
-  # Keep the reviewed lock file in this repository authoritative for both
-  # dependency fetching and the actual build.
-  src = runCommand "eturnal-${pins.version}-source" { } ''
-    cp -a ${upstreamSrc} "$out"
-    chmod u+w "$out"
-    rm "$out/rebar.lock"
-    cp ${./rebar.lock} "$out/rebar.lock"
-  '';
 in
 rebar3Relx {
   pname = "eturnal";
