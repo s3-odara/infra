@@ -19,10 +19,23 @@ let
       curl
       gawk
       incus
+      inetutils
       jq
       sops
     ];
     text = builtins.readFile ./storage-monitor.sh;
+  };
+  healthMonitor = pkgs.writeShellApplication {
+    name = "host-health-monitor";
+    runtimeInputs = with pkgs; [
+      curl
+      gnugrep
+      incus
+      inetutils
+      sops
+      systemd
+    ];
+    text = builtins.readFile ./health-monitor.sh;
   };
 in
 {
@@ -52,6 +65,27 @@ in
       OnCalendar = "daily";
       Persistent = true;
       RandomizedDelaySec = "1h";
+    };
+  };
+
+  systemd.services.host-health-monitor = lib.mkIf hasSecrets {
+    description = "Check Incus container states and kernel health events";
+    after = [ "incus.service" ];
+    requires = [ "incus.service" ];
+    environment.HOST_MONITOR_SECRET_FILE = secretFile;
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = lib.getExe healthMonitor;
+      SupplementaryGroups = [ "systemd-journal" ];
+    };
+  };
+
+  systemd.timers.host-health-monitor = lib.mkIf hasSecrets {
+    description = "15-minute host health check";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "*:0/15";
+      Persistent = true;
     };
   };
 }
