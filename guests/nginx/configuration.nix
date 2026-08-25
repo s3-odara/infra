@@ -395,6 +395,7 @@ in
       ${rtcHost} = {
         useACMEHost = matrixHost;
         forceSSL = true;
+        extraConfig = http3Config;
         listen = [
           {
             addr = "0.0.0.0";
