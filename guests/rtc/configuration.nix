@@ -125,8 +125,7 @@ in
       renewInterval = "*-*-* 00,06,12,18:00:00";
       renewJitter = "1h";
       listenHTTP = "0.0.0.0:80";
-      # eturnal has no ExecReload so ACME's try-reload-or-restart refreshes
-      # the systemd TLS credentials with a full service restart.
+      # Refresh the systemd TLS credentials before eturnal reloads its PEM file.
       reloadServices = [ "eturnal.service" ];
     };
   };

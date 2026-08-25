@@ -94,7 +94,9 @@ in
         "tls-key:/var/lib/acme/${turnHost}/key.pem"
       ];
 
+      ExecReload = "${lib.getExe' eturnal "eturnalctl"} reload";
       ExecStop = "${lib.getExe' eturnal "eturnalctl"} stop";
+      RefreshOnReload = "credentials";
       Restart = "on-failure";
       RestartSec = "3s";
       WatchdogSec = "30s";
