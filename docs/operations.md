@@ -10,6 +10,7 @@ just apply-tofu
 just upgrade-guests
 just upgrade-guests prosody wireguard
 just upgrade-host
+just update-eturnal
 just update-flake
 ```
 
@@ -18,6 +19,7 @@ just update-flake
 - `apply-tofu`: OpenTofuだけを適用する
 - `upgrade-guests`: OpenTofuを触らず、全ゲストまたは指定したゲストを適用する
 - `upgrade-host`: ホストの`nixos-upgrade.service`を起動して完了を待つ
+- `update-eturnal`: eturnalの最新release、`rebar.lock`、Rebar3依存hashへ更新してpackageをbuildする。
 - `update-flake`: flake inputと生成済みkernel configを更新し、Nix構成を評価する
 
 ホストとゲストでは`system.autoUpgrade`も動く。ゲストの自動更新はSOPS暗号文を配送しない。暗号文を変更したら`just upgrade-guests GUEST`を実行する。

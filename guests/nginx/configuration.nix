@@ -160,7 +160,7 @@ in
 
     # The public stream listener preserves Prosody's TLS termination while
     # forwarding Matrix TLS to the local HTTP virtual host. The intermediate
-    # listeners remove PROXY protocol before Prosody and coturn, but retain it
+    # listeners remove PROXY protocol before Prosody and eturnal, but retain it
     # for Matrix so the HTTP proxy can pass the real client address to tuwunel.
     streamConfig = ''
       set_real_ip_from 127.0.0.1;

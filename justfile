@@ -25,6 +25,7 @@ help topic="":
       upgrade-guests          Upgrade guest configurations
       upgrade-host            Upgrade the host configuration
       regenerate-sops         Regenerate .sops.yaml
+      update-eturnal          Update eturnal and its locked dependencies
       update-flake            Update flake inputs and generated files
 
     Examples:
@@ -98,6 +99,11 @@ regenerate-sops:
 
 install-host configuration target:
     ./scripts/install-host.sh "$@"
+
+# eturnal本体と固定したErlang依存を更新する
+update-eturnal:
+    nix shell "path:{{ repo_root }}#curl" "path:{{ repo_root }}#jq" -c ./scripts/update-eturnal.sh
+    just _check-nix
 
 # flake.lockとkernel configを更新する
 update-flake:

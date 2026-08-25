@@ -34,6 +34,9 @@
 
       packages.x86_64-linux = {
         age = nixpkgs.legacyPackages.x86_64-linux.age;
+        curl = nixpkgs.legacyPackages.x86_64-linux.curl;
+        eturnal = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/eturnal/package.nix { };
+        jq = nixpkgs.legacyPackages.x86_64-linux.jq;
         mkpasswd = nixpkgs.legacyPackages.x86_64-linux.mkpasswd;
         nixos-anywhere = nixos-anywhere.packages.x86_64-linux.nixos-anywhere;
         opentofu = nixpkgs.legacyPackages.x86_64-linux.opentofu;
