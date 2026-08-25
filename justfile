@@ -26,6 +26,7 @@ help topic="":
       upgrade-host            Upgrade the host configuration
       regenerate-sops         Regenerate .sops.yaml
       update-eturnal          Update eturnal and its locked dependencies
+      update-matrix-invite-bot Update Matrix invite bot dependencies
       update-flake            Update flake inputs and generated files
 
     Examples:
@@ -104,6 +105,11 @@ install-host configuration target:
 update-eturnal:
     nix shell "path:{{ repo_root }}#curl" "path:{{ repo_root }}#jq" -c ./scripts/update-eturnal.sh
     just _check-nix
+
+# Matrix invite botのRust依存を更新する
+update-matrix-invite-bot:
+    nix shell --inputs-from "path:{{ repo_root }}" nixpkgs#cargo -c cargo update --manifest-path packages/matrix-invite-bot/Cargo.toml
+    nix build --no-link "path:{{ repo_root }}#matrix-invite-bot"
 
 # flake.lockとkernel configを更新する
 update-flake:

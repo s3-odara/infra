@@ -37,6 +37,9 @@
         curl = nixpkgs.legacyPackages.x86_64-linux.curl;
         eturnal = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/eturnal/package.nix { };
         jq = nixpkgs.legacyPackages.x86_64-linux.jq;
+        matrix-invite-bot =
+          nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/matrix-invite-bot/package.nix
+            { };
         mkpasswd = nixpkgs.legacyPackages.x86_64-linux.mkpasswd;
         nixos-anywhere = nixos-anywhere.packages.x86_64-linux.nixos-anywhere;
         opentofu = nixpkgs.legacyPackages.x86_64-linux.opentofu;

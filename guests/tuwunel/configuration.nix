@@ -7,15 +7,7 @@
 }:
 
 let
-  inviteBot = pkgs.rustPlatform.buildRustPackage {
-    pname = "matrix-invite-bot";
-    version = "0.1.0";
-    src = ./invite-bot;
-    cargoHash = "sha256-xK0j+t2CxEU730ujUcYiOiRPmXPDj9zr2158fpwYA+I=";
-    meta.mainProgram = "matrix-invite-bot";
-    nativeBuildInputs = [ pkgs.pkg-config ];
-    buildInputs = [ pkgs.sqlite ];
-  };
+  inviteBot = pkgs.callPackage ../../packages/matrix-invite-bot/package.nix { };
   registrationToken = "/var/lib/tuwunel/registration-token";
   backupDirectory = "/var/lib/tuwunel-backups";
 in
