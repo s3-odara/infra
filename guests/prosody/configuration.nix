@@ -85,6 +85,10 @@
           password_hash = "SHA-256"
           default_iteration_count = 600000
           admins = { "admin@xmpp.odarah.org" }
+          contact_info = {
+            admin = { "xmpp:odara@xmpp.odarah.org" };
+            abuse = { "xmpp:odara@xmpp.odarah.org" };
+          }
           site_name = "odarah.org XMPP"
           -- net_multiplex owns port 443, so no active https service exists for
           -- module:http_url() to discover; without this it returns http://disabled.invalid/
@@ -142,6 +146,7 @@
       bosh = true;
       limits = true;
       proxy65 = false;
+      server_contact_info = true;
       websocket = true;
     };
 
