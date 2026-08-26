@@ -11,8 +11,8 @@
     ipv6 = false;
     serverCount = 1;
     tcpCount = 100;
-    tcpQueryCount = 0;
-    tcpTimeout = 120;
+    tcpQueryCount = 100;
+    tcpTimeout = 30;
     hideVersion = true;
     ipv4EDNSSize = 512;
     ipv6EDNSSize = 512;

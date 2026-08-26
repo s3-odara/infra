@@ -100,6 +100,18 @@ let
     add_header Alt-Svc 'h3=":443"; ma=86400' always;
   '';
 
+  matrixProxyConfig = ''
+    gzip off;
+    brotli off;
+    client_max_body_size 16M;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_read_timeout 300s;
+    proxy_send_timeout 300s;
+  '';
+
   precompressStaticAssets = pkgs.writeShellScript "precompress-static-assets" ''
     set -euo pipefail
 
@@ -306,6 +318,28 @@ in
       set_real_ip_from 127.0.0.1;
       real_ip_header proxy_protocol;
 
+      # Empty limit-zone keys are ignored, so only password-auth endpoints are
+      # accounted while all Matrix traffic can share one simple proxy location.
+      map $uri $matrix_password_auth {
+        default 0;
+        ~^/(?:_matrix/client/(?:r0|v[0-9]+|unstable)/login|_tuwunel/oidc/native)$ 1;
+      }
+      map $matrix_password_auth $matrix_login_ip_key {
+        default "";
+        1 $remote_addr;
+      }
+      map $matrix_password_auth $matrix_login_global_key {
+        default "";
+        1 $server_name;
+      }
+
+      # The per-IP bucket handles the common case. The deliberately looser
+      # global bucket is a circuit breaker for distributed attacks.
+      limit_req_zone $matrix_login_ip_key zone=matrix_login_ip:10m rate=1r/s;
+      limit_req_zone $matrix_login_global_key zone=matrix_login_global:1m rate=10r/s;
+      limit_conn_zone $matrix_login_global_key zone=matrix_login_conn:1m;
+      limit_conn_zone $remote_addr zone=rtc_ws_conn:10m;
+
       map $request_uri $cinny_registration_loggable {
         default 1;
         ~^/register/ 0;
@@ -431,15 +465,12 @@ in
           "~ ^/(?:_matrix|_tuwunel)/" = {
             proxyPass = "http://${tuwunelAddress}:8008";
             extraConfig = ''
-              gzip off;
-              brotli off;
-              client_max_body_size 16M;
-              proxy_http_version 1.1;
-              proxy_set_header Host $host;
-              proxy_set_header X-Forwarded-For $remote_addr;
-              proxy_set_header X-Forwarded-Proto https;
-              proxy_read_timeout 300s;
-              proxy_send_timeout 300s;
+              limit_req zone=matrix_login_ip burst=5 nodelay;
+              limit_req zone=matrix_login_global burst=20 nodelay;
+              limit_conn matrix_login_conn 8;
+              limit_req_status 429;
+              limit_conn_status 429;
+              ${matrixProxyConfig}
             '';
           };
         };
@@ -652,6 +683,8 @@ in
           "/" = {
             proxyPass = "http://${rtcAddress}:7880";
             extraConfig = ''
+              limit_conn rtc_ws_conn 20;
+              limit_conn_status 429;
               proxy_http_version 1.1;
               proxy_set_header Host $host;
               proxy_set_header X-Forwarded-For $remote_addr;

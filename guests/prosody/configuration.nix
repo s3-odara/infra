@@ -166,9 +166,11 @@
       s2s_direct_tls_ports = { 5270 }
       tls_server_end_point_hash = "auto"
       limits = {
-        c2s = { rate = "10kb/s" };
-        s2sin = { rate = "30kb/s" };
+        c2s = { rate = "10kb/s"; max_connections_per_ip = 30 };
+        s2sin = { rate = "30kb/s"; max_connections_per_ip = 20 };
       }
+      disabled_sasl_mechanisms = { "PLAIN", "LOGIN", "DIGEST-MD5" };
+      c2s_timeout = 60;
       storage = "internal"
       archive_expires_after = "2w"
       registration_invite_only = true
