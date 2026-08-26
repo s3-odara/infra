@@ -31,6 +31,16 @@
   boot.initrd.systemd.tpm2.enable = false;
   systemd.tpm2.enable = false;
 
+  # BBR congestion control with the fq qdisc (both built into the kernel),
+  # and Explicit Congestion Notification negotiated on every connection.
+  boot.kernel.sysctl = {
+    "net.ipv4.tcp_congestion_control" = "bbr";
+    "net.core.default_qdisc" = "fq";
+    # value 1 = enable classic ECN both incoming/outgoing
+    "net.ipv4.tcp_ecn" = 1;
+    "net.ipv4.tcp_ecn_fallback" = 1;
+  };
+
   networking = {
     useNetworkd = true;
     useDHCP = false;
