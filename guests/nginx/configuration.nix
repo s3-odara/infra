@@ -7,20 +7,69 @@
 }:
 
 let
+  odarahHost = "odarah.org";
   matrixHost = "matrix.odarah.org";
+  commetHost = "commet.matrix.odarah.org";
   cinnyHost = "cinny.matrix.odarah.org";
   elementHost = "element.matrix.odarah.org";
   rtcHost = "rtc.matrix.odarah.org";
+  sableHost = "sable.matrix.odarah.org";
+  converseHost = "converse.xmpp.odarah.org";
   prosodyAddress = "10.77.3.10";
   tuwunelAddress = "10.77.3.14";
   rtcAddress = "10.77.3.15";
   oidcAccountCss = ./tuwunel-oidc.css;
+  commetPins = builtins.fromJSON (builtins.readFile ../../packages/commet-web/pins.json);
+  sablePins = builtins.fromJSON (builtins.readFile ../../packages/sable/pins.json);
+  formatCspHashes = hashes: lib.concatMapStringsSep " " (hash: "'${hash}'") hashes;
   matrixLandingRoot = pkgs.linkFarm "matrix-landing-root" [
     {
       name = "index.html";
       path = ./matrix-landing.html;
     }
   ];
+  odarahLandingRoot = pkgs.linkFarm "odarah-landing-root" [
+    {
+      name = "index.html";
+      path = ./odarah-landing.html;
+    }
+  ];
+
+  landingSecurityHeaders = ''
+    add_header Content-Security-Policy "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" always;
+    add_header Permissions-Policy "accelerometer=(), ambient-light-sensor=(), autoplay=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+  '';
+
+  converseSecurityHeaders = ''
+    add_header Content-Security-Policy "default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' wss://xmpp.odarah.org https://share.xmpp.odarah.org; img-src 'self' data: blob: https:; media-src 'self' blob: https:; font-src 'self' data:; worker-src 'self'; manifest-src 'self'; frame-src 'self'" always;
+    add_header Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=(), usb=()" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+  '';
+
+  commetSecurityHeaders = ''
+    add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self' 'wasm-unsafe-eval' ${formatCspHashes commetPins.scriptHashes}; style-src 'self' 'unsafe-inline'; connect-src 'self' https://${matrixHost} wss://${matrixHost}; img-src 'self' data: blob: https:; media-src 'self' blob: https:; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; frame-src 'self'" always;
+    add_header Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=(), usb=()" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+  '';
+
+  sableSecurityHeaders = ''
+    add_header Content-Security-Policy "default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self' 'wasm-unsafe-eval' ${formatCspHashes sablePins.scriptHashes}; style-src 'self' 'unsafe-inline'; connect-src 'self' https://${matrixHost} wss://${matrixHost}; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; frame-src 'self'" always;
+    add_header Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=(), usb=()" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+  '';
 
   cinnySecurityHeaders = ''
     add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-dT6noyex1I8o5CS9Sx/y8UOqwpZYIridpGz92gcObIM=' 'sha256-pQY0fuQAnnVQH5nQfjo80rzGkQzeN3JeAtAJ+1KcD4k=' 'sha256-3042zLa3JXvrJe/2n8P/XpIKwqBdNTu7fwbLZUNrzZQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://matrix.odarah.org; font-src 'self' data:; media-src 'self' blob: https://matrix.odarah.org; connect-src 'self' https://matrix.odarah.org wss://matrix.odarah.org https://${rtcHost} wss://${rtcHost}; worker-src 'self' blob:" always;
@@ -63,6 +112,45 @@ let
         [[ -e "$file.gz" ]] || ${pkgs.gzip}/bin/gzip -9 -n -k "$file"
         [[ -e "$file.br" ]] || ${pkgs.brotli}/bin/brotli -q 9 -k "$file"
       done
+  '';
+
+  conversejs-unwrapped = pkgs.callPackage ../../packages/conversejs/package.nix { };
+  conversejs = pkgs.runCommand "conversejs-${conversejs-unwrapped.version}-odarah" { } ''
+    cp -R ${conversejs-unwrapped} "$out"
+    chmod -R u+w "$out"
+    cp ${./converse-index.html} "$out/index.html"
+    cp ${./converse-bootstrap.js} "$out/bootstrap.js"
+    ${precompressStaticAssets} "$out"
+  '';
+
+  commet-web-unwrapped = pkgs.callPackage ../../packages/commet-web/package.nix { };
+  commet-web = pkgs.runCommand "commet-web-${commet-web-unwrapped.version}-odarah" { } ''
+    cp -R ${commet-web-unwrapped} "$out"
+    chmod -R u+w "$out"
+    cat > "$out/assets/assets/config/global_config.json" <<'JSON'
+    { "default_homeserver": "${matrixHost}" }
+    JSON
+    ${precompressStaticAssets} "$out"
+  '';
+
+  sable-unwrapped = pkgs.callPackage ../../packages/sable/package.nix { };
+  sable = pkgs.runCommand "sable-${sable-unwrapped.version}-odarah" { } ''
+    cp -R ${sable-unwrapped} "$out"
+    chmod -R u+w "$out"
+    cat > "$out/config.json" <<'JSON'
+    {
+      "productName": "Sable",
+      "defaultHomeserver": 0,
+      "homeserverList": ["${matrixHost}"],
+      "allowCustomHomeservers": false,
+      "elementCallUrl": null,
+      "disableAccountSwitcher": false,
+      "hideUsernamePasswordFields": false,
+      "featuredCommunities": { "openAsDefault": false, "spaces": [], "rooms": [], "servers": [] },
+      "hashRouter": { "enabled": false, "basename": "/" }
+    }
+    JSON
+    ${precompressStaticAssets} "$out"
   '';
 
   cinny = pkgs.runCommand "cinny-${pkgs.cinny-unwrapped.version}-odarah" { } ''
@@ -117,9 +205,13 @@ in
     defaults.email = "hostmaster@s3-odara.net";
     certs.${matrixHost} = {
       extraDomainNames = [
+        odarahHost
+        commetHost
         cinnyHost
         elementHost
         rtcHost
+        sableHost
+        converseHost
       ];
       profile = "shortlived";
       renewInterval = "*-*-* 00,06,12,18:00:00";
@@ -166,10 +258,14 @@ in
       set_real_ip_from 127.0.0.1;
 
       map $ssl_preread_server_name $tls_dispatch {
+        ${odarahHost} 127.0.0.1:9443;
         ${matrixHost} 127.0.0.1:9443;
+        ${commetHost} 127.0.0.1:9443;
         ${cinnyHost} 127.0.0.1:9443;
         ${elementHost} 127.0.0.1:9443;
         ${rtcHost} 127.0.0.1:9443;
+        ${sableHost} 127.0.0.1:9443;
+        ${converseHost} 127.0.0.1:9443;
         turn.odarah.org 127.0.0.1:9446;
         xmpp.odarah.org 127.0.0.1:9444;
         conference.xmpp.odarah.org 127.0.0.1:9444;
@@ -230,6 +326,16 @@ in
         # {7,} is spelled out because writeNginxConfig mangles brace quantifiers.
         ~\.[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]*\.[a-z0-9]+ "public, max-age=31536000, immutable";
       }
+      map $uri $sable_cache_control {
+        default "no-cache";
+        ~^/config\.json$ "no-store";
+        ~^/assets/.*-[A-Za-z0-9_-]+\.(?:css|js|json|map|png|jpe?g|svg|webp|avif|wasm|woff2?|ttf|otf)$ "public, max-age=31536000, immutable";
+      }
+      map $uri $web_client_cache_control {
+        default "public, max-age=0, must-revalidate";
+        ~^/auth\.html$ "no-store";
+        ~*\.(?:avif|gif|ico|jpe?g|png|svg|webp|otf|ttf|woff2?)$ "public, max-age=86400, stale-while-revalidate=604800";
+      }
       map $http_upgrade $connection_upgrade {
         default upgrade;
         "" close;
@@ -238,6 +344,36 @@ in
     '';
 
     virtualHosts = {
+      ${odarahHost} = {
+        useACMEHost = matrixHost;
+        forceSSL = true;
+        listen = [
+          {
+            addr = "0.0.0.0";
+            port = 80;
+          }
+          {
+            addr = "127.0.0.1";
+            port = 8443;
+            ssl = true;
+            proxyProtocol = true;
+          }
+        ];
+        extraConfig = http3Config;
+
+        locations."= /" = {
+          root = odarahLandingRoot;
+          tryFiles = "/index.html =404";
+          extraConfig = ''
+            default_type text/html;
+            charset utf-8;
+            add_header Cache-Control "no-store, no-cache, must-revalidate, max-age=0" always;
+            add_header Pragma "no-cache" always;
+            ${landingSecurityHeaders}
+          '';
+        };
+      };
+
       ${matrixHost} = {
         enableACME = true;
         forceSSL = true;
@@ -264,12 +400,7 @@ in
               charset utf-8;
               add_header Cache-Control "no-store, no-cache, must-revalidate, max-age=0" always;
               add_header Pragma "no-cache" always;
-              add_header Content-Security-Policy "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" always;
-              add_header Permissions-Policy "accelerometer=(), ambient-light-sensor=(), autoplay=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()" always;
-              add_header Referrer-Policy "no-referrer" always;
-              add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
-              add_header X-Content-Type-Options "nosniff" always;
-              add_header X-Frame-Options "DENY" always;
+              ${landingSecurityHeaders}
             '';
           };
 
@@ -311,6 +442,40 @@ in
               proxy_send_timeout 300s;
             '';
           };
+        };
+      };
+
+      ${commetHost} = {
+        useACMEHost = matrixHost;
+        forceSSL = true;
+        root = commet-web;
+        listen = [
+          {
+            addr = "0.0.0.0";
+            port = 80;
+          }
+          {
+            addr = "127.0.0.1";
+            port = 8443;
+            ssl = true;
+            proxyProtocol = true;
+          }
+        ];
+        extraConfig = ''
+          ${http3Config}
+          ${commetSecurityHeaders}
+          add_header Cache-Control $web_client_cache_control always;
+        '';
+
+        locations = {
+          "= /auth.html".tryFiles = "$uri =404";
+          "= /flutter_service_worker.js".tryFiles = "$uri =404";
+          "= /index.html".tryFiles = "$uri =404";
+          "= /manifest.json".tryFiles = "$uri =404";
+          "= /assets/assets/config/global_config.json".tryFiles = "$uri =404";
+          "/".extraConfig = ''
+            try_files $uri $uri/ /index.html;
+          '';
         };
       };
 
@@ -386,6 +551,72 @@ in
           "= /index.html".tryFiles = "$uri =404";
           "^~ /bundles/".tryFiles = "$uri =404";
           "^~ /widgets/element-call/assets/".tryFiles = "$uri =404";
+          "/".extraConfig = ''
+            try_files $uri $uri/ /index.html;
+          '';
+        };
+      };
+
+      ${sableHost} = {
+        useACMEHost = matrixHost;
+        forceSSL = true;
+        root = sable;
+        listen = [
+          {
+            addr = "0.0.0.0";
+            port = 80;
+          }
+          {
+            addr = "127.0.0.1";
+            port = 8443;
+            ssl = true;
+            proxyProtocol = true;
+          }
+        ];
+        extraConfig = ''
+          ${http3Config}
+          ${sableSecurityHeaders}
+          add_header Cache-Control $sable_cache_control always;
+        '';
+
+        locations = {
+          "= /config.json".tryFiles = "$uri =404";
+          "= /index.html".tryFiles = "$uri =404";
+          "= /manifest.json".tryFiles = "$uri =404";
+          "= /sw.js".tryFiles = "$uri =404";
+          "^~ /assets/".tryFiles = "$uri =404";
+          "/".extraConfig = ''
+            try_files $uri $uri/ /index.html;
+          '';
+        };
+      };
+
+      ${converseHost} = {
+        useACMEHost = matrixHost;
+        forceSSL = true;
+        root = conversejs;
+        listen = [
+          {
+            addr = "0.0.0.0";
+            port = 80;
+          }
+          {
+            addr = "127.0.0.1";
+            port = 8443;
+            ssl = true;
+            proxyProtocol = true;
+          }
+        ];
+        extraConfig = ''
+          ${http3Config}
+          ${converseSecurityHeaders}
+          add_header Cache-Control $web_client_cache_control always;
+        '';
+
+        locations = {
+          "= /bootstrap.js".tryFiles = "$uri =404";
+          "= /index.html".tryFiles = "$uri =404";
+          "= /manifest.json".tryFiles = "$uri =404";
           "/".extraConfig = ''
             try_files $uri $uri/ /index.html;
           '';

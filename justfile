@@ -27,6 +27,7 @@ help topic="":
       regenerate-sops         Regenerate .sops.yaml
       update-eturnal          Update eturnal and its locked dependencies
       update-matrix-invite-bot Update Matrix invite bot dependencies
+      update-web-clients      Update Converse.js, Commet, and Sable
       update-flake            Update flake inputs and generated files
 
     Examples:
@@ -109,6 +110,15 @@ update-eturnal:
 update-matrix-invite-bot:
     nix shell --inputs-from "path:{{ repo_root }}" nixpkgs#cargo -c cargo update --manifest-path packages/matrix-invite-bot/Cargo.toml
     nix build --no-link "path:{{ repo_root }}#matrix-invite-bot"
+
+# Converse.js、Commet、Sableとリリース固有のCSP hashを更新する
+update-web-clients:
+    nix shell \
+      "path:{{ repo_root }}#curl" \
+      "path:{{ repo_root }}#jq" \
+      "path:{{ repo_root }}#nix-prefetch-docker" \
+      "path:{{ repo_root }}#python3" \
+      -c ./scripts/update-web-clients.sh
 
 # flake.lockとkernel configを更新する
 update-flake:

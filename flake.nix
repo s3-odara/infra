@@ -34,6 +34,8 @@
 
       packages.x86_64-linux = {
         age = nixpkgs.legacyPackages.x86_64-linux.age;
+        commet-web = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/commet-web/package.nix { };
+        conversejs = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/conversejs/package.nix { };
         curl = nixpkgs.legacyPackages.x86_64-linux.curl;
         eturnal = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/eturnal/package.nix { };
         jq = nixpkgs.legacyPackages.x86_64-linux.jq;
@@ -41,8 +43,11 @@
           nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/matrix-invite-bot/package.nix
             { };
         mkpasswd = nixpkgs.legacyPackages.x86_64-linux.mkpasswd;
+        nix-prefetch-docker = nixpkgs.legacyPackages.x86_64-linux.nix-prefetch-docker;
         nixos-anywhere = nixos-anywhere.packages.x86_64-linux.nixos-anywhere;
         opentofu = nixpkgs.legacyPackages.x86_64-linux.opentofu;
+        python3 = nixpkgs.legacyPackages.x86_64-linux.python3;
+        sable = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/sable/package.nix { };
         shfmt = nixpkgs.legacyPackages.x86_64-linux.shfmt;
         sops = nixpkgs.legacyPackages.x86_64-linux.sops;
       };
