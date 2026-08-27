@@ -3,6 +3,7 @@
   configurationName,
   lib,
   pkgs,
+  nixpkgs-2605,
   ...
 }:
 
@@ -30,6 +31,9 @@ in
 
   services.matrix-tuwunel = {
     enable = true;
+    # TEMP: nixos-unstable はまだ 1.8.3。26.05 の 1.9.0 を暫定で使用。
+    # unstable が 1.9.0 を取り込んだらこの行ごと削除する。
+    package = nixpkgs-2605.legacyPackages.x86_64-linux.matrix-tuwunel;
     settings.global = {
       server_name = "matrix.odarah.org";
       address = [

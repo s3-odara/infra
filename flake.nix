@@ -3,6 +3,9 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # TEMP: tuwunel 1.9.0 が nixos-unstable に入るまでの暫定ピン
+    # (nixos-unstable の tip はまだ 1.8.3)。unstable が追いついたら削除する。
+    nixpkgs-2605.url = "github:NixOS/nixpkgs/nixos-26.05";
 
     disko = {
       url = "github:nix-community/disko";
@@ -24,6 +27,7 @@
   outputs =
     {
       nixpkgs,
+      nixpkgs-2605,
       disko,
       nixos-anywhere,
       sops-nix,
@@ -122,7 +126,10 @@
 
         tuwunel = nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
-          specialArgs.configurationName = "tuwunel";
+          specialArgs = {
+            configurationName = "tuwunel";
+            inherit nixpkgs-2605;
+          };
           modules = [
             sops-nix.nixosModules.sops
             ./modules/guest
