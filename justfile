@@ -118,6 +118,7 @@ update-web-clients:
       "path:{{ repo_root }}#jq" \
       "path:{{ repo_root }}#nix-prefetch-docker" \
       "path:{{ repo_root }}#python3" \
+      "path:{{ repo_root }}#yq-go" \
       -c ./scripts/update-web-clients.sh
 
 # flake.lockとkernel configを更新する

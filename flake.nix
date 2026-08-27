@@ -54,6 +54,7 @@
         sable = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/sable/package.nix { };
         shfmt = nixpkgs.legacyPackages.x86_64-linux.shfmt;
         sops = nixpkgs.legacyPackages.x86_64-linux.sops;
+        yq-go = nixpkgs.legacyPackages.x86_64-linux.yq-go;
       };
 
       nixosConfigurations = {
