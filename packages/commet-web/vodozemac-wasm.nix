@@ -16,6 +16,7 @@
   wasm-pack,
   which,
   writableTmpDirAsHomeHook,
+  writeShellScriptBin,
 }:
 
 let
@@ -36,6 +37,12 @@ let
     '';
   };
   rustcWithLibSrc = buildPackages.rustc.override { inherit sysroot; };
+  # wasm-pack invokes Cargo itself, so wrap Cargo to keep randomized Nix build
+  # paths out of panic metadata embedded in the resulting Wasm binary.
+  cargoWithRemappedPaths = writeShellScriptBin "cargo" ''
+    export RUSTFLAGS="''${RUSTFLAGS:+$RUSTFLAGS }--remap-path-prefix=$NIX_BUILD_TOP=/build"
+    exec ${cargo}/bin/cargo "$@"
+  '';
 in
 stdenv.mkDerivation {
   pname = "commet-vodozemac-wasm";
@@ -69,7 +76,7 @@ stdenv.mkDerivation {
     rustPlatform.cargoSetupHook
     rustcWithLibSrc
     rustc.llvmPackages.lld
-    cargo
+    cargoWithRemappedPaths
     flutter
     flutter_rust_bridge_codegen
     which
@@ -112,8 +119,14 @@ stdenv.mkDerivation {
   '';
 
   preFixup = ''
-    find "$out" -name '*.wasm' -exec remove-references-to -t ${sysroot} {} +
+    find "$out" -name '*.wasm' -exec remove-references-to \
+      -t ${sysroot} \
+      ${lib.concatMapStringsSep " " (source: "-t ${source}") (lib.attrValues pubSources)} \
+      {} +
+    find "$out" -name '*.wasm' -exec wasm-opt {} -o /dev/null \;
   '';
+
+  disallowedReferences = [ sysroot ] ++ lib.attrValues pubSources;
 
   env.RUSTC_BOOTSTRAP = 1;
 

@@ -88,7 +88,6 @@ let
       "--dart-define=ENABLE_GOOGLE_SERVICES=false"
       "--dart-define=BUILD_DATE=${pins.buildDate}"
       "--dart-define=FLUTTER_WEB_CANVASKIT_URL=canvaskit/"
-      "--source-maps"
     ];
 
     preBuild = ''
