@@ -1,4 +1,4 @@
-odarah.org. 3600 IN SOA ns.odarah.org. HOSTMASTER.S3-ODARA.NET. 2026082502 3600 1800 604800 600
+odarah.org. 3600 IN SOA ns.odarah.org. HOSTMASTER.S3-ODARA.NET. 2026082801 3600 1800 604800 600
 odarah.org. 3600 IN NS ns.odarah.org.
 odarah.org. 3600 IN A 15.235.184.173
 odarah.org. 3600 IN HTTPS 1 . alpn="h3,h2"
@@ -6,8 +6,6 @@ ns.odarah.org. 3600 IN A 15.235.184.173
 matrix.odarah.org. 3600 IN A 15.235.184.173
 matrix.odarah.org. 3600 IN HTTPS 1 . alpn="h3,h2"
 rtc.matrix.odarah.org. 3600 IN A 15.235.184.173
-commet.matrix.odarah.org. 3600 IN A 15.235.184.173
-commet.matrix.odarah.org. 3600 IN HTTPS 1 . alpn="h3,h2"
 sable.matrix.odarah.org. 3600 IN A 15.235.184.173
 sable.matrix.odarah.org. 3600 IN HTTPS 1 . alpn="h3,h2"
 cinny.matrix.odarah.org. 3600 IN A 15.235.184.173

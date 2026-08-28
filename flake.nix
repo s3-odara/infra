@@ -38,7 +38,6 @@
 
       packages.x86_64-linux = {
         age = nixpkgs.legacyPackages.x86_64-linux.age;
-        commet-web = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/commet-web/package.nix { };
         conversejs = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/conversejs/package.nix { };
         curl = nixpkgs.legacyPackages.x86_64-linux.curl;
         eturnal = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/eturnal/package.nix { };
@@ -54,7 +53,6 @@
         sable = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/sable/package.nix { };
         shfmt = nixpkgs.legacyPackages.x86_64-linux.shfmt;
         sops = nixpkgs.legacyPackages.x86_64-linux.sops;
-        yq-go = nixpkgs.legacyPackages.x86_64-linux.yq-go;
       };
 
       nixosConfigurations = {

@@ -9,7 +9,6 @@
 let
   odarahHost = "odarah.org";
   matrixHost = "matrix.odarah.org";
-  commetHost = "commet.matrix.odarah.org";
   cinnyHost = "cinny.matrix.odarah.org";
   elementHost = "element.matrix.odarah.org";
   rtcHost = "rtc.matrix.odarah.org";
@@ -19,7 +18,6 @@ let
   tuwunelAddress = "10.77.3.14";
   rtcAddress = "10.77.3.15";
   oidcAccountCss = ./tuwunel-oidc.css;
-  commetPins = builtins.fromJSON (builtins.readFile ../../packages/commet-web/pins.json);
   sablePins = builtins.fromJSON (builtins.readFile ../../packages/sable/pins.json);
   formatCspHashes = hashes: lib.concatMapStringsSep " " (hash: "'${hash}'") hashes;
   matrixLandingRoot = pkgs.linkFarm "matrix-landing-root" [
@@ -46,15 +44,6 @@ let
 
   converseSecurityHeaders = ''
     add_header Content-Security-Policy "default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' wss://xmpp.odarah.org https://share.xmpp.odarah.org; img-src 'self' data: blob: https:; media-src 'self' blob: https:; font-src 'self' data:; worker-src 'self'; manifest-src 'self'; frame-src 'self'" always;
-    add_header Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=(), usb=()" always;
-    add_header Referrer-Policy "no-referrer" always;
-    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-Frame-Options "DENY" always;
-  '';
-
-  commetSecurityHeaders = ''
-    add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self' 'wasm-unsafe-eval' ${formatCspHashes commetPins.scriptHashes}; style-src 'self' 'unsafe-inline'; connect-src 'self' https://${matrixHost} wss://${matrixHost}; img-src 'self' data: blob: https:; media-src 'self' blob: https:; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; frame-src 'self'" always;
     add_header Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=(), usb=()" always;
     add_header Referrer-Policy "no-referrer" always;
     add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
@@ -135,16 +124,6 @@ let
     ${precompressStaticAssets} "$out"
   '';
 
-  commet-web-unwrapped = pkgs.callPackage ../../packages/commet-web/package.nix { };
-  commet-web = pkgs.runCommand "commet-web-${commet-web-unwrapped.version}-odarah" { } ''
-    cp -R ${commet-web-unwrapped} "$out"
-    chmod -R u+w "$out"
-    cat > "$out/assets/assets/config/global_config.json" <<'JSON'
-    { "default_homeserver": "${matrixHost}" }
-    JSON
-    ${precompressStaticAssets} "$out"
-  '';
-
   sable-unwrapped = pkgs.callPackage ../../packages/sable/package.nix { };
   sable = pkgs.runCommand "sable-${sable-unwrapped.version}-odarah" { } ''
     cp -R ${sable-unwrapped} "$out"
@@ -218,7 +197,6 @@ in
     certs.${matrixHost} = {
       extraDomainNames = [
         odarahHost
-        commetHost
         cinnyHost
         elementHost
         rtcHost
@@ -272,7 +250,6 @@ in
       map $ssl_preread_server_name $tls_dispatch {
         ${odarahHost} 127.0.0.1:9443;
         ${matrixHost} 127.0.0.1:9443;
-        ${commetHost} 127.0.0.1:9443;
         ${cinnyHost} 127.0.0.1:9443;
         ${elementHost} 127.0.0.1:9443;
         ${rtcHost} 127.0.0.1:9443;
@@ -473,40 +450,6 @@ in
               ${matrixProxyConfig}
             '';
           };
-        };
-      };
-
-      ${commetHost} = {
-        useACMEHost = matrixHost;
-        forceSSL = true;
-        root = commet-web;
-        listen = [
-          {
-            addr = "0.0.0.0";
-            port = 80;
-          }
-          {
-            addr = "127.0.0.1";
-            port = 8443;
-            ssl = true;
-            proxyProtocol = true;
-          }
-        ];
-        extraConfig = ''
-          ${http3Config}
-          ${commetSecurityHeaders}
-          add_header Cache-Control $web_client_cache_control always;
-        '';
-
-        locations = {
-          "= /auth.html".tryFiles = "$uri =404";
-          "= /flutter_service_worker.js".tryFiles = "$uri =404";
-          "= /index.html".tryFiles = "$uri =404";
-          "= /manifest.json".tryFiles = "$uri =404";
-          "= /assets/assets/config/global_config.json".tryFiles = "$uri =404";
-          "/".extraConfig = ''
-            try_files $uri $uri/ /index.html;
-          '';
         };
       };
 
