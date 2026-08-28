@@ -1,7 +1,9 @@
 {
+  applyPatches,
   callPackage,
   fetchzip,
   flutter341,
+  jq,
   lib,
   stdenvNoCC,
 }:
@@ -22,15 +24,34 @@ let
     pname = "commet-web";
     version = pins.version;
 
-    src = fetchzip {
-      url = "https://github.com/commetchat/commet/archive/refs/tags/v${
-        lib.replaceStrings [ "+" ] [ "%2B" ] finalAttrs.version
-      }.tar.gz";
-      hash = pins.srcHash;
+    # Patch the complete source before Pub resolves local path dependencies;
+    # postPatch in the app build cannot modify Tiamat's store-backed package.
+    src = applyPatches {
+      name = "commet-${finalAttrs.version}-source";
+      src = fetchzip {
+        url = "https://github.com/commetchat/commet/archive/refs/tags/v${
+          lib.replaceStrings [ "+" ] [ "%2B" ] finalAttrs.version
+        }.tar.gz";
+        hash = pins.srcHash;
+      };
+      postPatch = ''
+        substituteInPlace commet/pubspec.yaml \
+          --replace-fail "    - family: RobotoCustom" "    - family: Roboto"
+        substituteInPlace tiamat/pubspec.yaml \
+          --replace-fail "    - family: RobotoCustom" "    - family: Roboto"
+        substituteInPlace tiamat/lib/config/style/theme_base.dart \
+          --replace-fail 'fontFamily: "RobotoCustom"' 'fontFamily: "Roboto"'
+        substituteInPlace tiamat/lib/config/style/theme_common.dart \
+          --replace-fail \
+          'const fonts = ["EmojiFont"];' \
+          'const fonts = ["EmojiFont", "Noto Sans JP"];'
+      '';
     };
 
     strictDeps = true;
+    nativeBuildInputs = [ jq ];
     sourceRoot = "${finalAttrs.src.name}/commet";
+    packageRoot = "commet";
     targetFlutterPlatform = "web";
 
     pubspecLockFilePath = "../pubspec.lock";
@@ -61,7 +82,7 @@ let
 
     postPatch = ''
       noto_font_definition=$(cat <<'EOF'
-          - family: NotoSansJP
+          - family: Noto Sans JP
             fonts:
               - asset: assets/font/noto-sans-jp/NotoSansJP-Regular.otf
               - asset: assets/font/noto-sans-jp/NotoSansJP-Bold.otf
@@ -72,10 +93,6 @@ let
       )
       substituteInPlace pubspec.yaml \
         --replace-fail "    - family: Code" "$noto_font_definition"
-      substituteInPlace ../tiamat/lib/config/style/theme_common.dart \
-        --replace-fail \
-        'const fonts = ["EmojiFont"];' \
-        'const fonts = ["EmojiFont", "NotoSansJP"];'
     '';
 
     env.COMMET_PROD = 1;
@@ -124,7 +141,35 @@ let
         echo 'flutter_rust_bridge still requires unsafe-eval' >&2
         exit 1
       fi
-      grep -Fq 'NotoSansJP' "$out/assets/FontManifest.json"
+      font_manifest="$out/assets/FontManifest.json"
+      jq -e '
+        . as $manifest
+        | def has_fonts($family; $assets):
+            [$manifest[] | select(.family == $family) | .fonts[].asset]
+            | contains($assets);
+          has_fonts("Noto Sans JP"; [
+            "assets/font/noto-sans-jp/NotoSansJP-Regular.otf",
+            "assets/font/noto-sans-jp/NotoSansJP-Bold.otf"
+          ])
+          and has_fonts("Roboto"; [
+            "assets/font/roboto/Roboto-Regular.ttf",
+            "assets/font/roboto/Roboto-Bold.ttf"
+          ])
+          and has_fonts("packages/tiamat/Roboto"; [
+            "packages/tiamat/assets/font/roboto/Roboto-Regular.ttf",
+            "packages/tiamat/assets/font/roboto/Roboto-Bold.ttf"
+          ])
+          and all($manifest[]; .family != "NotoSansJP")
+          and all($manifest[]; (.family | contains("RobotoCustom") | not))
+      ' "$font_manifest"
+
+      if grep -Fq 'NotoSansJP' "$out/main.dart.js" \
+        || grep -Fq 'RobotoCustom' "$out/main.dart.js"; then
+        echo 'stale mismatched bundled font family name in web output' >&2
+        exit 1
+      fi
+      grep -Fq 'Noto Sans JP' "$out/main.dart.js"
+      grep -Fq 'Roboto' "$out/main.dart.js"
     '';
 
     passthru = {
