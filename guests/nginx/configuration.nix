@@ -79,11 +79,13 @@ let
   http3PrimaryConfig = ''
     listen 0.0.0.0:443 quic reuseport;
     http3 on;
+    quic_gso on;
     add_header Alt-Svc 'h3=":443"; ma=86400' always;
   '';
   http3Config = ''
     listen 0.0.0.0:443 quic;
     http3 on;
+    quic_gso on;
     add_header Alt-Svc 'h3=":443"; ma=86400' always;
   '';
 
