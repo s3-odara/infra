@@ -111,13 +111,12 @@ update-matrix-invite-bot:
     nix shell --inputs-from "path:{{ repo_root }}" nixpkgs#cargo -c cargo update --manifest-path packages/matrix-invite-bot/Cargo.toml
     nix build --no-link "path:{{ repo_root }}#matrix-invite-bot"
 
-# Sableとリリース固有のCSP hashを更新する
+# Sable OCI pinを更新する。HTML patch/SHA gateは表示される手順で手動更新する
 update-web-clients:
     nix shell \
       "path:{{ repo_root }}#curl" \
       "path:{{ repo_root }}#jq" \
       "path:{{ repo_root }}#nix-prefetch-docker" \
-      "path:{{ repo_root }}#python3" \
       -c ./scripts/update-web-clients.sh
 
 # flake.lockとkernel configを更新する

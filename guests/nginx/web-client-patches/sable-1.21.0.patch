@@ -1,0 +1,47 @@
+--- a/index.html
++++ b/index.html
+@@ -143,26 +143,8 @@
+   </head>
+ 
+   <body id="appBody">
+-    <script>
+-      window.global ||= window;
+-    </script>
+-    <script>
+-      (function () {
+-        var base = '/';
+-        var lng = (localStorage.getItem('i18nextLng') || navigator.language || 'en').split('-')[0];
+-        var configPromise = fetch(base + 'config.json').then(function (r) {
+-          if (!r.ok) return undefined;
+-          return r.json();
+-        });
+-        var localePromise = fetch(base + 'public/locales/' + lng + '.json');
+-        window.__SABLE_PRELOAD = {
+-          config: configPromise,
+-          locale: { lng: lng, promise: localePromise },
+-        };
+-        configPromise.catch(function () {});
+-        localePromise.catch(function () {});
+-      })();
+-    </script>
++    <script src="/csp-inline/global-or.js"></script>
++    <script src="/csp-inline/sable-preload.js"></script>
+     <div id="root"></div>
+   </body>
+ </html>
+--- a/public/element-call/index.html
++++ b/public/element-call/index.html
+@@ -1,10 +1 @@
+-<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="viewport-fit=cover,width=device-width,initial-scale=1,maximum-scale=1"><title>Element Call</title><script>window.global = window;</script><script>if (!Promise.withResolvers) {
+-        Promise.withResolvers = function () {
+-          var resolve, reject;
+-          var promise = new Promise(function (a, b) {
+-            resolve = a;
+-            reject = b;
+-          });
+-          return { promise: promise, resolve: resolve, reject: reject };
+-        };
+-      }</script><script type="module" crossorigin src="./assets/index-DF0peK0K.js"></script><link rel="modulepreload" crossorigin href="./assets/chunk-Cyuzqnbw.js"><link rel="stylesheet" crossorigin href="./assets/index-Csa4obTm.css"></head><body class="no-theme"><div id="root"></div></body></html>
+\ No newline at end of file
++<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="viewport-fit=cover,width=device-width,initial-scale=1,maximum-scale=1"><title>Element Call</title><script src="/csp-inline/global-equals.js"></script><script src="/csp-inline/promise-with-resolvers.js"></script><script type="module" crossorigin src="./assets/index-DF0peK0K.js"></script><link rel="modulepreload" crossorigin href="./assets/chunk-Cyuzqnbw.js"><link rel="stylesheet" crossorigin href="./assets/index-Csa4obTm.css"></head><body class="no-theme"><div id="root"></div></body></html>
+\ No newline at end of file

@@ -1,0 +1,39 @@
+--- a/index.html
++++ b/index.html
+@@ -17,20 +17,6 @@
+     <meta name="application-name" content="Element">
+     <meta name="theme-color" content="#ffffff">
+     <meta property="og:image" content="https://app.element.io/themes/element/img/logos/opengraph.png" />
+-    <meta http-equiv="Content-Security-Policy" content="
+-        default-src 'none';
+-        style-src 'self' 'unsafe-inline' ;
+-        script-src 'self' 'wasm-unsafe-eval' https://www.recaptcha.net/recaptcha/ https://www.gstatic.com/recaptcha/ ;
+-        img-src * blob: data:;
+-        connect-src * blob:;
+-        font-src 'self' data: ;
+-        media-src * blob: data:;
+-        child-src * blob: data:;
+-        worker-src 'self' blob: ;
+-        frame-src * blob: data:;
+-        form-action 'self' ;
+-        manifest-src 'self' ;
+-    ">
+     
+            <link rel="stylesheet" href="bundles/8ac804eabeb4b6e9481d/bundle.css">
+         
+--- a/widgets/element-call/index.html
++++ b/widgets/element-call/index.html
+@@ -1,10 +1 @@
+-<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="viewport-fit=cover,width=device-width,initial-scale=1,maximum-scale=1"><title>Element Call</title><script>window.global = window;</script><script>if (!Promise.withResolvers) {
+-        Promise.withResolvers = function () {
+-          var resolve, reject;
+-          var promise = new Promise(function (a, b) {
+-            resolve = a;
+-            reject = b;
+-          });
+-          return { promise: promise, resolve: resolve, reject: reject };
+-        };
+-      }</script><script type="module" crossorigin src="./assets/index-ZYqhOGev.js"></script><link rel="modulepreload" crossorigin href="./assets/_sentry-release-injection-file-CD3YgipC.js"><link rel="modulepreload" crossorigin href="./assets/rolldown-runtime-Ck9zZCT2.js"><link rel="stylesheet" crossorigin href="./assets/index-_eNgf1rl.css"></head><body class="no-theme"><div id="root"></div></body></html>
+\ No newline at end of file
++<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="viewport-fit=cover,width=device-width,initial-scale=1,maximum-scale=1"><title>Element Call</title><script src="/csp-inline/global-equals.js"></script><script src="/csp-inline/promise-with-resolvers.js"></script><script type="module" crossorigin src="./assets/index-ZYqhOGev.js"></script><link rel="modulepreload" crossorigin href="./assets/_sentry-release-injection-file-CD3YgipC.js"><link rel="modulepreload" crossorigin href="./assets/rolldown-runtime-Ck9zZCT2.js"><link rel="stylesheet" crossorigin href="./assets/index-_eNgf1rl.css"></head><body class="no-theme"><div id="root"></div></body></html>
+\ No newline at end of file

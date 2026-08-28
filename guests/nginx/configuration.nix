@@ -17,8 +17,8 @@ let
   tuwunelAddress = "10.77.3.14";
   rtcAddress = "10.77.3.15";
   oidcAccountCss = ./tuwunel-oidc.css;
-  sablePins = builtins.fromJSON (builtins.readFile ../../packages/sable/pins.json);
-  formatCspHashes = hashes: lib.concatMapStringsSep " " (hash: "'${hash}'") hashes;
+  cspInline = ./csp-inline;
+  webClientPatches = ./web-client-patches;
   matrixLandingRoot = pkgs.linkFarm "matrix-landing-root" [
     {
       name = "index.html";
@@ -41,32 +41,40 @@ let
     add_header X-Frame-Options "DENY" always;
   '';
 
-  sableSecurityHeaders = ''
-    add_header Content-Security-Policy "default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self' 'wasm-unsafe-eval' ${formatCspHashes sablePins.scriptHashes}; style-src 'self' 'unsafe-inline'; connect-src 'self' https://${matrixHost} wss://${matrixHost}; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; frame-src 'self'" always;
-    add_header Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=(), usb=()" always;
-    add_header Referrer-Policy "no-referrer" always;
-    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-Frame-Options "DENY" always;
-  '';
+  sableMainCsp = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self' 'wasm-unsafe-eval'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self'";
+  sableCallCsp = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' 'wasm-unsafe-eval'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self'";
+  cinnyCsp = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' 'wasm-unsafe-eval'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self'";
+  elementCsp = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' 'wasm-unsafe-eval'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self' blob:";
 
-  cinnySecurityHeaders = ''
-    add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-dT6noyex1I8o5CS9Sx/y8UOqwpZYIridpGz92gcObIM=' 'sha256-pQY0fuQAnnVQH5nQfjo80rzGkQzeN3JeAtAJ+1KcD4k=' 'sha256-3042zLa3JXvrJe/2n8P/XpIKwqBdNTu7fwbLZUNrzZQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://matrix.odarah.org; font-src 'self' data:; media-src 'self' blob: https://matrix.odarah.org; connect-src 'self' https://matrix.odarah.org wss://matrix.odarah.org https://${rtcHost} wss://${rtcHost}; worker-src 'self' blob:" always;
-    add_header Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=(), usb=()" always;
-    add_header Referrer-Policy "no-referrer" always;
-    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-Frame-Options "SAMEORIGIN" always;
-  '';
-
-  elementSecurityHeaders = ''
-    add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-pQY0fuQAnnVQH5nQfjo80rzGkQzeN3JeAtAJ+1KcD4k=' 'sha256-3042zLa3JXvrJe/2n8P/XpIKwqBdNTu7fwbLZUNrzZQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://${matrixHost}; font-src 'self' data:; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self' blob:; worker-src 'self' blob:; manifest-src 'self'" always;
-    add_header Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=(), usb=()" always;
-    add_header Referrer-Policy "no-referrer" always;
-    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-Frame-Options "SAMEORIGIN" always;
-  '';
+  clientSecurityHeaders =
+    {
+      enforcedCsp,
+      xFrameOptions,
+    }:
+    ''
+      add_header Content-Security-Policy "${enforcedCsp}" always;
+      add_header Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=(), usb=()" always;
+      add_header Referrer-Policy "no-referrer" always;
+      add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
+      add_header X-Content-Type-Options "nosniff" always;
+      add_header X-Frame-Options "${xFrameOptions}" always;
+    '';
+  sableSecurityHeaders = clientSecurityHeaders {
+    enforcedCsp = sableMainCsp;
+    xFrameOptions = "DENY";
+  };
+  sableCallSecurityHeaders = clientSecurityHeaders {
+    enforcedCsp = sableCallCsp;
+    xFrameOptions = "SAMEORIGIN";
+  };
+  cinnySecurityHeaders = clientSecurityHeaders {
+    enforcedCsp = cinnyCsp;
+    xFrameOptions = "SAMEORIGIN";
+  };
+  elementSecurityHeaders = clientSecurityHeaders {
+    enforcedCsp = elementCsp;
+    xFrameOptions = "SAMEORIGIN";
+  };
 
   http3PrimaryConfig = ''
     listen 0.0.0.0:443 quic reuseport;
@@ -106,39 +114,68 @@ let
   '';
 
   sable-unwrapped = pkgs.callPackage ../../packages/sable/package.nix { };
-  sable = pkgs.runCommand "sable-${sable-unwrapped.version}-odarah" { } ''
-    cp -R ${sable-unwrapped} "$out"
-    chmod -R u+w "$out"
-    cat > "$out/config.json" <<'JSON'
-    {
-      "productName": "Sable",
-      "defaultHomeserver": 0,
-      "homeserverList": ["${matrixHost}"],
-      "allowCustomHomeservers": false,
-      "elementCallUrl": null,
-      "disableAccountSwitcher": false,
-      "hideUsernamePasswordFields": false,
-      "featuredCommunities": { "openAsDefault": false, "spaces": [], "rooms": [], "servers": [] },
-      "hashRouter": { "enabled": false, "basename": "/" }
-    }
-    JSON
-    ${precompressStaticAssets} "$out"
-  '';
+  sable =
+    pkgs.runCommand "sable-${sable-unwrapped.version}-odarah" { nativeBuildInputs = [ pkgs.patch ]; }
+      ''
+        cp -R ${sable-unwrapped} "$out"
+        chmod -R u+w "$out"
+        printf '%s  %s\n' \
+          b8444f59e9e451143a69b6aedd5b5d265629325975f298c1f56c40fa7d5159a1 "$out/index.html" \
+          f2f8bfd1271beea279fed195e088fe86d7b26aaad51afc6237d5bf43e302feac "$out/public/element-call/index.html" \
+          | ${pkgs.coreutils}/bin/sha256sum -c - || {
+            echo "Sable ${sable-unwrapped.version} upstream HTML changed." >&2
+            echo "Refresh guests/nginx/web-client-patches/sable-<version>.patch and these SHA-256 constants after reviewing the upstream HTML diff." >&2
+            exit 1
+          }
+        ${pkgs.findutils}/bin/find "$out" -type f \( -name '*.gz' -o -name '*.br' \) -delete
+        patch --batch --fuzz=0 --no-backup-if-mismatch -d "$out" -p1 < ${webClientPatches}/sable-1.21.0.patch
+        mkdir -p "$out/csp-inline"
+        install -m 0644 ${cspInline}/*.js "$out/csp-inline/"
+        cat > "$out/config.json" <<'JSON'
+        {
+          "productName": "Sable",
+          "defaultHomeserver": 0,
+          "homeserverList": ["${matrixHost}"],
+          "allowCustomHomeservers": false,
+          "elementCallUrl": null,
+          "disableAccountSwitcher": false,
+          "hideUsernamePasswordFields": false,
+          "featuredCommunities": { "openAsDefault": false, "spaces": [], "rooms": [], "servers": [] },
+          "hashRouter": { "enabled": false, "basename": "/" }
+        }
+        JSON
+        ${precompressStaticAssets} "$out"
+      '';
 
-  cinny = pkgs.runCommand "cinny-${pkgs.cinny-unwrapped.version}-odarah" { } ''
-    cp -R ${pkgs.cinny-unwrapped} "$out"
-    chmod -R u+w "$out"
-    cat > "$out/config.json" <<'JSON'
-    {
-      "defaultHomeserver": 0,
-      "homeserverList": ["matrix.odarah.org"],
-      "allowCustomHomeservers": false,
-      "featuredCommunities": { "openAsDefault": false, "spaces": [], "rooms": [], "servers": [] },
-      "hashRouter": { "enabled": false, "basename": "/" }
-    }
-    JSON
-    ${precompressStaticAssets} "$out"
-  '';
+  cinny =
+    pkgs.runCommand "cinny-${pkgs.cinny-unwrapped.version}-odarah"
+      { nativeBuildInputs = [ pkgs.patch ]; }
+      ''
+        cp -R ${pkgs.cinny-unwrapped} "$out"
+        chmod -R u+w "$out"
+        printf '%s  %s\n' \
+          aecb677dd64bf6a88184537adbb133ccd872782b0c05b70743b307455c17ef8b "$out/index.html" \
+          22e81071d91cce22ab9445a9145afb177fe5da118b7d90d445ef557b8b9d7434 "$out/public/element-call/index.html" \
+          | ${pkgs.coreutils}/bin/sha256sum -c - || {
+            echo "Cinny ${pkgs.cinny-unwrapped.version} upstream HTML changed." >&2
+            echo "Refresh guests/nginx/web-client-patches/cinny-<version>.patch and these SHA-256 constants after reviewing the upstream HTML diff." >&2
+            exit 1
+          }
+        ${pkgs.findutils}/bin/find "$out" -type f \( -name '*.gz' -o -name '*.br' \) -delete
+        patch --batch --fuzz=0 --no-backup-if-mismatch -d "$out" -p1 < ${webClientPatches}/cinny-4.12.6.patch
+        mkdir -p "$out/csp-inline"
+        install -m 0644 ${cspInline}/*.js "$out/csp-inline/"
+        cat > "$out/config.json" <<'JSON'
+        {
+          "defaultHomeserver": 0,
+          "homeserverList": ["matrix.odarah.org"],
+          "allowCustomHomeservers": false,
+          "featuredCommunities": { "openAsDefault": false, "spaces": [], "rooms": [], "servers": [] },
+          "hashRouter": { "enabled": false, "basename": "/" }
+        }
+        JSON
+        ${precompressStaticAssets} "$out"
+      '';
 
   elementConfig = {
     default_server_config."m.homeserver" = {
@@ -159,13 +196,28 @@ let
     };
   };
   elementConfigFile = pkgs.writeText "element-config.json" (builtins.toJSON elementConfig);
-  element = pkgs.runCommand "element-web-${pkgs.element-web-unwrapped.version}-odarah" { } ''
-    mkdir -p "$out"
-    cp -R ${pkgs.element-web-unwrapped}/. "$out/"
-    chmod -R u+w "$out"
-    cp ${elementConfigFile} "$out/config.json"
-    ${precompressStaticAssets} "$out"
-  '';
+  element =
+    pkgs.runCommand "element-web-${pkgs.element-web-unwrapped.version}-odarah"
+      { nativeBuildInputs = [ pkgs.patch ]; }
+      ''
+        mkdir -p "$out"
+        cp -R ${pkgs.element-web-unwrapped}/. "$out/"
+        chmod -R u+w "$out"
+        printf '%s  %s\n' \
+          8861ff1b0cac31f4ba21fdf6c61745bfc3dcce52b7cb70fd7c328eea5b7d37e9 "$out/index.html" \
+          e5a082d79cb2b2c4971776a1a9c8850976cebb8251f7b914053fcae25624528f "$out/widgets/element-call/index.html" \
+          | ${pkgs.coreutils}/bin/sha256sum -c - || {
+            echo "Element ${pkgs.element-web-unwrapped.version} upstream HTML changed." >&2
+            echo "Refresh guests/nginx/web-client-patches/element-<version>.patch and these SHA-256 constants after reviewing the upstream HTML diff." >&2
+            exit 1
+          }
+        ${pkgs.findutils}/bin/find "$out" -type f \( -name '*.gz' -o -name '*.br' \) -delete
+        patch --batch --fuzz=0 --no-backup-if-mismatch -d "$out" -p1 < ${webClientPatches}/element-1.12.26.patch
+        mkdir -p "$out/csp-inline"
+        install -m 0644 ${cspInline}/*.js "$out/csp-inline/"
+        cp ${elementConfigFile} "$out/config.json"
+        ${precompressStaticAssets} "$out"
+      '';
 in
 {
   networking.hostName = configurationName;
@@ -302,11 +354,13 @@ in
       }
       map $request_uri $cinny_cache_control {
         default "no-cache";
+        ~^/csp-inline/ "no-cache";
         ~^/assets/ "public, max-age=31536000, immutable";
         ~^/register/ "no-store";
       }
       map $request_uri $element_cache_control {
         default "no-cache";
+        ~^/csp-inline/ "no-cache";
         ~^/config(?:\.[^/]+)?\.json$ "no-store";
         ~^/bundles/[0-9a-f]+/ "public, max-age=31536000, immutable";
         ~^/widgets/element-call/assets/ "public, max-age=31536000, immutable";
@@ -318,6 +372,7 @@ in
       }
       map $uri $sable_cache_control {
         default "no-cache";
+        ~^/csp-inline/ "no-cache";
         ~^/config\.json$ "no-store";
         ~^/assets/.*-[A-Za-z0-9_-]+\.(?:css|js|json|map|png|jpe?g|svg|webp|avif|wasm|woff2?|ttf|otf)$ "public, max-age=31536000, immutable";
       }
@@ -453,6 +508,7 @@ in
           "= /config.json".tryFiles = "$uri =404";
           "= /sw.js".tryFiles = "$uri =404";
           "= /index.html".tryFiles = "$uri =404";
+          "^~ /csp-inline/".tryFiles = "$uri =404";
           "^~ /assets/".tryFiles = "$uri =404";
           "^~ /register/".extraConfig = ''
             access_log off;
@@ -495,8 +551,11 @@ in
         '';
 
         locations = {
+          "= /decoder-ring/".return = "404";
+          "^~ /decoder-ring/".return = "404";
           "~ ^/config(?:\\.[^/]+)?\\.json$".tryFiles = "$uri =404";
           "= /index.html".tryFiles = "$uri =404";
+          "^~ /csp-inline/".tryFiles = "$uri =404";
           "^~ /bundles/".tryFiles = "$uri =404";
           "^~ /widgets/element-call/assets/".tryFiles = "$uri =404";
           "/".extraConfig = ''
@@ -532,7 +591,14 @@ in
           "= /index.html".tryFiles = "$uri =404";
           "= /manifest.json".tryFiles = "$uri =404";
           "= /sw.js".tryFiles = "$uri =404";
+          "^~ /csp-inline/".tryFiles = "$uri =404";
           "^~ /assets/".tryFiles = "$uri =404";
+          "^~ /public/element-call/".extraConfig = ''
+            try_files $uri $uri/ =404;
+            ${sableCallSecurityHeaders}
+            add_header Cache-Control $sable_cache_control always;
+            add_header Alt-Svc 'h3=":443"; ma=86400' always;
+          '';
           "/".extraConfig = ''
             try_files $uri $uri/ /index.html;
           '';

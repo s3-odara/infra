@@ -1,9 +1,5 @@
 {
   "version": "1.21.0",
   "imageDigest": "sha256:2d5554d83ea04ae2a33d58c5963fb51e4d5d25126bbcb544c3ba8a611b717452",
-  "imageHash": "sha256-xyFcF0PymB4zWoZWMsvC58FEXoo9G+1leLAP3kRdp8E=",
-  "scriptHashes": [
-    "sha256-dT6noyex1I8o5CS9Sx/y8UOqwpZYIridpGz92gcObIM=",
-    "sha256-kuH+4ZRrQwrlgRBpK4wVLq95g1vO8qzOLBWduMJ6dV0="
-  ]
+  "imageHash": "sha256-xyFcF0PymB4zWoZWMsvC58FEXoo9G+1leLAP3kRdp8E="
 }
