@@ -13,7 +13,6 @@ let
   elementHost = "element.matrix.odarah.org";
   rtcHost = "rtc.matrix.odarah.org";
   sableHost = "sable.matrix.odarah.org";
-  converseHost = "converse.xmpp.odarah.org";
   prosodyAddress = "10.77.3.10";
   tuwunelAddress = "10.77.3.14";
   rtcAddress = "10.77.3.15";
@@ -36,15 +35,6 @@ let
   landingSecurityHeaders = ''
     add_header Content-Security-Policy "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" always;
     add_header Permissions-Policy "accelerometer=(), ambient-light-sensor=(), autoplay=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()" always;
-    add_header Referrer-Policy "no-referrer" always;
-    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-Frame-Options "DENY" always;
-  '';
-
-  converseSecurityHeaders = ''
-    add_header Content-Security-Policy "default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' wss://xmpp.odarah.org https://xmpp.odarah.org https://share.xmpp.odarah.org; img-src 'self' data: blob: https:; media-src 'self' blob: https:; font-src 'self' data:; worker-src 'self'; manifest-src 'self'; frame-src 'self'" always;
-    add_header Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=(), usb=()" always;
     add_header Referrer-Policy "no-referrer" always;
     add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
     add_header X-Content-Type-Options "nosniff" always;
@@ -113,15 +103,6 @@ let
         [[ -e "$file.gz" ]] || ${pkgs.gzip}/bin/gzip -9 -n -k "$file"
         [[ -e "$file.br" ]] || ${pkgs.brotli}/bin/brotli -q 9 -k "$file"
       done
-  '';
-
-  conversejs-unwrapped = pkgs.callPackage ../../packages/conversejs/package.nix { };
-  conversejs = pkgs.runCommand "conversejs-${conversejs-unwrapped.version}-odarah" { } ''
-    cp -R ${conversejs-unwrapped} "$out"
-    chmod -R u+w "$out"
-    cp ${./converse-index.html} "$out/index.html"
-    cp ${./converse-bootstrap.js} "$out/bootstrap.js"
-    ${precompressStaticAssets} "$out"
   '';
 
   sable-unwrapped = pkgs.callPackage ../../packages/sable/package.nix { };
@@ -201,7 +182,6 @@ in
         elementHost
         rtcHost
         sableHost
-        converseHost
       ];
       profile = "shortlived";
       renewInterval = "*-*-* 00,06,12,18:00:00";
@@ -254,7 +234,6 @@ in
         ${elementHost} 127.0.0.1:9443;
         ${rtcHost} 127.0.0.1:9443;
         ${sableHost} 127.0.0.1:9443;
-        ${converseHost} 127.0.0.1:9443;
         turn.odarah.org 127.0.0.1:9446;
         xmpp.odarah.org 127.0.0.1:9444;
         conference.xmpp.odarah.org 127.0.0.1:9444;
@@ -341,11 +320,6 @@ in
         default "no-cache";
         ~^/config\.json$ "no-store";
         ~^/assets/.*-[A-Za-z0-9_-]+\.(?:css|js|json|map|png|jpe?g|svg|webp|avif|wasm|woff2?|ttf|otf)$ "public, max-age=31536000, immutable";
-      }
-      map $uri $web_client_cache_control {
-        default "public, max-age=0, must-revalidate";
-        ~^/auth\.html$ "no-store";
-        ~*\.(?:avif|gif|ico|jpe?g|png|svg|webp|otf|ttf|woff2?)$ "public, max-age=86400, stale-while-revalidate=604800";
       }
       map $http_upgrade $connection_upgrade {
         default upgrade;
@@ -559,39 +533,6 @@ in
           "= /manifest.json".tryFiles = "$uri =404";
           "= /sw.js".tryFiles = "$uri =404";
           "^~ /assets/".tryFiles = "$uri =404";
-          "/".extraConfig = ''
-            try_files $uri $uri/ /index.html;
-          '';
-        };
-      };
-
-      ${converseHost} = {
-        useACMEHost = matrixHost;
-        forceSSL = true;
-        root = conversejs;
-        listen = [
-          {
-            addr = "0.0.0.0";
-            port = 80;
-          }
-          {
-            addr = "127.0.0.1";
-            port = 8443;
-            ssl = true;
-            proxyProtocol = true;
-          }
-        ];
-        extraConfig = ''
-          ${http3Config}
-          ${converseSecurityHeaders}
-          add_header Cache-Control $web_client_cache_control always;
-        '';
-
-        locations = {
-          "= /bootstrap.js".tryFiles = "$uri =404";
-          "= /emoji.json".tryFiles = "$uri =404";
-          "= /index.html".tryFiles = "$uri =404";
-          "= /manifest.json".tryFiles = "$uri =404";
           "/".extraConfig = ''
             try_files $uri $uri/ /index.html;
           '';

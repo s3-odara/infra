@@ -38,7 +38,6 @@
 
       packages.x86_64-linux = {
         age = nixpkgs.legacyPackages.x86_64-linux.age;
-        conversejs = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/conversejs/package.nix { };
         curl = nixpkgs.legacyPackages.x86_64-linux.curl;
         eturnal = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/eturnal/package.nix { };
         jq = nixpkgs.legacyPackages.x86_64-linux.jq;
