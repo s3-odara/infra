@@ -5,6 +5,7 @@ converse.initialize({
   auto_away: 300,
   auto_reconnect: true,
   auto_xa: 1800,
+  assets_path: "",
   locked_domain: "xmpp.odarah.org",
   muc_domain: "conference.xmpp.odarah.org",
   view_mode: "fullscreen",

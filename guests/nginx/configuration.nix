@@ -43,7 +43,7 @@ let
   '';
 
   converseSecurityHeaders = ''
-    add_header Content-Security-Policy "default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' wss://xmpp.odarah.org https://share.xmpp.odarah.org; img-src 'self' data: blob: https:; media-src 'self' blob: https:; font-src 'self' data:; worker-src 'self'; manifest-src 'self'; frame-src 'self'" always;
+    add_header Content-Security-Policy "default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' wss://xmpp.odarah.org https://xmpp.odarah.org https://share.xmpp.odarah.org; img-src 'self' data: blob: https:; media-src 'self' blob: https:; font-src 'self' data:; worker-src 'self'; manifest-src 'self'; frame-src 'self'" always;
     add_header Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=(), usb=()" always;
     add_header Referrer-Policy "no-referrer" always;
     add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
@@ -589,6 +589,7 @@ in
 
         locations = {
           "= /bootstrap.js".tryFiles = "$uri =404";
+          "= /emoji.json".tryFiles = "$uri =404";
           "= /index.html".tryFiles = "$uri =404";
           "= /manifest.json".tryFiles = "$uri =404";
           "/".extraConfig = ''
