@@ -1,6 +1,7 @@
 {
   applyPatches,
   callPackage,
+  fetchurl,
   fetchzip,
   flutter341,
   jq,
@@ -11,11 +12,55 @@
 let
   pins = builtins.fromJSON (builtins.readFile ./pins.json);
   buildVersion = builtins.head (builtins.match "([0-9]+\\.[0-9]+\\.[0-9]+).*" pins.version);
+  commetSource = fetchzip {
+    url = "https://github.com/commetchat/commet/archive/refs/tags/v${
+      lib.replaceStrings [ "+" ] [ "%2B" ] pins.version
+    }.tar.gz";
+    hash = pins.srcHash;
+  };
   notoSansJp = fetchzip {
     url = "https://github.com/notofonts/noto-cjk/releases/download/Sans2.004/16_NotoSansJP.zip";
     hash = "sha256-I/hdMGzusd2yhaVOBCNQPu6IoIpvVi6uIQaz01uzkxs=";
     stripRoot = false;
   };
+  fontFallbackPins = lib.importJSON ./font-fallbacks.json;
+  fontFallbackSources = map (
+    font:
+    fetchurl {
+      url = "${fontFallbackPins.baseUrl}${font.path}";
+      inherit (font) hash;
+    }
+  ) fontFallbackPins.fonts;
+  fontFallbackFiles = lib.zipListsWith (font: source: {
+    inherit font source;
+  }) fontFallbackPins.fonts fontFallbackSources;
+  fontFallbacks =
+    assert fontFallbackPins.flutterVersion == flutter341.version;
+    assert fontFallbackPins.engineRevision == flutter341.engineVersion;
+    assert builtins.length fontFallbackFiles == fontFallbackPins.fontCount;
+    assert lib.all (entry: builtins.match "[A-Za-z0-9._/-]+" entry.font.path != null) fontFallbackFiles;
+    stdenvNoCC.mkDerivation {
+      pname = "flutter-font-fallbacks";
+      version = fontFallbackPins.engineRevision;
+      dontUnpack = true;
+      passAsFile = [ "installCommands" ];
+      installCommands = lib.concatMapStringsSep "\n" (entry: ''
+        install -Dm444 ${entry.source} "$out/${entry.font.path}"
+      '') fontFallbackFiles;
+
+      installPhase = ''
+        runHook preInstall
+        mkdir -p "$out"
+        source "$installCommandsPath"
+        cp ${notoSansJp}/LICENSE "$out/OFL.txt"
+        cp ${commetSource}/commet/assets/font/roboto/LICENSE.txt \
+          "$out/Roboto-LICENSE.txt"
+        cp ${./font-fallbacks.json} "$out/INVENTORY.json"
+        runHook postInstall
+      '';
+
+      disallowedReferences = fontFallbackSources;
+    };
 
   # This recursion is evaluation-only: the Wasm build reuses the Pub sources
   # resolved for Commet, while Commet includes the generated Wasm artifact.
@@ -28,12 +73,7 @@ let
     # postPatch in the app build cannot modify Tiamat's store-backed package.
     src = applyPatches {
       name = "commet-${finalAttrs.version}-source";
-      src = fetchzip {
-        url = "https://github.com/commetchat/commet/archive/refs/tags/v${
-          lib.replaceStrings [ "+" ] [ "%2B" ] finalAttrs.version
-        }.tar.gz";
-        hash = pins.srcHash;
-      };
+      src = commetSource;
       postPatch = ''
         substituteInPlace commet/pubspec.yaml \
           --replace-fail "    - family: RobotoCustom" "    - family: Roboto"
@@ -45,6 +85,10 @@ let
           --replace-fail \
           'const fonts = ["EmojiFont"];' \
           'const fonts = ["EmojiFont", "Noto Sans JP"];'
+        substituteInPlace commet/web/index.html \
+          --replace-fail \
+          'engineInitializer.initializeEngine().then(function (appRunner) {' \
+          'engineInitializer.initializeEngine({ fontFallbackBaseUrl: "/font-fallback/" }).then(function (appRunner) {'
       '';
     };
 
@@ -132,6 +176,7 @@ let
           "$file"
       done
       rm -f build/web/.last_build_id
+      cp -R ${fontFallbacks} build/web/font-fallback
     '';
 
     postInstall = ''
@@ -170,6 +215,11 @@ let
       fi
       grep -Fq 'Noto Sans JP' "$out/main.dart.js"
       grep -Fq 'Roboto' "$out/main.dart.js"
+      grep -Fq 'fontFallbackBaseUrl: "/font-fallback/"' "$out/index.html"
+      test "$(find "$out/font-fallback" -type f -name '*.woff2' | wc -l)" -eq ${toString fontFallbackPins.fontCount}
+      test -f "$out/font-fallback/OFL.txt"
+      test -f "$out/font-fallback/Roboto-LICENSE.txt"
+      test -f "$out/font-fallback/INVENTORY.json"
     '';
 
     passthru = {
@@ -184,6 +234,7 @@ let
       }";
       license = [
         lib.licenses.agpl3Only
+        lib.licenses.asl20
         lib.licenses.ofl
       ];
       platforms = lib.platforms.linux;
