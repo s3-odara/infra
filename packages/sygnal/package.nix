@@ -40,6 +40,30 @@ let
     ];
     doCheck = false;
   };
+
+  # Sygnal's custom Twisted request adapter implements the response interface
+  # expected by the version locked upstream, but not pywebpush 2.3 or newer.
+  pywebpush = python3Packages.buildPythonPackage rec {
+    pname = "pywebpush";
+    version = "2.0.0";
+    pyproject = true;
+
+    src = python3Packages.fetchPypi {
+      inherit pname version;
+      hash = "sha256-A8zD6XW2A3S3Y0xJVZVha+Ujvyx9oNl26E/amsjGMwE=";
+    };
+
+    build-system = [ python3Packages.setuptools ];
+    dependencies = with python3Packages; [
+      aiohttp
+      cryptography
+      http-ece
+      py-vapid
+      requests
+      six
+    ];
+    pythonImportsCheck = [ "pywebpush" ];
+  };
 in
 python3Packages.buildPythonApplication rec {
   pname = "matrix-sygnal";
