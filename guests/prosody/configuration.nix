@@ -61,9 +61,23 @@
             patch --batch --forward -d "$invites_page" -p1 < ${./invites/patches/invites-page-security.patch}
             patch --batch --forward -d "$invites_register_web" -p1 < ${./invites/patches/invites-register-web-security.patch}
             patch --batch --forward -d "$(dirname "$http_server")" -p1 < ${./invites/patches/http-redact-query.patch}
+            # The HTTP server's async-runner fallback writes a fixed header set,
+            # so serialize the value installed by mod_http_hsts there as well.
+            substituteInPlace "$http_server" \
+              --replace-fail \
+                $'\t\tX-Content-Type-Options: nosniff\\r\\n\\z\n\t\tContent-Type: " .. response.headers.content_type' \
+                $'\t\tX-Content-Type-Options: nosniff\\r\\n\\z\n\t\tStrict-Transport-Security: " .. response.headers.strict_transport_security .. "\\r\\n\\z\n\t\tContent-Type: " .. response.headers.content_type'
           '';
         });
     checkConfig = true;
+    extraPluginPaths = [
+      (pkgs.linkFarm "prosody-http-hsts-module" [
+        {
+          name = "mod_http_hsts.lua";
+          path = ./mod_http_hsts.lua;
+        }
+      ])
+    ];
     admins = [ ];
     httpPorts = [ ];
     httpsPorts = [ ];
@@ -156,6 +170,7 @@
       "invites"
       "invites_adhoc"
       "invites_register"
+      "http_hsts"
       "net_multiplex"
       "turn_external"
     ];

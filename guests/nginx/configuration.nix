@@ -14,6 +14,7 @@ let
   rtcHost = "rtc.matrix.odarah.org";
   sableHost = "sable.matrix.odarah.org";
   pushHost = "push.matrix.odarah.org";
+  hstsValue = "max-age=63072000; includeSubDomains";
   prosodyAddress = "10.77.3.10";
   tuwunelAddress = "10.77.3.14";
   rtcAddress = "10.77.3.15";
@@ -39,7 +40,6 @@ let
     add_header Content-Security-Policy "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" always;
     add_header Permissions-Policy "accelerometer=(), ambient-light-sensor=(), autoplay=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()" always;
     add_header Referrer-Policy "no-referrer" always;
-    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "DENY" always;
   '';
@@ -58,7 +58,6 @@ let
       add_header Content-Security-Policy "${enforcedCsp}" always;
       add_header Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=(), usb=()" always;
       add_header Referrer-Policy "no-referrer" always;
-      add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
       add_header X-Content-Type-Options "nosniff" always;
       add_header X-Frame-Options "${xFrameOptions}" always;
     '';
@@ -340,6 +339,14 @@ in
       set_real_ip_from 127.0.0.1;
       real_ip_header proxy_protocol;
 
+      # add_header omits empty values, so port 80 responses do not receive HSTS.
+      map $https $hsts_header {
+        default "";
+        on "${hstsValue}";
+      }
+      add_header_inherit merge;
+      add_header Strict-Transport-Security $hsts_header always;
+
       # Empty limit-zone keys are ignored, so only password-auth endpoints are
       # accounted while all Matrix traffic can share one simple proxy location.
       map $uri $matrix_password_auth {
@@ -612,7 +619,11 @@ in
           "^~ /assets/".tryFiles = "$uri =404";
           "^~ /public/element-call/".extraConfig = ''
             try_files $uri $uri/ =404;
+            # This location intentionally replaces Sable's main security policy.
+            # Keep that behavior while the global merge preserves HSTS elsewhere.
+            add_header_inherit off;
             ${sableCallSecurityHeaders}
+            add_header Strict-Transport-Security "${hstsValue}" always;
             add_header Cache-Control $sable_cache_control always;
             add_header Alt-Svc 'h3=":443"; ma=86400' always;
           '';
