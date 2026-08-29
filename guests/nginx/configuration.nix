@@ -642,6 +642,9 @@ in
           "= /_matrix/push/v1/notify" = {
             proxyPass = "http://${sygnalAddress}:5000";
             extraConfig = ''
+              # Tuwunel is the only valid caller; retain rate limits as defense in depth.
+              allow ${tuwunelAddress};
+              deny all;
               limit_except POST { deny all; }
               limit_req zone=sygnal_push_ip burst=50 nodelay;
               limit_req zone=sygnal_push_global burst=100 nodelay;
