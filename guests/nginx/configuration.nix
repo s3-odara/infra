@@ -165,7 +165,7 @@ let
         cp -R ${pkgs.cinny-unwrapped} "$out"
         chmod -R u+w "$out"
         printf '%s  %s\n' \
-          aecb677dd64bf6a88184537adbb133ccd872782b0c05b70743b307455c17ef8b "$out/index.html" \
+          30f2441cfa124d288e9ca687176f944a1820d9a273166ce79b7aadfd37282aeb "$out/index.html" \
           22e81071d91cce22ab9445a9145afb177fe5da118b7d90d445ef557b8b9d7434 "$out/public/element-call/index.html" \
           | ${pkgs.coreutils}/bin/sha256sum -c - || {
             echo "Cinny ${pkgs.cinny-unwrapped.version} upstream HTML changed." >&2
