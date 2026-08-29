@@ -8,6 +8,10 @@
 let
   secretSource = ../../secrets/hosts/${configurationName}/secrets.sops.yaml;
   hasSecrets = builtins.pathExists secretSource;
+  monitorEnvironment = {
+    # Avoid the inaccessible root-owned client config with ProtectHome enabled.
+    INCUS_CONF = "/run/host-monitor-incus";
+  };
   monitorHardening = {
     NoNewPrivileges = true;
     PrivateTmp = true;
@@ -105,7 +109,9 @@ in
     description = "Check host and Incus container storage usage";
     after = [ "incus.service" ];
     requires = [ "incus.service" ];
-    environment.STORAGE_MONITOR_SECRET_FILE = secretFile;
+    environment = monitorEnvironment // {
+      STORAGE_MONITOR_SECRET_FILE = secretFile;
+    };
     serviceConfig = monitorHardening // {
       Type = "oneshot";
       ExecStart = lib.getExe storageMonitor;
@@ -126,7 +132,9 @@ in
     description = "Check Incus container states and kernel health events";
     after = [ "incus.service" ];
     requires = [ "incus.service" ];
-    environment.HOST_MONITOR_SECRET_FILE = secretFile;
+    environment = monitorEnvironment // {
+      HOST_MONITOR_SECRET_FILE = secretFile;
+    };
     serviceConfig = monitorHardening // {
       Type = "oneshot";
       ExecStart = lib.getExe healthMonitor;
