@@ -100,6 +100,8 @@ let
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-For $remote_addr;
     proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header Connection "";
+    proxy_connect_timeout 5s;
     proxy_read_timeout 300s;
     proxy_send_timeout 300s;
   '';
@@ -651,6 +653,7 @@ in
               proxy_set_header Host $host;
               proxy_set_header X-Forwarded-For $remote_addr;
               proxy_set_header X-Forwarded-Proto https;
+              proxy_set_header Connection "";
               proxy_connect_timeout 5s;
               proxy_read_timeout 30s;
               proxy_send_timeout 30s;
@@ -684,6 +687,8 @@ in
               proxy_set_header Host $host;
               proxy_set_header X-Forwarded-For $remote_addr;
               proxy_set_header X-Forwarded-Proto https;
+              proxy_set_header Connection "";
+              proxy_connect_timeout 5s;
             '';
           };
           "/" = {
@@ -697,6 +702,7 @@ in
               proxy_set_header X-Forwarded-Proto https;
               proxy_set_header Upgrade $http_upgrade;
               proxy_set_header Connection $connection_upgrade;
+              proxy_connect_timeout 5s;
               proxy_read_timeout 3600s;
               proxy_send_timeout 3600s;
             '';
