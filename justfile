@@ -91,7 +91,20 @@ upgrade-guests *guests:
     ./scripts/guests.sh "$@"
 
 upgrade-host:
-    doas nixos-rebuild boot --flake "path:{{ repo_root }}#$(hostname -s)"
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    flake="path:{{ repo_root }}#$(hostname -s)"
+    doas nixos-rebuild boot --flake "$flake"
+
+    booted="$(readlink /run/booted-system/{initrd,kernel,kernel-modules})"
+    built="$(readlink /nix/var/nix/profiles/system/{initrd,kernel,kernel-modules})"
+
+    if [[ "$booted" == "$built" ]]; then
+      doas nixos-rebuild switch --flake "$flake"
+    else
+      echo "Kernel, initrd, or kernel modules changed; reboot required."
+    fi
 
 manage-secrets *args:
     ./scripts/secrets.sh "$@"
