@@ -27,6 +27,7 @@ help topic="":
       regenerate-sops         Regenerate .sops.yaml
       update-eturnal          Update eturnal and its locked dependencies
       update-matrix-invite-bot Update Matrix invite bot dependencies
+      update-sygnal           Update Sygnal
       update-web-clients      Update Sable
       update-flake            Update flake inputs and generated files
 
@@ -110,6 +111,10 @@ update-eturnal:
 update-matrix-invite-bot:
     nix shell --inputs-from "path:{{ repo_root }}" nixpkgs#cargo -c cargo update --manifest-path packages/matrix-invite-bot/Cargo.toml
     nix build --no-link "path:{{ repo_root }}#matrix-invite-bot"
+
+# Sygnal本体のreleaseとsource hashを更新する
+update-sygnal:
+    nix shell "path:{{ repo_root }}#curl" "path:{{ repo_root }}#jq" -c ./scripts/update-sygnal.sh
 
 # Sable OCI pinを更新する。HTML patch/SHA gateは表示される手順で手動更新する
 update-web-clients:

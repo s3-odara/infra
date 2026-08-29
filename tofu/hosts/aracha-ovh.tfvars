@@ -91,7 +91,7 @@ guests = {
       "10.77.3.0",
       "10.77.3.2-10.77.3.9",
       "10.77.3.11-10.77.3.13",
-      "10.77.3.16-10.77.3.255",
+      "10.77.3.17-10.77.3.255",
     ]
   }
 
@@ -107,6 +107,27 @@ guests = {
       {
         protocol = "tcp"
         port     = 8008
+        source   = "10.77.3.13/32"
+      },
+    ]
+    denied_egress = [
+      "10.77.3.0",
+      "10.77.3.2-10.77.3.255",
+    ]
+  }
+
+  sygnal = {
+    image         = "images:nixos/unstable"
+    ipv4          = "10.77.3.16"
+    cpu_allowance = "50ms/100ms"
+    memory        = "1GiB"
+    disk_size     = "5GiB"
+
+    public_ports = []
+    private_ports = [
+      {
+        protocol = "tcp"
+        port     = 5000
         source   = "10.77.3.13/32"
       },
     ]

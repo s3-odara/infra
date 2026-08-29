@@ -51,6 +51,7 @@
         python3 = nixpkgs.legacyPackages.x86_64-linux.python3;
         sable = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/sable/package.nix { };
         shfmt = nixpkgs.legacyPackages.x86_64-linux.shfmt;
+        sygnal = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/sygnal/package.nix { };
         sops = nixpkgs.legacyPackages.x86_64-linux.sops;
       };
 
@@ -133,6 +134,17 @@
             ./modules/guest
             ./modules/guest/secrets.nix
             ./guests/tuwunel/configuration.nix
+          ];
+        };
+
+        sygnal = nixpkgs.lib.nixosSystem {
+          system = "x86_64-linux";
+          specialArgs.configurationName = "sygnal";
+          modules = [
+            sops-nix.nixosModules.sops
+            ./modules/guest
+            ./modules/guest/secrets.nix
+            ./guests/sygnal/configuration.nix
           ];
         };
 

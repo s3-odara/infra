@@ -13,9 +13,12 @@ let
   elementHost = "element.matrix.odarah.org";
   rtcHost = "rtc.matrix.odarah.org";
   sableHost = "sable.matrix.odarah.org";
+  pushHost = "push.matrix.odarah.org";
   prosodyAddress = "10.77.3.10";
   tuwunelAddress = "10.77.3.14";
   rtcAddress = "10.77.3.15";
+  sygnalAddress = "10.77.3.16";
+  pushClientConfig = builtins.fromJSON (builtins.readFile ../../packages/sygnal/client-config.json);
   oidcAccountCss = ./tuwunel-oidc.css;
   cspInline = ./csp-inline;
   webClientPatches = ./web-client-patches;
@@ -142,6 +145,11 @@ let
           "elementCallUrl": null,
           "disableAccountSwitcher": false,
           "hideUsernamePasswordFields": false,
+          "pushNotificationDetails": {
+            "pushNotifyUrl": "https://${pushHost}/_matrix/push/v1/notify",
+            "vapidPublicKey": "${pushClientConfig.vapidPublicKey}",
+            "webPushAppID": "${pushClientConfig.webPushAppID}"
+          },
           "featuredCommunities": { "openAsDefault": false, "spaces": [], "rooms": [], "servers": [] },
           "hashRouter": { "enabled": false, "basename": "/" }
         }
@@ -236,6 +244,7 @@ in
         elementHost
         rtcHost
         sableHost
+        pushHost
       ];
       profile = "shortlived";
       renewInterval = "*-*-* 00,06,12,18:00:00";
@@ -288,6 +297,7 @@ in
         ${elementHost} 127.0.0.1:9443;
         ${rtcHost} 127.0.0.1:9443;
         ${sableHost} 127.0.0.1:9443;
+        ${pushHost} 127.0.0.1:9443;
         turn.odarah.org 127.0.0.1:9446;
         xmpp.odarah.org 127.0.0.1:9444;
         conference.xmpp.odarah.org 127.0.0.1:9444;
@@ -349,6 +359,9 @@ in
       limit_req_zone $matrix_login_global_key zone=matrix_login_global:1m rate=10r/s;
       limit_conn_zone $matrix_login_global_key zone=matrix_login_conn:1m;
       limit_conn_zone $remote_addr zone=rtc_ws_conn:10m;
+      limit_req_zone $binary_remote_addr zone=sygnal_push_ip:10m rate=10r/s;
+      limit_req_zone $server_name zone=sygnal_push_global:1m rate=50r/s;
+      limit_conn_zone $binary_remote_addr zone=sygnal_push_conn:10m;
 
       map $request_uri $cinny_registration_loggable {
         default 1;
@@ -604,6 +617,46 @@ in
           "/".extraConfig = ''
             try_files $uri $uri/ /index.html;
           '';
+        };
+      };
+
+      ${pushHost} = {
+        useACMEHost = matrixHost;
+        forceSSL = true;
+        extraConfig = http3Config;
+        listen = [
+          {
+            addr = "0.0.0.0";
+            port = 80;
+          }
+          {
+            addr = "127.0.0.1";
+            port = 8443;
+            ssl = true;
+            proxyProtocol = true;
+          }
+        ];
+        locations = {
+          "= /_matrix/push/v1/notify" = {
+            proxyPass = "http://${sygnalAddress}:5000";
+            extraConfig = ''
+              limit_except POST { deny all; }
+              limit_req zone=sygnal_push_ip burst=50 nodelay;
+              limit_req zone=sygnal_push_global burst=100 nodelay;
+              limit_conn sygnal_push_conn 10;
+              limit_req_status 429;
+              limit_conn_status 429;
+              client_max_body_size 1M;
+              proxy_http_version 1.1;
+              proxy_set_header Host $host;
+              proxy_set_header X-Forwarded-For $remote_addr;
+              proxy_set_header X-Forwarded-Proto https;
+              proxy_connect_timeout 5s;
+              proxy_read_timeout 30s;
+              proxy_send_timeout 30s;
+            '';
+          };
+          "/".extraConfig = "return 404;";
         };
       };
 

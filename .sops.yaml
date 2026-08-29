@@ -37,6 +37,13 @@ creation_rules:
         age:
           - age1nhkglywrfjjh3lh8tpjz9plveec2y9zdk6l5kv29jmqntv6c5yrqygwvur
 
+  - path_regex: ^secrets/guests/aracha-ovh/sygnal/secrets\.sops\.yaml$
+    key_groups:
+      - pgp:
+          - *admin_pgp
+        age:
+          - age1tg7wwe8kxd5vmwdfe57vgjugnxv5frk9aq7qgl9vtsh6qwl45ctqryyq5j
+
   - path_regex: ^secrets/guests/aracha-ovh/tuwunel/secrets\.sops\.yaml$
     key_groups:
       - pgp:
