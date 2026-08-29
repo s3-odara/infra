@@ -8,6 +8,33 @@
 let
   secretSource = ../../secrets/hosts/${configurationName}/secrets.sops.yaml;
   hasSecrets = builtins.pathExists secretSource;
+  monitorHardening = {
+    NoNewPrivileges = true;
+    PrivateTmp = true;
+    PrivateDevices = true;
+    ProtectSystem = "strict";
+    ProtectHome = true;
+    ProtectClock = true;
+    ProtectHostname = true;
+    ProtectKernelLogs = true;
+    ProtectKernelTunables = true;
+    ProtectKernelModules = true;
+    ProtectControlGroups = true;
+    RestrictSUIDSGID = true;
+    RestrictRealtime = true;
+    RestrictNamespaces = true;
+    LockPersonality = true;
+    RemoveIPC = true;
+    MemoryDenyWriteExecute = true;
+    CapabilityBoundingSet = "";
+    SystemCallArchitectures = "native";
+    UMask = "0077";
+    RestrictAddressFamilies = [
+      "AF_UNIX"
+      "AF_INET"
+      "AF_INET6"
+    ];
+  };
   secretFile = builtins.path {
     path = secretSource;
     name = "${configurationName}-secrets.sops.yaml";
@@ -79,7 +106,7 @@ in
     after = [ "incus.service" ];
     requires = [ "incus.service" ];
     environment.STORAGE_MONITOR_SECRET_FILE = secretFile;
-    serviceConfig = {
+    serviceConfig = monitorHardening // {
       Type = "oneshot";
       ExecStart = lib.getExe storageMonitor;
     };
@@ -100,7 +127,7 @@ in
     after = [ "incus.service" ];
     requires = [ "incus.service" ];
     environment.HOST_MONITOR_SECRET_FILE = secretFile;
-    serviceConfig = {
+    serviceConfig = monitorHardening // {
       Type = "oneshot";
       ExecStart = lib.getExe healthMonitor;
       SupplementaryGroups = [ "systemd-journal" ];
