@@ -92,6 +92,20 @@
   networking.nftables.enable = true;
   networking.nftables.flushRuleset = false;
 
+  # Tuwunel uses the public Push URL to retain SSRF protection, but Incus DNAT
+  # alone creates an asymmetric return path on the same bridge. Do not SNAT the
+  # shared HTTPS forward because that would hide client IPs; masquerade only this
+  # DNATed Tuwunel-to-nginx hairpin flow.
+  networking.nftables.tables."incus-hairpin" = {
+    family = "ip";
+    content = ''
+      chain postrouting {
+        type nat hook postrouting priority srcnat; policy accept;
+        ip saddr 10.77.3.14 ip daddr 10.77.3.13 tcp dport 443 ct status dnat masquerade
+      }
+    '';
+  };
+
   # instanceからIncus bridge上のホストが提供するDHCP/DNSへ到達できるようにする
   networking.firewall.interfaces.incusbr0 = {
     allowedTCPPorts = [ 53 ];
