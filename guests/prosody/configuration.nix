@@ -247,6 +247,8 @@ in
             --show-error \
             --fail \
             --max-time 15 \
+            --header "Priority: 5" \
+            --header "Tags: warning" \
             --data-binary 'xmpp のTLS証明書更新が失敗しました。' \
             "https://ntfy.sh/$topic" || true
         fi

@@ -31,7 +31,7 @@ printf -v message '%s\n' "${alerts[@]}"
 
 curl --silent --show-error --fail --max-time 15 \
   --header "Title: Storage usage warning: $(hostname --short)" \
-  --header "Priority: high" \
+  --header "Priority: 5" \
   --header "Tags: warning" \
   --data-binary "$message" \
   "https://ntfy.sh/$topic"
