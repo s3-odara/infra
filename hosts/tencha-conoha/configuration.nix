@@ -13,13 +13,6 @@
 
   networking.hostName = configurationName;
 
-  system.autoUpgrade = {
-    enable = true;
-    flake = "github:s3-odara/infra#${configurationName}";
-    upgrade = false;
-    allowReboot = true;
-  };
-
   # ConoHa presents this VPS through legacy SeaBIOS, not UEFI.
   boot.loader.grub.enable = true;
 

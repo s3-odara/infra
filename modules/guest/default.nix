@@ -8,7 +8,7 @@
   '';
 
   system.autoUpgrade = {
-    enable = true;
+    enable = false;
     flake = "github:s3-odara/infra#${configurationName}";
     upgrade = false;
     allowReboot = false;

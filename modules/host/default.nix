@@ -44,6 +44,13 @@ in
     MaxRetentionSec=14day
   '';
 
+  system.autoUpgrade = {
+    enable = false;
+    flake = "github:s3-odara/infra#${configurationName}";
+    upgrade = false;
+    allowReboot = true;
+  };
+
   # The host kernels use CONFIG_MODULES=n.
   boot.modprobeConfig.enable = false;
 

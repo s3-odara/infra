@@ -13,13 +13,6 @@
 
   networking.hostName = configurationName;
 
-  system.autoUpgrade = {
-    enable = true;
-    flake = "github:s3-odara/infra#${configurationName}";
-    upgrade = false;
-    allowReboot = true;
-  };
-
   # Vultr presents this VPS through UEFI.
   boot.loader.systemd-boot = {
     enable = true;
