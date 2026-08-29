@@ -91,7 +91,7 @@ upgrade-guests *guests:
     ./scripts/guests.sh "$@"
 
 upgrade-host:
-    doas systemctl start --wait nixos-upgrade.service
+    doas nixos-rebuild boot --flake "path:{{ repo_root }}#$(hostname -s)"
 
 manage-secrets *args:
     ./scripts/secrets.sh "$@"
