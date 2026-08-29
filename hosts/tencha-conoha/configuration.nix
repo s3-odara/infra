@@ -34,8 +34,13 @@
     ];
   };
 
-  systemd.network.networks."10-uplink" = {
+  systemd.network.links."10-uplink" = {
     matchConfig.MACAddress = "fa:16:3e:7e:a8:02";
+    linkConfig.Name = "uplink0";
+  };
+
+  systemd.network.networks."10-uplink" = {
+    matchConfig.Name = "uplink0";
 
     networkConfig = {
       Address = "133.117.77.64/23";

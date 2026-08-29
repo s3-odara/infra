@@ -34,8 +34,13 @@
     enableIPv6 = false;
   };
 
-  systemd.network.networks."10-uplink" = {
+  systemd.network.links."10-uplink" = {
     matchConfig.MACAddress = "56:00:05:13:a4:8d";
+    linkConfig.Name = "uplink0";
+  };
+
+  systemd.network.networks."10-uplink" = {
+    matchConfig.Name = "uplink0";
     networkConfig.DHCP = "ipv4";
   };
 
