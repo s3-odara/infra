@@ -2,6 +2,8 @@
 
 {
   boot.isContainer = true;
+  # Incus guests are managed through incus exec and have no usable /dev/console.
+  systemd.services.console-getty.enable = false;
   # Use only the init update from lxc-container.nix; the rest is for building LXC images.
   system.build.installBootLoader = pkgs.writeShellScript "install-lxc-init" ''
     ${pkgs.coreutils}/bin/ln -fs "$1/init" /sbin/init
