@@ -267,6 +267,7 @@ in
             --silent \
             --show-error \
             --fail \
+            --output /dev/null \
             --max-time 15 \
             --header "Priority: 5" \
             --header "Tags: warning" \

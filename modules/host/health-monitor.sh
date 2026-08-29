@@ -31,7 +31,7 @@ topic=$(SOPS_AGE_KEY_FILE=/var/lib/sops-nix/key.txt sops decrypt \
   --extract '["ntfy_topic"]' "$HOST_MONITOR_SECRET_FILE")
 printf -v message '%s\n' "${alerts[@]}"
 
-curl --silent --show-error --fail --max-time 15 \
+curl --silent --show-error --fail --output /dev/null --max-time 15 \
   --header "Title: Host health warning: $(hostname --short)" \
   --header "Priority: 5" \
   --header "Tags: warning" \
