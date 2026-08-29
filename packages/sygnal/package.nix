@@ -66,6 +66,40 @@ let
     ];
     pythonImportsCheck = [ "pywebpush" ];
   };
+
+  # Sygnal's ProxyAgent builds on Twisted's private _AgentBase API. Use the
+  # version locked upstream so request handling stays compatible.
+  twisted = python3Packages.buildPythonPackage rec {
+    pname = "twisted";
+    version = "24.7.0";
+    pyproject = true;
+
+    src = python3Packages.fetchPypi {
+      inherit pname version;
+      hash = "sha256-WmAUfwRBh6En7H2pbRcNSbzOUMb9NvWU5g9Fh+/005Q=";
+    };
+
+    build-system = with python3Packages; [
+      hatch-fancy-pypi-readme
+      hatchling
+      incremental
+      setuptools
+    ];
+    dependencies = with python3Packages; [
+      attrs
+      automat
+      constantly
+      hyperlink
+      incremental
+      typing-extensions
+      zope-interface
+      # TLS support used for web push delivery over HTTPS
+      idna
+      pyopenssl
+      service-identity
+    ];
+    doCheck = false;
+  };
 in
 python3Packages.buildPythonApplication rec {
   pname = "matrix-sygnal";
