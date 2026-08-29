@@ -10,10 +10,11 @@ while IFS=, read -r name status; do
   [[ $status == RUNNING ]] || alerts+=("container $name: $status")
 done <<<"$container_states"
 
+kernel_events=$(journalctl --dmesg --boot=all --since "17 minutes ago" --no-pager --quiet --output=short-iso)
 kernel_alerts=$(
-  journalctl --kernel --boot=all --since "17 minutes ago" --no-pager --quiet --output=short-iso |
-    grep -Ei \
-      '(oom-kill:|(Out of memory|Memory cgroup out of memory): Killed process|Out of memory: .*panic_on_oom)|BTRFS(:| ) (error|critical) \(device |BTRFS.*(csum|checksum|corrupt)|(I/O|critical (medium|target)|timeout|protection|not ready) error, dev |Buffer I/O error on dev|INFO: task .* blocked for more than .* seconds|watchdog: BUG: soft lockup|Watchdog detected hard LOCKUP|rcu: INFO: rcu_.*(detected stalls|self-detected stall)|Kernel panic - not syncing' || true
+  grep -Ei \
+    '(oom-kill:|(Out of memory|Memory cgroup out of memory): Killed process|Out of memory: .*panic_on_oom)|BTRFS(:| ) (error|critical) \(device |BTRFS.*(csum|checksum|corrupt)|(I/O|critical (medium|target)|timeout|protection|not ready) error, dev |Buffer I/O error on dev|INFO: task .* blocked for more than .* seconds|watchdog: BUG: soft lockup|Watchdog detected hard LOCKUP|rcu: INFO: rcu_.*(detected stalls|self-detected stall)|Kernel panic - not syncing' \
+    <<<"$kernel_events" || true
 )
 if [[ -n $kernel_alerts ]]; then
   alerts+=("kernel events from the last 17 minutes:" "$kernel_alerts")
