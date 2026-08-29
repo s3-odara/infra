@@ -8,7 +8,7 @@ alerts=()
 check_usage() {
   local name=$1 used=$2 total=$3
 
-  ((used * 100 >= total * threshold)) || return
+  ((used * 100 >= total * threshold)) || return 0
   alerts+=("$name: $((used * 100 / total))% ($(numfmt --to=iec-i --suffix=B "$used") / $(numfmt --to=iec-i --suffix=B "$total"))")
 }
 
