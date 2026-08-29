@@ -14,7 +14,7 @@ let
   rtcHost = "rtc.matrix.odarah.org";
   sableHost = "sable.matrix.odarah.org";
   pushHost = "push.matrix.odarah.org";
-  hstsValue = "max-age=63072000; includeSubDomains";
+  hstsValue = "max-age=63072000; includeSubDomains; preload";
   prosodyAddress = "10.77.3.10";
   tuwunelAddress = "10.77.3.14";
   rtcAddress = "10.77.3.15";

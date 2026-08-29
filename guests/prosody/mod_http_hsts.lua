@@ -5,7 +5,7 @@
 module:set_global();
 
 local http_server = require "net.http.server";
-local hsts_header = "max-age=63072000; includeSubDomains";
+local hsts_header = "max-age=63072000; includeSubDomains; preload";
 
 local function protect_response(response)
   if response._http_hsts_protected then
