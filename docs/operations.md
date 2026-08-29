@@ -28,44 +28,6 @@ just update-flake
 
 ホストとゲストでは`system.autoUpgrade`も動く。ゲストの自動更新はSOPS暗号文を配送しない。暗号文を変更したら`just upgrade-guests GUEST`を実行する。
 
-## Sygnal初回デプロイ
-
-Sygnalの初回だけは`just deploy-guests`で一括適用しない。公開経路より先にguest、secret、DNSを準備する。
-
-```bash
-# 1. OpenTofuでsygnal guestとACLを作成する。
-just apply-tofu
-
-# 2. リポジトリに保管済みのguest age identityを復元する。
-# 管理端末から実行する場合は --target me@HOST を付ける。
-just manage-secrets restore sygnal
-
-# 3. 暗号文を配送し、Sygnalを起動する。
-just upgrade-guests sygnal
-incus exec sygnal -- systemctl is-active sygnal.service
-
-# 4. 公開DNSを先に反映する。
-just upgrade-guests nsd
-
-# 5. nginx、ACME SAN、SableのPush設定を反映する。
-just upgrade-guests nginx
-incus exec nginx -- systemctl start --wait acme-matrix.odarah.org.service
-```
-
-最後に、公開DNS、証明書SAN、Gateway、Sable設定を確認する。
-
-```bash
-getent ahostsv4 push.matrix.odarah.org
-openssl s_client -connect push.matrix.odarah.org:443 \
-  -servername push.matrix.odarah.org </dev/null 2>/dev/null \
-  | openssl x509 -noout -checkhost push.matrix.odarah.org
-curl --silent --output /dev/null --write-out '%{http_code}\n' \
-  https://push.matrix.odarah.org/health # 404が期待値
-curl --fail https://sable.matrix.odarah.org/config.json
-```
-
-`sygnal.service`は起動時に内部`/health`を検査する。nginxは公開するのを`/_matrix/push/v1/notify`のみに限定しているため、公開`/health`の404は正常。初回適用後は通常の`upgrade-guests`を使用できる。
-
 ## 状態とログ
 
 ホスト：
