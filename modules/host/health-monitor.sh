@@ -20,6 +20,11 @@ if [[ -n $kernel_alerts ]]; then
   alerts+=("kernel events from the last 17 minutes:" "$kernel_alerts")
 fi
 
+failed_units=$(systemctl --failed --no-legend --plain --no-pager)
+if [[ -n $failed_units ]]; then
+  alerts+=("failed systemd units:" "$failed_units")
+fi
+
 ((${#alerts[@]})) || exit 0
 
 topic=$(SOPS_AGE_KEY_FILE=/var/lib/sops-nix/key.txt sops decrypt \

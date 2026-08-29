@@ -10,6 +10,18 @@ let
   inviteBot = pkgs.callPackage ../../packages/matrix-invite-bot/package.nix { };
   registrationToken = "/var/lib/tuwunel/registration-token";
   backupDirectory = "/var/lib/tuwunel-backups";
+  backupFailureNotifier = pkgs.writeShellScript "notify-backup-failure" ''
+    topic="$(<"$CREDENTIALS_DIRECTORY/ntfy-topic")"
+    ${pkgs.curl}/bin/curl \
+      --silent \
+      --show-error \
+      --fail \
+      --max-time 15 \
+      --header "Priority: 5" \
+      --header "Tags: warning" \
+      --data-binary "Tuwunel backup failed" \
+      "https://ntfy.sh/$topic"
+  '';
 in
 {
   networking.hostName = configurationName;
@@ -102,6 +114,7 @@ in
     description = "Trigger a Tuwunel online database backup";
     requires = [ "tuwunel.service" ];
     after = [ "tuwunel.service" ];
+    unitConfig.OnFailure = "backup-failure-notify@%n.service";
     serviceConfig = {
       Type = "oneshot";
       ExecStart = "${pkgs.systemd}/bin/systemctl kill --kill-whom=main --signal=SIGUSR2 tuwunel.service";
@@ -126,6 +139,7 @@ in
         mode = "0400";
         restartUnits = [ "tuwunel.service" ];
       };
+      ntfy_topic = { };
       r2_access_key_id = { };
       r2_secret_access_key = { };
       restic_repository_password = { };
@@ -201,6 +215,13 @@ in
       Persistent = false;
     };
   };
+
+  systemd.services."backup-failure-notify@".serviceConfig = {
+    Type = "oneshot";
+    LoadCredential = [ "ntfy-topic:${config.sops.secrets.ntfy_topic.path}" ];
+    ExecStart = backupFailureNotifier;
+  };
+  systemd.services."restic-backups-tuwunel".unitConfig.OnFailure = "backup-failure-notify@%n.service";
 
   systemd.services.matrix-invite-bot = {
     description = "Encrypted Matrix registration invite bot";

@@ -6,6 +6,20 @@
   ...
 }:
 
+let
+  backupFailureNotifier = pkgs.writeShellScript "notify-backup-failure" ''
+    topic="$(<"$CREDENTIALS_DIRECTORY/ntfy-topic")"
+    ${pkgs.curl}/bin/curl \
+      --silent \
+      --show-error \
+      --fail \
+      --max-time 15 \
+      --header "Priority: 5" \
+      --header "Tags: warning" \
+      --data-binary "Prosody backup failed" \
+      "https://ntfy.sh/$topic"
+  '';
+in
 {
   networking.hostName = configurationName;
   networking.useDHCP = true;
@@ -337,6 +351,16 @@
       };
     };
   };
+
+  systemd.services."backup-failure-notify@".serviceConfig = {
+    Type = "oneshot";
+    LoadCredential = [ "ntfy-topic:${config.sops.secrets.ntfy_topic.path}" ];
+    ExecStart = backupFailureNotifier;
+  };
+  systemd.services."restic-backups-prosody-short".unitConfig.OnFailure =
+    "backup-failure-notify@%n.service";
+  systemd.services."restic-backups-prosody-long".unitConfig.OnFailure =
+    "backup-failure-notify@%n.service";
 
   systemd.services.prosody = {
     after = [ "acme-xmpp.odarah.org.service" ];
