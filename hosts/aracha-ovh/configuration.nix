@@ -50,16 +50,6 @@
     networkConfig.DHCP = "ipv4";
   };
 
-  services.openssh = {
-    enable = true;
-    openFirewall = true;
-    settings = {
-      PasswordAuthentication = false;
-      KbdInteractiveAuthentication = false;
-      PermitRootLogin = "no";
-    };
-  };
-
   users.users.root.hashedPassword = "!";
 
   users.users.me = {

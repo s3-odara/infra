@@ -44,6 +44,26 @@ in
     MaxRetentionSec=14day
   '';
 
+  services.openssh = {
+    enable = true;
+    openFirewall = false;
+    settings = {
+      PasswordAuthentication = false;
+      KbdInteractiveAuthentication = false;
+      PermitRootLogin = "no";
+      LoginGraceTime = 60;
+      MaxStartups = "10:30:60";
+      PerSourceMaxStartups = 3;
+      PerSourcePenalties = "min:30s authfail:10s invaliduser:10s grace-exceeded:30s max:10m";
+      AllowUsers = [ "me" ];
+      DisableForwarding = true;
+      PermitUserEnvironment = false;
+      LogLevel = "VERBOSE";
+    };
+  };
+
+  networking.firewall.interfaces.uplink0.allowedTCPPorts = [ 22 ];
+
   system.autoUpgrade = {
     enable = false;
     flake = "github:s3-odara/infra#${configurationName}";
