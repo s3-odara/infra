@@ -1,10 +1,12 @@
 {
   fetchFromGitHub,
   lib,
-  python3Packages,
+  python312Packages,
 }:
 
 let
+  # Follow upstream's Python runtime; pin only incompatible locked dependencies locally.
+  python3Packages = python312Packages;
   pins = builtins.fromJSON (builtins.readFile ./pins.json);
 
   opentracing = python3Packages.buildPythonPackage rec {

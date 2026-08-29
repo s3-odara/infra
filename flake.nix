@@ -51,10 +51,7 @@
         python3 = nixpkgs.legacyPackages.x86_64-linux.python3;
         sable = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/sable/package.nix { };
         shfmt = nixpkgs.legacyPackages.x86_64-linux.shfmt;
-        sygnal = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/sygnal/package.nix {
-          # Match upstream's Python 3.12 runtime; pin only incompatible locked dependencies locally.
-          python3Packages = nixpkgs.legacyPackages.x86_64-linux.python312Packages;
-        };
+        sygnal = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/sygnal/package.nix { };
         sops = nixpkgs.legacyPackages.x86_64-linux.sops;
       };
 
