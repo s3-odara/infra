@@ -43,8 +43,8 @@ let
     doCheck = false;
   };
 
-  # Sygnal's custom Twisted request adapter implements the response interface
-  # expected by the version locked upstream, but not pywebpush 2.3 or newer.
+  # pywebpush 2.3 accesses response.headers, which Sygnal's
+  # HttpDelayedRequest does not provide.
   pywebpush = python3Packages.buildPythonPackage rec {
     pname = "pywebpush";
     version = "2.0.0";
@@ -67,8 +67,8 @@ let
     pythonImportsCheck = [ "pywebpush" ];
   };
 
-  # Sygnal's ProxyAgent builds on Twisted's private _AgentBase API. Use the
-  # version locked upstream so request handling stays compatible.
+  # Twisted 26 stalls Sygnal's _AgentBase-based Apple Web Push requests,
+  # causing the Push Gateway to return 504.
   twisted = python3Packages.buildPythonPackage rec {
     pname = "twisted";
     version = "24.7.0";
