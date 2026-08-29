@@ -100,6 +100,14 @@ let
     ];
     doCheck = false;
   };
+  # py-vapid 1.9.4 lists pytest as a build-system dependency yet its
+  # test suite writes to /tmp and fails under the Nix build sandbox.
+  # Provide pytest for the build but skip the broken tests; the library
+  # is only imported at runtime.
+  py-vapid = python3Packages.py-vapid.overridePythonAttrs (old: {
+    doCheck = false;
+    nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ python3Packages.pytest ];
+  });
 in
 python3Packages.buildPythonApplication rec {
   pname = "matrix-sygnal";
