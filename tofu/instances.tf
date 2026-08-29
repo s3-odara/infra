@@ -44,7 +44,7 @@ resource "incus_instance" "guest" {
     name = "eth0"
     type = "nic"
 
-    # Incus 7.0.1のIPv4 filteringではDHCP ACKがguestへ届かないため、MAC filteringとACLを使う。
+    # Incus 7.3でもIPv4 filteringを有効にするとDHCP OFFERを受信できないため、修正されるまでMAC filteringとACLを使う。
     properties = {
       network                                = incus_network.incusbr0.name
       "ipv4.address"                         = each.value.ipv4
