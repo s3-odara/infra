@@ -101,9 +101,7 @@ in
   };
 
   # Let the capability-free health monitor query chronyd through its Unix socket.
-  systemd.services.chronyd.serviceConfig.ExecStartPost = [
-    "${pkgs.coreutils}/bin/chmod g+w /run/chrony/chronyd.sock"
-  ];
+  systemd.services.chronyd.serviceConfig.UMask = lib.mkForce "0007";
 
   services.openssh = {
     enable = true;
