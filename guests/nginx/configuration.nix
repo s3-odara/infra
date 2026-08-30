@@ -44,9 +44,14 @@ let
     add_header X-Frame-Options "DENY" always;
   '';
 
+  # Fixed styles injected by react-colorful and the patched drag-and-drop fix.
+  # PDF.js only injects a font stylesheet when document.fonts is unavailable;
+  # browsers supporting the CSP Level 3 directives below use its FontFace path.
+  cinnyStyleHashes = "'sha256-I2px+fnpbN4E5+Djrj7aoTIyq9yyREkuVl19f4Sye9A=' 'sha256-gE6f9B7Di/6xvPsuFkoYXxNapPKVLAmRBvP73rpQ9+Y='";
   sableMainCsp = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self' 'wasm-unsafe-eval'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self'";
   sableCallCsp = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' 'wasm-unsafe-eval'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self'";
-  cinnyCsp = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' 'wasm-unsafe-eval'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self'";
+  cinnyCsp = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' 'wasm-unsafe-eval'; script-src-attr 'none'; style-src 'self' ${cinnyStyleHashes}; style-src-elem 'self' ${cinnyStyleHashes}; style-src-attr 'none'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self'";
+  cinnyCallCsp = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' 'wasm-unsafe-eval'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self'";
   elementCsp = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' 'wasm-unsafe-eval'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self' blob:";
 
   clientSecurityHeaders =
@@ -71,6 +76,10 @@ let
   };
   cinnySecurityHeaders = clientSecurityHeaders {
     enforcedCsp = cinnyCsp;
+    xFrameOptions = "SAMEORIGIN";
+  };
+  cinnyCallSecurityHeaders = clientSecurityHeaders {
+    enforcedCsp = cinnyCallCsp;
     xFrameOptions = "SAMEORIGIN";
   };
   elementSecurityHeaders = clientSecurityHeaders {
@@ -166,14 +175,19 @@ let
         chmod -R u+w "$out"
         printf '%s  %s\n' \
           30f2441cfa124d288e9ca687176f944a1820d9a273166ce79b7aadfd37282aeb "$out/index.html" \
+          1d56d885dbb9630cb8293973325c5b578ae580a59b9bbd0ae55b8d7746e608c1 "$out/assets/index-1wRjqYyV.js" \
           22e81071d91cce22ab9445a9145afb177fe5da118b7d90d445ef557b8b9d7434 "$out/public/element-call/index.html" \
           | ${pkgs.coreutils}/bin/sha256sum -c - || {
-            echo "Cinny ${pkgs.cinny-unwrapped.version} upstream HTML changed." >&2
-            echo "Refresh guests/nginx/web-client-patches/cinny-<version>.patch and these SHA-256 constants after reviewing the upstream HTML diff." >&2
+            echo "Cinny ${pkgs.cinny-unwrapped.version} upstream web artifact changed." >&2
+            echo "Refresh guests/nginx/web-client-patches/cinny-<version>.patch and these SHA-256 constants after reviewing the upstream diff." >&2
             exit 1
           }
         ${pkgs.findutils}/bin/find "$out" -type f \( -name '*.gz' -o -name '*.br' \) -delete
         patch --batch --fuzz=0 --no-backup-if-mismatch -d "$out" -p1 < ${webClientPatches}/cinny-4.12.6.patch
+        substituteInPlace "$out/assets/index-1wRjqYyV.js" \
+          --replace-fail \
+            'document.head.appendChild(e),(t=e.sheet)===null||t===void 0||t.insertRule("* { pointer-events: none !important; }")' \
+            'e.textContent="* { pointer-events: none !important; }",document.head.appendChild(e)'
         mkdir -p "$out/csp-inline"
         install -m 0644 ${cspInline}/*.js "$out/csp-inline/"
         cat > "$out/config.json" <<'JSON'
@@ -545,6 +559,13 @@ in
           '';
           "^~ /public/element-call/".extraConfig = ''
             try_files $uri $uri/ =404;
+            # Element Call still creates dynamic style elements and attributes.
+            # Replace Cinny's strict main policy only for the embedded call app.
+            add_header_inherit off;
+            ${cinnyCallSecurityHeaders}
+            add_header Strict-Transport-Security "${hstsValue}" always;
+            add_header Cache-Control $cinny_cache_control always;
+            add_header Alt-Svc 'h3=":443"; ma=86400' always;
           '';
           "^~ /public/".extraConfig = ''
             try_files $uri =404;
