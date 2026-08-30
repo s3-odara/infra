@@ -25,6 +25,10 @@ if [[ -n $failed_units ]]; then
   alerts+=("failed systemd units:" "$failed_units")
 fi
 
+if ! chronyc -n waitsync 1 1 >/dev/null 2>&1; then
+  alerts+=("chrony: not synchronized or remaining correction exceeds 1 second")
+fi
+
 ((${#alerts[@]})) || exit 0
 
 topic=$(SOPS_AGE_KEY_FILE=/var/lib/sops-nix/key.txt sops decrypt \

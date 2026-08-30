@@ -75,6 +75,7 @@
   };
 
   virtualisation.incus.enable = true;
+  services.chrony.enableRTCTrimming = false;
   networking.nftables.enable = true;
   networking.nftables.flushRuleset = false;
 

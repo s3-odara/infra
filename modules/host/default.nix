@@ -59,6 +59,7 @@ let
   healthMonitor = pkgs.writeShellApplication {
     name = "host-health-monitor";
     runtimeInputs = with pkgs; [
+      chrony
       curl
       gnugrep
       incus
@@ -74,6 +75,30 @@ in
     SystemMaxUse=200M
     MaxRetentionSec=14day
   '';
+
+  services.chrony = {
+    enable = true;
+    servers = [ "time.cloudflare.com" ];
+    enableNTS = true;
+
+    makestep = {
+      enable = true;
+      threshold = 1.0;
+      limit = 3;
+    };
+
+    extraConfig = ''
+      # Operate only as an authenticated NTS client.
+      port 0
+      cmdport 0
+      authselectmode require
+
+      maxupdateskew 100
+      maxdrift 50
+      maxchange 10 0 5
+      logchange 0.5
+    '';
+  };
 
   services.openssh = {
     enable = true;
