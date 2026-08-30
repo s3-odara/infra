@@ -78,6 +78,30 @@
 
   virtualisation.incus.enable = true;
   services.fstrim.enable = false;
+  services.chrony = {
+    enable = true;
+    servers = [ "time.cloudflare.com" ];
+    enableNTS = true;
+    enableRTCTrimming = false;
+
+    makestep = {
+      enable = true;
+      threshold = 1.0;
+      limit = 3;
+    };
+
+    extraConfig = ''
+      # Operate only as an authenticated NTS client.
+      port 0
+      cmdport 0
+      authselectmode require
+
+      maxupdateskew 100
+      maxdrift 50
+      maxchange 10 0 5
+      logchange 0.5
+    '';
+  };
   networking.nftables.enable = true;
   networking.nftables.flushRuleset = false;
 
