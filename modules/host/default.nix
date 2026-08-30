@@ -100,8 +100,10 @@ in
     '';
   };
 
-  # Let the capability-free health monitor query chronyd through its Unix socket.
+  # chronyc creates a reply socket under /run/chrony. Let the capability-free
+  # health monitor use it through membership in the chrony group.
   systemd.services.chronyd.serviceConfig.UMask = lib.mkForce "0007";
+  systemd.tmpfiles.rules = [ "d /run/chrony 0770 chrony chrony - -" ];
 
   services.openssh = {
     enable = true;
