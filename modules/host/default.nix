@@ -164,7 +164,10 @@ in
     serviceConfig = monitorHardening // {
       Type = "oneshot";
       ExecStart = lib.getExe healthMonitor;
-      SupplementaryGroups = [ "systemd-journal" ];
+      SupplementaryGroups = [
+        "chrony"
+        "systemd-journal"
+      ];
     };
   };
 
