@@ -77,6 +77,7 @@
   };
 
   virtualisation.incus.enable = true;
+  services.fstrim.enable = false;
   networking.nftables.enable = true;
   networking.nftables.flushRuleset = false;
 

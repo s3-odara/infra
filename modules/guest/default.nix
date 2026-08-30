@@ -26,9 +26,13 @@
 
   nix.gc = {
     automatic = true;
-    dates = "daily";
+    dates = "*-*-* 06:00:00 Asia/Tokyo";
+    randomizedDelaySec = "30m";
     options = "--delete-older-than 7d";
   };
+
+  # Keep each guest's daily GC at a stable offset within the delay window.
+  systemd.timers.nix-gc.timerConfig.FixedRandomDelay = true;
 
   services.journald.extraConfig = ''
     SystemMaxUse=200M

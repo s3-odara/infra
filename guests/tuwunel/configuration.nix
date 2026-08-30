@@ -125,8 +125,8 @@ in
   systemd.timers.tuwunel-online-backup = {
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "*-*-* 00:00:00";
-      RandomizedDelaySec = "1h";
+      OnCalendar = "*-*-* 05:30:00 Asia/Tokyo";
+      RandomizedDelaySec = "15m";
       FixedRandomDelay = true;
       Persistent = false;
     };
@@ -210,8 +210,8 @@ in
       exit "$status"
     '';
     timerConfig = {
-      OnCalendar = "*-*-* 12:00:00";
-      RandomizedDelaySec = "1h";
+      OnCalendar = "*-*-* 04:30:00 Asia/Tokyo";
+      RandomizedDelaySec = "15m";
       FixedRandomDelay = true;
       Persistent = false;
     };

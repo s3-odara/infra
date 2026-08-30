@@ -313,8 +313,8 @@ in
         exit "$status"
       '';
       timerConfig = {
-        OnCalendar = "*-*-* 02:00:00";
-        RandomizedDelaySec = "1h";
+        OnCalendar = "*-*-* 04:00:00 Asia/Tokyo";
+        RandomizedDelaySec = "15m";
         FixedRandomDelay = true;
         Persistent = true;
       };
@@ -348,8 +348,8 @@ in
         exit "$status"
       '';
       timerConfig = {
-        OnCalendar = "Sun *-*-* 04:00:00";
-        RandomizedDelaySec = "1h";
+        OnCalendar = "Sun *-*-* 05:00:00 Asia/Tokyo";
+        RandomizedDelaySec = "15m";
         FixedRandomDelay = true;
         Persistent = true;
       };

@@ -122,9 +122,10 @@ in
     description = "Daily host and Incus container storage usage check";
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "daily";
+      OnCalendar = "*-*-* 06:30:00 Asia/Tokyo";
       Persistent = true;
-      RandomizedDelaySec = "1h";
+      RandomizedDelaySec = "30m";
+      FixedRandomDelay = true;
     };
   };
 
