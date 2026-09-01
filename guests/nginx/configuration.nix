@@ -14,6 +14,14 @@ let
   rtcHost = "rtc.matrix.odarah.org";
   sableHost = "sable.matrix.odarah.org";
   pushHost = "push.matrix.odarah.org";
+  acmeDnsEnvironment = pkgs.writeText "acme-rfc2136.env" ''
+    DNSUPDATE_NAMESERVER=10.77.3.11:53
+    DNSUPDATE_TSIG_KEY=nginx.
+    DNSUPDATE_TSIG_ALGORITHM=hmac-sha256.
+    DNSUPDATE_TTL=60
+    DNSUPDATE_SEQUENCE_INTERVAL=2
+    DNSUPDATE_ZONES=_acme-challenge.odarah.org.
+  '';
   hstsValue = "max-age=63072000; includeSubDomains; preload";
   prosodyAddress = "10.77.3.10";
   tuwunelAddress = "10.77.3.14";
@@ -253,6 +261,10 @@ in
     acceptTerms = true;
     defaults.email = "hostmaster@s3-odara.net";
     certs.${matrixHost} = {
+      webroot = null;
+      dnsProvider = "rfc2136";
+      environmentFile = acmeDnsEnvironment;
+      credentialFiles.DNSUPDATE_TSIG_SECRET_FILE = config.sops.secrets.nginx_tsig_secret.path;
       extraDomainNames = [
         odarahHost
         cinnyHost
@@ -807,7 +819,10 @@ in
     };
   };
 
-  sops.secrets.ntfy_topic = { };
+  sops.secrets = {
+    nginx_tsig_secret = { };
+    ntfy_topic = { };
+  };
 
   services.logrotate.settings.nginx = {
     frequency = "daily";

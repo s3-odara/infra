@@ -7,6 +7,14 @@
 }:
 
 let
+  acmeDnsEnvironment = pkgs.writeText "acme-rfc2136.env" ''
+    DNSUPDATE_NAMESERVER=10.77.3.11:53
+    DNSUPDATE_TSIG_KEY=prosody.
+    DNSUPDATE_TSIG_ALGORITHM=hmac-sha256.
+    DNSUPDATE_TTL=60
+    DNSUPDATE_SEQUENCE_INTERVAL=2
+    DNSUPDATE_ZONES=_acme-challenge.odarah.org.
+  '';
   backupFailureNotifier = pkgs.writeShellScript "notify-backup-failure" ''
     topic="$(<"$CREDENTIALS_DIRECTORY/ntfy-topic")"
     ${pkgs.curl}/bin/curl \
@@ -219,6 +227,9 @@ in
     acceptTerms = true;
     defaults.email = "hostmaster@s3-odara.net";
     certs."xmpp.odarah.org" = {
+      dnsProvider = "rfc2136";
+      environmentFile = acmeDnsEnvironment;
+      credentialFiles.DNSUPDATE_TSIG_SECRET_FILE = config.sops.secrets.prosody_tsig_secret.path;
       profile = "shortlived";
       renewInterval = "*-*-* 00,06,12,18:00:00";
       renewJitter = "1h";
@@ -227,7 +238,6 @@ in
         "share.xmpp.odarah.org"
       ];
       group = "prosody";
-      listenHTTP = "0.0.0.0:80";
       reloadServices = [ "prosody.service" ];
     };
   };
@@ -262,6 +272,7 @@ in
 
   sops = {
     secrets = {
+      prosody_tsig_secret = { };
       turn_external_secret = { };
       ntfy_topic = { };
       r2_access_key_id = { };

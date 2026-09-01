@@ -99,12 +99,14 @@
           ];
         };
 
-        nsd = nixpkgs.lib.nixosSystem {
+        knot = nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
-          specialArgs.configurationName = "nsd";
+          specialArgs.configurationName = "knot";
           modules = [
+            sops-nix.nixosModules.sops
             ./modules/guest
-            ./guests/nsd/configuration.nix
+            ./modules/guest/secrets.nix
+            ./guests/knot/configuration.nix
           ];
         };
 

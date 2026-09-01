@@ -1,0 +1,12 @@
+$ORIGIN _acme-challenge.odarah.org.
+$TTL 60
+
+@ IN SOA ns.odarah.org. hostmaster.s3-odara.net. (
+  2026090101
+  60
+  60
+  3600
+  60
+)
+
+@ IN NS ns.odarah.org.

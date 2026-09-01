@@ -9,6 +9,14 @@
 let
   privateAddress = "10.77.3.15";
   turnHost = "turn.odarah.org";
+  acmeDnsEnvironment = pkgs.writeText "acme-rfc2136.env" ''
+    DNSUPDATE_NAMESERVER=10.77.3.11:53
+    DNSUPDATE_TSIG_KEY=rtc.
+    DNSUPDATE_TSIG_ALGORITHM=hmac-sha256.
+    DNSUPDATE_TTL=60
+    DNSUPDATE_SEQUENCE_INTERVAL=2
+    DNSUPDATE_ZONES=_acme-challenge.odarah.org.
+  '';
 in
 {
   imports = [ ./eturnal.nix ];
@@ -121,10 +129,12 @@ in
     acceptTerms = true;
     defaults.email = "hostmaster@s3-odara.net";
     certs.${turnHost} = {
+      dnsProvider = "rfc2136";
+      environmentFile = acmeDnsEnvironment;
+      credentialFiles.DNSUPDATE_TSIG_SECRET_FILE = config.sops.secrets.rtc_tsig_secret.path;
       profile = "shortlived";
       renewInterval = "*-*-* 00,06,12,18:00:00";
       renewJitter = "1h";
-      listenHTTP = "0.0.0.0:80";
       # Refresh the systemd TLS credentials before eturnal reloads its PEM file.
       reloadServices = [ "eturnal.service" ];
     };
@@ -159,6 +169,7 @@ in
 
   sops = {
     secrets = {
+      rtc_tsig_secret = { };
       livekit_api_key = { };
       livekit_api_secret = { };
       ntfy_topic = { };

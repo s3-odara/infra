@@ -2,7 +2,7 @@ network_ipv4 = "10.77.1.1/24"
 public_ipv4  = "167.179.72.51"
 
 guests = {
-  nsd = {
+  knot = {
     image         = "images:nixos/unstable"
     ipv4          = "10.77.1.11"
     cpu_allowance = "100ms/100ms"
