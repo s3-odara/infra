@@ -16,6 +16,13 @@ creation_rules:
         age:
           - age1urd37cm4cpvuthpppxzqyhpplwdtsvz4y0n3hfnqnaecxqxse9csnug88n
 
+  - path_regex: ^secrets/guests/aracha-ovh/knot/secrets\.sops\.yaml$
+    key_groups:
+      - pgp:
+          - *admin_pgp
+        age:
+          - age192yh5auyfwcfdexnl9jdcmgthvfje46qq2krvrwc6mcvyvgp9vds279zsc
+
   - path_regex: ^secrets/guests/aracha-ovh/nginx/secrets\.sops\.yaml$
     key_groups:
       - pgp:
