@@ -37,10 +37,18 @@ conference.xmpp.odarah.org. 3600 IN A 15.235.184.173
 _xmpp-server._tcp.conference.xmpp.odarah.org. IN SRV 30 5 5269 xmpp.odarah.org.
 _xmpps-server._tcp.conference.xmpp.odarah.org. 3600 IN SRV 20 5 5270 xmpp.odarah.org.
 share.xmpp.odarah.org. 3600 IN A 15.235.184.173
-odarah.org. 3600 IN CAA 0 issuemail ";"
+odarah.org. 3600 IN CAA 0 issue "letsencrypt.org;accounturi=https://acme-v02.api.letsencrypt.org/acme/acct/3653530941;validationmethods=dns-01"
 odarah.org. 3600 IN CAA 0 issuewild ";"
-odarah.org. 3600 IN CAA 0 issue "letsencrypt.org"
+odarah.org. 3600 IN CAA 0 issuemail ";"
 odarah.org. 3600 IN CAA 0 iodef "mailto:hostmaster@s3-odara.net"
+xmpp.odarah.org. 3600 IN CAA 0 issue "letsencrypt.org;accounturi=https://acme-v02.api.letsencrypt.org/acme/acct/3634115661;validationmethods=dns-01"
+xmpp.odarah.org. 3600 IN CAA 0 issuewild ";"
+xmpp.odarah.org. 3600 IN CAA 0 issuemail ";"
+xmpp.odarah.org. 3600 IN CAA 0 iodef "mailto:hostmaster@s3-odara.net"
+turn.odarah.org. 3600 IN CAA 0 issue "letsencrypt.org;accounturi=https://acme-v02.api.letsencrypt.org/acme/acct/3653563431;validationmethods=dns-01"
+turn.odarah.org. 3600 IN CAA 0 issuewild ";"
+turn.odarah.org. 3600 IN CAA 0 issuemail ";"
+turn.odarah.org. 3600 IN CAA 0 iodef "mailto:hostmaster@s3-odara.net"
 odarah.org. 3600 IN LOC 35 54 33.931 N 138 36 44.221 E 2418.43m 0.00m 0.00m 0.00m
 _dmarc.mailinglist.odarah.org. 3600 IN TXT "v=DMARC1; p=none; sp=reject; aspf=s; adkim=s; rua=mailto:mailreport@s3-odara.net; ruf=mailto:postmaster@s3-odara.net; fo=1"
 _dmarc.odarah.org. 3600 IN TXT "v=DMARC1; p=reject; sp=reject; aspf=s; adkim=s; rua=mailto:mailreport@s3-odara.net; ruf=mailto:postmaster@s3-odara.net; fo=1"
