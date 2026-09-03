@@ -105,3 +105,34 @@ cd tofu
 doas /run/current-system/sw/bin/tofu init
 doas /run/current-system/sw/bin/tofu apply -var-file=hosts/HOST.tfvars
 ```
+
+## 復旧しないが依存してる状態
+
+ACMEの秘密鍵とアカウントはバックアップしないが、CAAのaccounturi, DANE for XMPPのTLSA、CT log監視がそれに依存しているので、guestを消して再生成した時は登録し直す。
+
+accounturi
+```bash
+for guest in nginx prosody rtc; do
+  echo "=== $guest ==="
+  incus exec "$guest" -- sh -ceu '
+    nix shell nixpkgs#jq -c sh -ceu '"'"'
+      find /var/lib/acme/.lego/accounts \
+        -type f -name account.json \
+        -exec jq -er ".registration.uri" {} \;
+    '"'"'
+  '
+done
+```
+
+TLSA
+```bash
+incus exec prosody -- sh -ceu '
+  nix shell nixpkgs#openssl -c sh -ceu "
+    openssl x509 \
+      -in /var/lib/acme/xmpp.odarah.org/fullchain.pem \
+      -pubkey -noout |
+    openssl pkey -pubin -outform DER |
+    sha256sum
+  "
+'
+```
