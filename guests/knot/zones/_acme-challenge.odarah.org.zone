@@ -9,4 +9,4 @@ $TTL 60
   60
 )
 
-@ IN NS ns.odarah.org.
+@ 3600 IN NS ns.odarah.org.
