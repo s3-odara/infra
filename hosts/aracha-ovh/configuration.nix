@@ -7,6 +7,7 @@
 
 {
   imports = [
+    ./ct-monitor.nix
     ./hardening.nix
     ./kernel.nix
   ];
