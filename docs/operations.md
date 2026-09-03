@@ -124,15 +124,19 @@ for guest in nginx prosody rtc; do
 done
 ```
 
-TLSA
+TLSA, CT log (SPKI SHA-256)
 ```bash
-incus exec prosody -- sh -ceu '
-  nix shell nixpkgs#openssl -c sh -ceu "
-    openssl x509 \
-      -in /var/lib/acme/xmpp.odarah.org/fullchain.pem \
-      -pubkey -noout |
-    openssl pkey -pubin -outform DER |
-    sha256sum
-  "
-'
+for guest in nginx prosody rtc; do
+   echo "=== $guest ==="
+
+   incus exec "$guest" -- \
+     nix shell nixpkgs#openssl -c bash -o pipefail -ceu '
+       for cert in /var/lib/acme/*/fullchain.pem; do
+         printf "%s: " "$(basename "$(dirname "$cert"))"
+         openssl x509 -in "$cert" -pubkey -noout |
+           openssl pkey -pubin -outform DER |
+           sha256sum
+       done
+     '
+ done
 ```
