@@ -36,6 +36,11 @@ _xmpps-server._tcp.xmpp.odarah.org. 3600 IN SRV 20 5 5270 xmpp.odarah.org.
 conference.xmpp.odarah.org. 3600 IN A 15.235.184.173
 _xmpp-server._tcp.conference.xmpp.odarah.org. IN SRV 30 5 5269 xmpp.odarah.org.
 _xmpps-server._tcp.conference.xmpp.odarah.org. 3600 IN SRV 20 5 5270 xmpp.odarah.org.
+_443._tcp.xmpp.odarah.org. 300 IN TLSA 3 1 1 5c946f8621458badb4a1b1e01a33a045232753fb75d2d817e43b6e6d104c7c52
+_5222._tcp.xmpp.odarah.org. 300 IN TLSA 3 1 1 5c946f8621458badb4a1b1e01a33a045232753fb75d2d817e43b6e6d104c7c52
+_5223._tcp.xmpp.odarah.org. 300 IN TLSA 3 1 1 5c946f8621458badb4a1b1e01a33a045232753fb75d2d817e43b6e6d104c7c52
+_5269._tcp.xmpp.odarah.org. 300 IN TLSA 3 1 1 5c946f8621458badb4a1b1e01a33a045232753fb75d2d817e43b6e6d104c7c52
+_5270._tcp.xmpp.odarah.org. 300 IN TLSA 3 1 1 5c946f8621458badb4a1b1e01a33a045232753fb75d2d817e43b6e6d104c7c52
 share.xmpp.odarah.org. 3600 IN A 15.235.184.173
 odarah.org. 3600 IN CAA 0 issue "letsencrypt.org;accounturi=https://acme-v02.api.letsencrypt.org/acme/acct/3653530941;validationmethods=dns-01"
 odarah.org. 3600 IN CAA 0 issuewild ";"

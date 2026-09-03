@@ -199,6 +199,7 @@ in
     ];
 
     extraConfig = ''
+      use_dane = true
       ssl_ports = { 443 }
       c2s_direct_tls_ports = { 5223 }
       s2s_direct_tls_ports = { 5270 }
@@ -231,6 +232,7 @@ in
       environmentFile = acmeDnsEnvironment;
       credentialFiles.DNSUPDATE_TSIG_SECRET_FILE = config.sops.secrets.prosody_tsig_secret.path;
       profile = "shortlived";
+      extraLegoRenewFlags = [ "--reuse-key" ];
       renewInterval = "*-*-* 00,06,12,18:00:00";
       renewJitter = "1h";
       extraDomainNames = [
