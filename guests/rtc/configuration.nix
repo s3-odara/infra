@@ -133,6 +133,7 @@ in
       environmentFile = acmeDnsEnvironment;
       credentialFiles.DNSUPDATE_TSIG_SECRET_FILE = config.sops.secrets.rtc_tsig_secret.path;
       profile = "shortlived";
+      extraLegoRenewFlags = [ "--reuse-key" ];
       renewInterval = "*-*-* 00,06,12,18:00:00";
       renewJitter = "1h";
       # Refresh the systemd TLS credentials before eturnal reloads its PEM file.

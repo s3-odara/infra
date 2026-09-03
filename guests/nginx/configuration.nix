@@ -274,6 +274,7 @@ in
         pushHost
       ];
       profile = "shortlived";
+      extraLegoRenewFlags = [ "--reuse-key" ];
       renewInterval = "*-*-* 00,06,12,18:00:00";
       renewJitter = "1h";
     };
