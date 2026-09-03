@@ -23,6 +23,28 @@ let
       --data-binary "Knot backup failed" \
       "https://ntfy.sh/$topic"
   '';
+  dnssecHealthCheck = pkgs.writeShellScript "check-knot-dnssec-health" ''
+    set -euo pipefail
+
+    for zone in odarah.org. _acme-challenge.odarah.org.; do
+      ${pkgs.knot-dns}/bin/knotc --mono zone-read "$zone" |
+        ${pkgs.gnused}/bin/sed 's/^\[[^]]*\] //' |
+        ${pkgs.ldns.examples}/bin/ldns-verify-zone -e P4D
+    done
+  '';
+  dnssecFailureNotifier = pkgs.writeShellScript "notify-dnssec-failure" ''
+    topic="$(<"$CREDENTIALS_DIRECTORY/ntfy-topic")"
+    ${pkgs.curl}/bin/curl \
+      --silent \
+      --show-error \
+      --fail \
+      --output /dev/null \
+      --max-time 15 \
+      --header "Priority: 5" \
+      --header "Tags: warning" \
+      --data-binary "Knot DNSSEC signing health check failed" \
+      "https://ntfy.sh/$topic"
+  '';
 
   matrixAcmeUpdateOwners = [
     "_acme-challenge.odarah.org."
@@ -120,7 +142,8 @@ in
         dnskey-ttl = "1h";
         zone-max-ttl = "1h";
         propagation-delay = "1h";
-        rrsig-lifetime = "14d";
+        rrsig-lifetime = "6d";
+        rrsig-refresh = "5d";
         nsec3 = false;
         cds-cdnskey-publish = "none";
       };
@@ -242,6 +265,31 @@ in
       wants = [ "knot.service" ];
       after = [ "knot.service" ];
       unitConfig.OnFailure = "backup-failure-notify@%n.service";
+    };
+
+    knot-dnssec-health-check = {
+      wants = [ "knot.service" ];
+      after = [ "knot.service" ];
+      unitConfig.OnFailure = "knot-dnssec-failure-notify.service";
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = dnssecHealthCheck;
+      };
+    };
+
+    knot-dnssec-failure-notify.serviceConfig = {
+      Type = "oneshot";
+      LoadCredential = [ "ntfy-topic:${config.sops.secrets.ntfy_topic.path}" ];
+      ExecStart = dnssecFailureNotifier;
+    };
+  };
+
+  systemd.timers.knot-dnssec-health-check = {
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "*-*-* 00/6:00:00";
+      RandomizedDelaySec = "15m";
+      Persistent = true;
     };
   };
 
