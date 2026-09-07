@@ -21,7 +21,8 @@ help topic="":
       deploy-guests           Deploy Incus resources and guest configurations
       manage-secrets          Manage host and guest secrets
 
-      apply-tofu              Apply only the OpenTofu configuration
+      apply-tofu              Apply only the Incus OpenTofu configuration
+      apply-cloudflare        Apply the Cloudflare R2 policies locally
       upgrade-guests          Upgrade guest configurations
       upgrade-host            Upgrade the host configuration
       regenerate-sops         Regenerate .sops.yaml
@@ -59,7 +60,7 @@ help topic="":
         ;;
     esac
 
-check: _check-nix _check-tofu _check-shell
+check: _check-nix _check-tofu _check-cloudflare _check-shell
 
 _check-nix:
     nix flake check --no-build "path:{{ repo_root }}"
@@ -76,6 +77,13 @@ _check-tofu:
         "$tofu" -chdir=tofu test -var-file="${var_file#tofu/}"; \
       done'
 
+_check-cloudflare:
+    nix shell "path:{{ repo_root }}#opentofu" -c sh -eu -c '\
+      tofu=$(command -v tofu); \
+      "$tofu" -chdir=cloudflare fmt -check -recursive; \
+      "$tofu" -chdir=cloudflare init -backend=false -lockfile=readonly; \
+      "$tofu" -chdir=cloudflare validate'
+
 _check-shell:
     find scripts modules -type f -name '*.sh' -print0 | xargs -0 -r bash -n
     find scripts modules -type f -name '*.sh' -print0 | xargs -0 -r nix shell "path:{{ repo_root }}#shfmt" -c shfmt -d -i 2
@@ -86,6 +94,13 @@ deploy-guests: apply-tofu
 apply-tofu:
     doas /run/current-system/sw/bin/tofu -chdir=tofu init
     doas /run/current-system/sw/bin/tofu -chdir=tofu apply -var-file="hosts/$(hostname -s).tfvars"
+
+apply-cloudflare:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    : "${CLOUDFLARE_API_TOKEN:?Set CLOUDFLARE_API_TOKEN on the administrator workstation}"
+    nix shell "path:{{ repo_root }}#opentofu" -c tofu -chdir=cloudflare init
+    nix shell "path:{{ repo_root }}#opentofu" -c tofu -chdir=cloudflare apply
 
 upgrade-guests *guests:
     ./scripts/guests.sh "$@"

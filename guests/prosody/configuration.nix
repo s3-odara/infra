@@ -312,7 +312,10 @@ in
       environmentFile = config.sops.templates."restic-r2.env".path;
       passwordFile = config.sops.secrets.restic_repository_password.path;
       initialize = true;
-      pruneOpts = [ "--keep-daily 14" ];
+      pruneOpts = [
+        "--keep-daily 14"
+        "--keep-weekly 8"
+      ];
       backupPrepareCommand = ''
         while ! mkdir /run/prosody-backup.lock 2>/dev/null; do
           sleep 10
@@ -332,41 +335,6 @@ in
         Persistent = true;
       };
     };
-
-    prosody-long = {
-      repository = "s3:https://6ecd930c8cd4dc63f87c9398762626e8.r2.cloudflarestorage.com/prosody/prosody-long";
-      paths = [ "/var/lib/prosody" ];
-      exclude = [
-        "/var/lib/prosody/**/archive"
-        "/var/lib/prosody/**/muc_log"
-        "/var/lib/prosody/share%2exmpp%2eodarah%2eorg"
-      ];
-      environmentFile = config.sops.templates."restic-r2.env".path;
-      passwordFile = config.sops.secrets.restic_repository_password.path;
-      initialize = true;
-      pruneOpts = [
-        "--keep-weekly 8"
-        "--keep-monthly 6"
-      ];
-      backupPrepareCommand = ''
-        while ! mkdir /run/prosody-backup.lock 2>/dev/null; do
-          sleep 10
-        done
-        ${pkgs.systemd}/bin/systemctl stop prosody.service
-      '';
-      backupCleanupCommand = ''
-        status=0
-        ${pkgs.systemd}/bin/systemctl start prosody.service || status=$?
-        rmdir /run/prosody-backup.lock
-        exit "$status"
-      '';
-      timerConfig = {
-        OnCalendar = "Sun *-*-* 05:00:00 Asia/Tokyo";
-        RandomizedDelaySec = "15m";
-        FixedRandomDelay = true;
-        Persistent = true;
-      };
-    };
   };
 
   systemd.services."backup-failure-notify@".serviceConfig = {
@@ -376,8 +344,62 @@ in
   };
   systemd.services."restic-backups-prosody-short".unitConfig.OnFailure =
     "backup-failure-notify@%n.service";
-  systemd.services."restic-backups-prosody-long".unitConfig.OnFailure =
-    "backup-failure-notify@%n.service";
+  systemd.services.prosody-monthly-backup = {
+    description = "Create an encrypted monthly Prosody backup";
+    wants = [ "network-online.target" ];
+    after = [ "network-online.target" ];
+    unitConfig.OnFailure = "backup-failure-notify@%n.service";
+    serviceConfig = {
+      Type = "oneshot";
+      TimeoutStartSec = "10m";
+      EnvironmentFile = config.sops.templates."restic-r2.env".path;
+    };
+    preStart = ''
+      while ! mkdir /run/prosody-backup.lock 2>/dev/null; do
+        sleep 10
+      done
+      ${pkgs.systemd}/bin/systemctl stop prosody.service
+    '';
+    script = ''
+      set -o pipefail
+      month="$(TZ=Asia/Tokyo ${pkgs.coreutils}/bin/date +%Y-%m)"
+      timestamp="$(${pkgs.coreutils}/bin/date --utc +%Y%m%dT%H%M%SZ)"
+      recipient="$(${pkgs.age}/bin/age-keygen -y ${config.sops.age.keyFile})"
+      export RCLONE_CONFIG_R2_TYPE=s3
+      export RCLONE_CONFIG_R2_PROVIDER=Cloudflare
+      export RCLONE_CONFIG_R2_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID"
+      export RCLONE_CONFIG_R2_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY"
+      export RCLONE_CONFIG_R2_ENDPOINT=https://6ecd930c8cd4dc63f87c9398762626e8.r2.cloudflarestorage.com
+      export RCLONE_CONFIG_R2_REGION=auto
+
+      ${pkgs.gnutar}/bin/tar \
+        --create --file=- --directory=/ --numeric-owner --acls --xattrs --sparse \
+        --exclude='var/lib/prosody/**/archive' \
+        --exclude='var/lib/prosody/**/muc_log' \
+        --exclude='var/lib/prosody/share%2exmpp%2eodarah%2eorg' \
+        var/lib/prosody \
+        | ${pkgs.zstd}/bin/zstd --quiet --threads=1 --stdout \
+        | ${lib.getExe pkgs.age} --encrypt --recipient "$recipient" \
+        | ${lib.getExe pkgs.rclone} rcat \
+          "r2:prosody/archive/$month/$timestamp.tar.zst.age"
+    '';
+    postStop = ''
+      status=0
+      ${pkgs.systemd}/bin/systemctl start prosody.service || status=$?
+      rmdir /run/prosody-backup.lock || status=$?
+      exit "$status"
+    '';
+  };
+
+  systemd.timers.prosody-monthly-backup = {
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "*-*-01 05:00:00 Asia/Tokyo";
+      RandomizedDelaySec = "15m";
+      FixedRandomDelay = true;
+      Persistent = true;
+    };
+  };
 
   systemd.services.prosody = {
     after = [ "acme-xmpp.odarah.org.service" ];

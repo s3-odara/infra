@@ -6,6 +6,7 @@ NixOSホストにIncusゲストを作り、各ゲストへNixOS構成を適用�
 hosts/       ホストのNixOS構成
 guests/      ゲストのNixOS構成
 tofu/        Incusのnetwork、instance、ACL、forward、storage
+cloudflare/  R2バックアップのBucket LockとLifecycle
 secrets/     SOPS暗号文
 scripts/     justから呼ぶ処理
 ```

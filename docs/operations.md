@@ -7,6 +7,7 @@ just help
 just check
 just deploy-guests
 just apply-tofu
+just apply-cloudflare
 just upgrade-guests
 just upgrade-guests prosody wireguard
 just upgrade-host
@@ -18,7 +19,8 @@ just update-flake
 
 - `check`: Nix、OpenTofu、シェル構文を検証する
 - `deploy-guests`: OpenTofuを適用し、全ゲストへNixOS構成を適用する
-- `apply-tofu`: OpenTofuだけを適用する
+- `apply-tofu`: Incus用OpenTofuだけを適用する
+- `apply-cloudflare`: 管理端末からR2 Bucket Lock/Lifecycleを適用する
 - `upgrade-guests`: OpenTofuを触らず、全ゲストまたは指定したゲストを適用する
 - `upgrade-host`: ホストの`nixos-upgrade.service`を起動して完了を待つ
 - `update-eturnal`: eturnalの最新releaseとRebar3依存hashへ更新してpackageをbuildする。

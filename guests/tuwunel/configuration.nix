@@ -188,26 +188,12 @@ in
     pruneOpts = [
       "--keep-daily 14"
       "--keep-weekly 8"
-      "--keep-monthly 6"
     ];
     backupPrepareCommand = ''
-      set -eu
-      state=/run/restic-backups-tuwunel/invite-bot-was-active
-
-      if ${pkgs.systemd}/bin/systemctl is-active --quiet matrix-invite-bot.service; then
-        ${pkgs.coreutils}/bin/touch "$state"
-        ${pkgs.systemd}/bin/systemctl stop matrix-invite-bot.service
-      fi
+      ${pkgs.systemd}/bin/systemctl stop matrix-invite-bot.service
     '';
     backupCleanupCommand = ''
-      status=0
-      state=/run/restic-backups-tuwunel/invite-bot-was-active
-
-      if test -e "$state"; then
-        ${pkgs.systemd}/bin/systemctl start matrix-invite-bot.service || status=$?
-      fi
-      ${pkgs.coreutils}/bin/rm -f "$state" || test "$status" -ne 0 || status=$?
-      exit "$status"
+      ${pkgs.systemd}/bin/systemctl start matrix-invite-bot.service
     '';
     timerConfig = {
       OnCalendar = "*-*-* 04:30:00 Asia/Tokyo";
@@ -223,6 +209,55 @@ in
     ExecStart = backupFailureNotifier;
   };
   systemd.services."restic-backups-tuwunel".unitConfig.OnFailure = "backup-failure-notify@%n.service";
+  systemd.services.tuwunel-monthly-backup = {
+    description = "Create an encrypted monthly Tuwunel backup";
+    wants = [ "network-online.target" ];
+    after = [ "network-online.target" ];
+    unitConfig.OnFailure = "backup-failure-notify@%n.service";
+    serviceConfig = {
+      Type = "oneshot";
+      TimeoutStartSec = "10m";
+      EnvironmentFile = config.sops.templates."restic-r2.env".path;
+    };
+    preStart = ''
+      ${pkgs.systemd}/bin/systemctl stop matrix-invite-bot.service
+    '';
+    script = ''
+      set -o pipefail
+      month="$(TZ=Asia/Tokyo ${pkgs.coreutils}/bin/date +%Y-%m)"
+      timestamp="$(${pkgs.coreutils}/bin/date --utc +%Y%m%dT%H%M%SZ)"
+      recipient="$(${pkgs.age}/bin/age-keygen -y ${config.sops.age.keyFile})"
+      export RCLONE_CONFIG_R2_TYPE=s3
+      export RCLONE_CONFIG_R2_PROVIDER=Cloudflare
+      export RCLONE_CONFIG_R2_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID"
+      export RCLONE_CONFIG_R2_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY"
+      export RCLONE_CONFIG_R2_ENDPOINT=https://6ecd930c8cd4dc63f87c9398762626e8.r2.cloudflarestorage.com
+      export RCLONE_CONFIG_R2_REGION=auto
+
+      ${pkgs.gnutar}/bin/tar \
+        --create --file=- --directory=/ --numeric-owner --acls --xattrs --sparse \
+        var/lib/tuwunel-backups \
+        var/lib/tuwunel/registration-token \
+        var/lib/matrix-invite-bot \
+        | ${pkgs.zstd}/bin/zstd --quiet --threads=1 --stdout \
+        | ${lib.getExe pkgs.age} --encrypt --recipient "$recipient" \
+        | ${lib.getExe pkgs.rclone} rcat \
+          "r2:tuwunel/archive/$month/$timestamp.tar.zst.age"
+    '';
+    postStop = ''
+      ${pkgs.systemd}/bin/systemctl start matrix-invite-bot.service
+    '';
+  };
+
+  systemd.timers.tuwunel-monthly-backup = {
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "*-*-01 06:30:00 Asia/Tokyo";
+      RandomizedDelaySec = "15m";
+      FixedRandomDelay = true;
+      Persistent = true;
+    };
+  };
 
   systemd.services.matrix-invite-bot = {
     description = "Encrypted Matrix registration invite bot";
