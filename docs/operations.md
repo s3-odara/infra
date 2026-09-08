@@ -25,7 +25,7 @@ just update-flake
 - `upgrade-host`: ホストの`nixos-upgrade.service`を起動して完了を待つ
 - `update-eturnal`: eturnalの最新releaseとRebar3依存hashへ更新してpackageをbuildする。
 - `update-matrix-invite-bot`: Matrix invite botの`Cargo.lock`を更新し、単体packageをbuildする。deployやsecretの変更は行わない。
-- `update-sygnal`: Sygnalの最新releaseとsource hashへ更新し、単体packageをbuildする。
+- `update-sygnal`: Sygnalの最新releaseとsource hashへ更新し、単体packageをbuildする。更新時は上流のPythonバージョンと個別に定義しているパッケージの上流での固定バージョンを確認し、個別定義が互換性問題で依然必要かテストする。
 - `update-flake`: flake inputと生成済みkernel configを更新し、Nix構成を評価する
 
 ホストとゲストでは`system.autoUpgrade`も動く。ゲストの自動更新はSOPS暗号文を配送しない。暗号文を変更したら`just upgrade-guests GUEST`を実行する。
