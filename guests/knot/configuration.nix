@@ -303,13 +303,14 @@ in
         export RCLONE_CONFIG_R2_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY"
         export RCLONE_CONFIG_R2_ENDPOINT=https://6ecd930c8cd4dc63f87c9398762626e8.r2.cloudflarestorage.com
         export RCLONE_CONFIG_R2_REGION=auto
+        export RCLONE_CONFIG_R2_NO_CHECK_BUCKET=true
 
         ${pkgs.gnutar}/bin/tar \
           --create --file=- --directory=/ --numeric-owner --acls --xattrs --sparse \
           var/lib/knot/backup \
           | ${pkgs.zstd}/bin/zstd --quiet --threads=1 --stdout \
           | ${pkgs.age}/bin/age --encrypt --recipient "$recipient" \
-          | ${pkgs.rclone}/bin/rclone rcat \
+          | ${pkgs.rclone}/bin/rclone --config /dev/null rcat \
             "r2:knot/archive/$month/$timestamp.tar.zst.age"
       '';
     };
