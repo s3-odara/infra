@@ -1741,7 +1741,6 @@ dependencies = [
  "matrix-sdk",
  "reqwest",
  "serde",
- "serde_json",
  "tokio",
  "url",
 ]
