@@ -71,10 +71,10 @@ let
   };
 in
 {
-  services.journald.extraConfig = ''
-    SystemMaxUse=200M
-    MaxRetentionSec=14day
-  '';
+  services.journald.settings.Journal = {
+    SystemMaxUse = "200M";
+    MaxRetentionSec = "14day";
+  };
 
   services.chrony = {
     enable = true;

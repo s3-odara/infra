@@ -34,8 +34,8 @@
   # Keep each guest's daily GC at a stable offset within the delay window.
   systemd.timers.nix-gc.timerConfig.FixedRandomDelay = true;
 
-  services.journald.extraConfig = ''
-    SystemMaxUse=200M
-    MaxRetentionSec=14day
-  '';
+  services.journald.settings.Journal = {
+    SystemMaxUse = "200M";
+    MaxRetentionSec = "14day";
+  };
 }
