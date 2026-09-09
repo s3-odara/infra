@@ -36,6 +36,11 @@ in
 
   services.prosody = {
     enable = true;
+    log = ''
+      {
+        { min = "info"; to = "*syslog"; };
+      }
+    '';
     package =
       (pkgs.prosody.override {
         withCommunityModules = [
