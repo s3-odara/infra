@@ -91,6 +91,7 @@ in
       RestrictAddressFamilies = [
         "AF_UNIX"
         "AF_INET"
+        "AF_NETLINK"
       ];
     };
   };
