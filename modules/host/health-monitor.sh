@@ -25,6 +25,14 @@ if [[ -n $failed_units ]]; then
   alerts+=("failed systemd units:" "$failed_units")
 fi
 
+while IFS= read -r guest; do
+  [[ -n $guest ]] || continue
+  if ! incus exec --project "$project" "$guest" -- \
+    systemctl is-active --quiet systemd-journal-upload.service; then
+    alerts+=("guest journal uploader $guest: not active")
+  fi
+done < <(incus list --project "$project" --format csv --columns n)
+
 if ! chronyc -n waitsync 1 1 >/dev/null 2>&1; then
   alerts+=("chrony: not synchronized or remaining correction exceeds 1 second")
 fi

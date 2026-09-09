@@ -69,12 +69,40 @@ let
     ];
     text = builtins.readFile ./health-monitor.sh;
   };
+  journalVacuum = pkgs.writeShellApplication {
+    name = "guest-journal-vacuum";
+    runtimeInputs = with pkgs; [ systemd ];
+    text = ''
+      journalctl --directory=/var/log/journal/remote \
+        --vacuum-time=14d \
+        --vacuum-size=200M
+    '';
+  };
 in
 {
-  services.journald.settings.Journal = {
-    SystemMaxUse = "200M";
-    MaxRetentionSec = "14day";
+  services.journald = {
+    settings.Journal = {
+      SystemMaxUse = "200M";
+      MaxFileSec = "1day";
+      MaxRetentionSec = "14day";
+    };
+    remote = {
+      enable = true;
+      output = "/var/log/journal/remote";
+      settings.Remote = {
+        MaxUse = "200M";
+        MaxFileSize = "10M";
+        SplitMode = "none";
+      };
+    };
   };
+
+  systemd.sockets.systemd-journal-remote = {
+    after = [ "incus.service" ];
+    requires = [ "incus.service" ];
+    socketConfig.BindToDevice = "incusbr0";
+  };
+  networking.firewall.interfaces.incusbr0.allowedTCPPorts = [ 19532 ];
 
   services.chrony = {
     enable = true;
@@ -134,6 +162,23 @@ in
 
   # The host kernels use CONFIG_MODULES=n.
   boot.modprobeConfig.enable = false;
+
+  systemd.services.guest-journal-vacuum = {
+    description = "Expire archived remote guest journals";
+    serviceConfig = monitorHardening // {
+      Type = "oneshot";
+      ExecStart = lib.getExe journalVacuum;
+      ReadWritePaths = [ "/var/log/journal/remote" ];
+    };
+  };
+  systemd.timers.guest-journal-vacuum = {
+    description = "Daily remote guest journal retention";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "daily";
+      Persistent = true;
+    };
+  };
 
   systemd.services.host-storage-monitor = lib.mkIf hasSecrets {
     description = "Check host and Incus container storage usage";
