@@ -88,7 +88,7 @@ in
     };
     remote = {
       enable = true;
-      output = "/var/log/journal/remote";
+      output = "/var/log/journal/remote/remote.journal";
       settings.Remote = {
         MaxUse = "200M";
         MaxFileSize = "10M";
