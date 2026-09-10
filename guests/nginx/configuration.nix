@@ -11,6 +11,7 @@ let
   matrixHost = "matrix.odarah.org";
   cinnyHost = "cinny.matrix.odarah.org";
   elementHost = "element.matrix.odarah.org";
+  guestMatrixHost = "guest.matrix.odarah.org";
   rtcHost = "rtc.matrix.odarah.org";
   sableHost = "sable.matrix.odarah.org";
   pushHost = "push.matrix.odarah.org";
@@ -25,6 +26,7 @@ let
   hstsValue = "max-age=63072000; includeSubDomains; preload";
   prosodyAddress = "10.77.3.10";
   tuwunelAddress = "10.77.3.14";
+  guestTuwunelAddress = "10.77.3.17";
   rtcAddress = "10.77.3.15";
   sygnalAddress = "10.77.3.16";
   pushClientConfig = builtins.fromJSON (builtins.readFile ../../packages/sygnal/client-config.json);
@@ -61,6 +63,7 @@ let
   cinnyCsp = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' 'wasm-unsafe-eval'; script-src-attr 'none'; style-src 'self' ${cinnyStyleHashes}; style-src-elem 'self' ${cinnyStyleHashes}; style-src-attr 'none'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self'";
   cinnyCallCsp = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' 'wasm-unsafe-eval'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self'";
   elementCsp = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' 'wasm-unsafe-eval'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self' blob:";
+  elementCallCsp = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self' 'wasm-unsafe-eval' 'sha256-pQY0fuQAnnVQH5nQfjo80rzGkQzeN3JeAtAJ+1KcD4k==' 'sha256-3042zLa3JXvrJe/2n8P/XpIKwqBdNTu7fwbLZUNrzZQ=='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${guestMatrixHost}; media-src 'self' blob: https://${guestMatrixHost}; connect-src 'self' https://${guestMatrixHost} wss://${guestMatrixHost} https://${rtcHost} wss://${rtcHost}";
 
   clientSecurityHeaders =
     {
@@ -94,6 +97,10 @@ let
     enforcedCsp = elementCsp;
     xFrameOptions = "SAMEORIGIN";
   };
+  elementCallSecurityHeaders = clientSecurityHeaders {
+    enforcedCsp = elementCallCsp;
+    xFrameOptions = "DENY";
+  };
 
   http3PrimaryConfig = ''
     listen 0.0.0.0:443 quic reuseport;
@@ -106,6 +113,19 @@ let
     http3 on;
     quic_gso on;
     add_header Alt-Svc 'h3=":443"; ma=86400' always;
+  '';
+
+  guestMatrixProxyConfig = ''
+    gzip off;
+    brotli off;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header Connection "";
+    proxy_connect_timeout 5s;
+    proxy_read_timeout 300s;
+    proxy_send_timeout 300s;
   '';
 
   matrixProxyConfig = ''
@@ -226,9 +246,28 @@ let
     element_call = {
       disable = false;
       use_exclusively = true;
+      guest_spa_url = "https://${guestMatrixHost}/?homeserver=${guestMatrixHost}";
     };
   };
   elementConfigFile = pkgs.writeText "element-config.json" (builtins.toJSON elementConfig);
+  elementCallConfig = {
+    default_server_config."m.homeserver" = {
+      base_url = "https://${guestMatrixHost}";
+      server_name = guestMatrixHost;
+    };
+    livekit.livekit_service_url = "https://${rtcHost}";
+  };
+  elementCallConfigFile = pkgs.writeText "element-call-config.json" (
+    builtins.toJSON elementCallConfig
+  );
+  elementCall = pkgs.runCommand "element-call-${pkgs.element-call.version}-odarah" { } ''
+    mkdir -p "$out"
+    cp -R ${pkgs.element-call}/. "$out/"
+    chmod -R u+w "$out"
+    cp ${elementCallConfigFile} "$out/config.json"
+    ${precompressStaticAssets} "$out"
+  '';
+
   element =
     pkgs.runCommand "element-web-${pkgs.element-web-unwrapped.version}-odarah"
       { nativeBuildInputs = [ pkgs.patch ]; }
@@ -269,6 +308,7 @@ in
         odarahHost
         cinnyHost
         elementHost
+        guestMatrixHost
         rtcHost
         sableHost
         pushHost
@@ -326,6 +366,7 @@ in
         ${matrixHost} 127.0.0.1:9443;
         ${cinnyHost} 127.0.0.1:9443;
         ${elementHost} 127.0.0.1:9443;
+        ${guestMatrixHost} 127.0.0.1:9443;
         ${rtcHost} 127.0.0.1:9443;
         ${sableHost} 127.0.0.1:9443;
         ${pushHost} 127.0.0.1:9443;
@@ -397,6 +438,47 @@ in
       limit_req_zone $matrix_login_ip_key zone=matrix_login_ip:10m rate=1r/s;
       limit_req_zone $matrix_login_global_key zone=matrix_login_global:1m rate=10r/s;
       limit_conn_zone $matrix_login_global_key zone=matrix_login_conn:1m;
+
+      # Guest registration has no homeserver-side request rate limit. Empty
+      # keys keep these limits scoped to the two registration endpoints.
+      map $uri $guest_registration_request {
+        default 0;
+        ~^/_matrix/client/(?:r0|v3)/register$ 1;
+      }
+      map $uri $guest_username_request {
+        default 0;
+        ~^/_matrix/client/(?:r0|v3)/register/available$ 1;
+      }
+      map $guest_registration_request $guest_registration_ip_key {
+        default "";
+        1 $binary_remote_addr;
+      }
+      map $guest_registration_request $guest_registration_global_key {
+        default "";
+        1 $server_name;
+      }
+      map $guest_username_request $guest_username_ip_key {
+        default "";
+        1 $binary_remote_addr;
+      }
+      limit_req_zone $guest_registration_ip_key zone=guest_registration_ip:10m rate=1r/m;
+      limit_req_zone $guest_registration_global_key zone=guest_registration_global:1m rate=2r/s;
+      limit_req_zone $guest_username_ip_key zone=guest_username_ip:10m rate=2r/s;
+      limit_conn_zone $guest_registration_ip_key zone=guest_registration_conn_ip:10m;
+      limit_conn_zone $guest_registration_global_key zone=guest_registration_conn_global:1m;
+
+      # Element Call 0.25.0's standalone flow is read-only except for
+      # registration, crypto setup, joining/leaving, OpenID, and MatrixRTC
+      # membership. In particular, normal room send/state and media upload
+      # endpoints never match this allowlist.
+      map "$request_method:$uri" $guest_matrix_client_allowed {
+        default 0;
+        ~^(?:GET|HEAD):/_matrix/client/ 1;
+        ~^POST:/_matrix/client/(?:r0|v3)/(?:register|refresh|user/[^/]+/filter|keys/(?:upload|query|claim|signatures/upload)|user/[^/]+/openid/request_token|join/.*|rooms/[^/]+/(?:join|leave))$ 1;
+        ~^PUT:/_matrix/client/(?:r0|v3)/(?:profile/[^/]+/displayname|sendToDevice/[^/]+/[^/]+|rooms/[^/]+/state/(?:m\.call\.member|org\.matrix\.msc3401\.call\.member|org\.matrix\.msc4143\.rtc\.member)/.*)$ 1;
+        ~^POST:/_matrix/client/unstable/org\.matrix\.msc4140/delayed_events/[^/]+(?:/(?:cancel|restart|send))?$ 1;
+      }
+
       limit_conn_zone $remote_addr zone=rtc_ws_conn:10m;
       limit_req_zone $binary_remote_addr zone=sygnal_push_ip:10m rate=10r/s;
       limit_req_zone $server_name zone=sygnal_push_global:1m rate=50r/s;
@@ -411,6 +493,11 @@ in
         ~^/csp-inline/ "no-cache";
         ~^/assets/ "public, max-age=31536000, immutable";
         ~^/register/ "no-store";
+      }
+      map $request_uri $element_call_cache_control {
+        default "no-cache";
+        ~^/config\.json$ "no-store";
+        ~^/assets/ "public, max-age=31536000, immutable";
       }
       map $request_uri $element_cache_control {
         default "no-cache";
@@ -533,6 +620,123 @@ in
               ${matrixProxyConfig}
             '';
           };
+        };
+      };
+
+      ${guestMatrixHost} = {
+        useACMEHost = matrixHost;
+        forceSSL = true;
+        root = elementCall;
+        listen = [
+          {
+            addr = "0.0.0.0";
+            port = 80;
+          }
+          {
+            addr = "127.0.0.1";
+            port = 8443;
+            ssl = true;
+            proxyProtocol = true;
+          }
+        ];
+        extraConfig = ''
+          ${http3Config}
+          ${elementCallSecurityHeaders}
+          add_header Cache-Control $element_call_cache_control always;
+        '';
+
+        locations = {
+          "= /.well-known/matrix/client".extraConfig = ''
+            default_type application/json;
+            add_header_inherit off;
+            ${elementCallSecurityHeaders}
+            add_header Strict-Transport-Security "${hstsValue}" always;
+            add_header Cache-Control "no-store" always;
+            add_header Alt-Svc 'h3=":443"; ma=86400' always;
+            add_header Access-Control-Allow-Origin "*" always;
+            return 200 '{"m.homeserver":{"base_url":"https://${guestMatrixHost}"},"org.matrix.msc4143.rtc_foci":[{"type":"livekit","livekit_service_url":"https://${rtcHost}"}]}';
+          '';
+
+          "= /.well-known/matrix/server".extraConfig = ''
+            default_type application/json;
+            return 200 '{"m.server":"${guestMatrixHost}:443"}';
+          '';
+
+          "~ ^/_matrix/(?:federation|key)/" = {
+            proxyPass = "http://${guestTuwunelAddress}:8008";
+            extraConfig = ''
+              client_max_body_size 1M;
+              ${guestMatrixProxyConfig}
+            '';
+          };
+
+          # Exact locations take precedence over the generic Client API regex,
+          # so registration can never bypass its stricter limits.
+          "= /_matrix/client/r0/register" = {
+            proxyPass = "http://${guestTuwunelAddress}:8008";
+            extraConfig = ''
+              limit_except POST { deny all; }
+              limit_req zone=guest_registration_ip burst=10 nodelay;
+              limit_req zone=guest_registration_global burst=40 nodelay;
+              limit_conn guest_registration_conn_ip 2;
+              limit_conn guest_registration_conn_global 32;
+              limit_req_status 429;
+              limit_conn_status 429;
+              client_max_body_size 32K;
+              ${guestMatrixProxyConfig}
+            '';
+          };
+          "= /_matrix/client/v3/register" = {
+            proxyPass = "http://${guestTuwunelAddress}:8008";
+            extraConfig = ''
+              limit_except POST { deny all; }
+              limit_req zone=guest_registration_ip burst=10 nodelay;
+              limit_req zone=guest_registration_global burst=40 nodelay;
+              limit_conn guest_registration_conn_ip 2;
+              limit_conn guest_registration_conn_global 32;
+              limit_req_status 429;
+              limit_conn_status 429;
+              client_max_body_size 32K;
+              ${guestMatrixProxyConfig}
+            '';
+          };
+
+          "= /_matrix/client/r0/register/available" = {
+            proxyPass = "http://${guestTuwunelAddress}:8008";
+            extraConfig = ''
+              limit_except GET { deny all; }
+              limit_req zone=guest_username_ip burst=10 nodelay;
+              limit_req_status 429;
+              client_max_body_size 8K;
+              ${guestMatrixProxyConfig}
+            '';
+          };
+          "= /_matrix/client/v3/register/available" = {
+            proxyPass = "http://${guestTuwunelAddress}:8008";
+            extraConfig = ''
+              limit_except GET { deny all; }
+              limit_req zone=guest_username_ip burst=10 nodelay;
+              limit_req_status 429;
+              client_max_body_size 8K;
+              ${guestMatrixProxyConfig}
+            '';
+          };
+
+          "~ ^/_matrix/client/" = {
+            proxyPass = "http://${guestTuwunelAddress}:8008";
+            extraConfig = ''
+              if ($guest_matrix_client_allowed = 0) { return 403; }
+              client_max_body_size 1M;
+              ${guestMatrixProxyConfig}
+            '';
+          };
+
+          "^~ /assets/".tryFiles = "$uri =404";
+          "= /config.json".tryFiles = "$uri =404";
+          "= /index.html".tryFiles = "$uri =404";
+          "/".extraConfig = ''
+            try_files $uri $uri/ /index.html;
+          '';
         };
       };
 

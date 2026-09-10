@@ -51,6 +51,7 @@ let
     "matrix._acme-challenge.odarah.org."
     "cinny-matrix._acme-challenge.odarah.org."
     "element-matrix._acme-challenge.odarah.org."
+    "guest-matrix._acme-challenge.odarah.org."
     "rtc-matrix._acme-challenge.odarah.org."
     "sable-matrix._acme-challenge.odarah.org."
     "push-matrix._acme-challenge.odarah.org."

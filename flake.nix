@@ -132,6 +132,15 @@
           ];
         };
 
+        tuwunel-guest = nixpkgs.lib.nixosSystem {
+          system = "x86_64-linux";
+          specialArgs.configurationName = "tuwunel-guest";
+          modules = [
+            ./modules/guest
+            ./guests/tuwunel-guest/configuration.nix
+          ];
+        };
+
         sygnal = nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
           specialArgs.configurationName = "sygnal";

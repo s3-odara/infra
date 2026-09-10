@@ -90,7 +90,7 @@ in
         "LIVEKIT_JWT_BIND=${privateAddress}:8081"
         "LIVEKIT_URL=wss://rtc.matrix.odarah.org"
         "LIVEKIT_KEY_FILE=%d/livekit-key"
-        "LIVEKIT_FULL_ACCESS_HOMESERVERS=matrix.odarah.org"
+        "LIVEKIT_FULL_ACCESS_HOMESERVERS=matrix.odarah.org,guest.matrix.odarah.org"
       ];
       ExecStart = lib.getExe pkgs.lk-jwt-service;
       Restart = "on-failure";

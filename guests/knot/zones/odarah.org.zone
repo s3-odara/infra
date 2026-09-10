@@ -1,10 +1,11 @@
-odarah.org. 3600 IN SOA ns.odarah.org. HOSTMASTER.S3-ODARA.NET. 2026090101 3600 1800 604800 600
+odarah.org. 3600 IN SOA ns.odarah.org. HOSTMASTER.S3-ODARA.NET. 2026090102 3600 1800 604800 600
 odarah.org. 3600 IN NS ns.odarah.org.
 _acme-challenge.odarah.org. 3600 IN NS ns.odarah.org.
 _acme-challenge.odarah.org. 300 IN DS 20139 15 2 b3c303d6bbae6313d4fad3a2a929662a93b968666fbaf91efb7c9319fa7a18e2
 _acme-challenge.matrix.odarah.org. 300 IN CNAME matrix._acme-challenge.odarah.org.
 _acme-challenge.cinny.matrix.odarah.org. 300 IN CNAME cinny-matrix._acme-challenge.odarah.org.
 _acme-challenge.element.matrix.odarah.org. 300 IN CNAME element-matrix._acme-challenge.odarah.org.
+_acme-challenge.guest.matrix.odarah.org. 300 IN CNAME guest-matrix._acme-challenge.odarah.org.
 _acme-challenge.rtc.matrix.odarah.org. 300 IN CNAME rtc-matrix._acme-challenge.odarah.org.
 _acme-challenge.sable.matrix.odarah.org. 300 IN CNAME sable-matrix._acme-challenge.odarah.org.
 _acme-challenge.push.matrix.odarah.org. 300 IN CNAME push-matrix._acme-challenge.odarah.org.
@@ -17,6 +18,8 @@ odarah.org. 3600 IN HTTPS 1 . alpn="h3,h2"
 ns.odarah.org. 3600 IN A 15.235.184.173
 matrix.odarah.org. 3600 IN A 15.235.184.173
 matrix.odarah.org. 3600 IN HTTPS 1 . alpn="h3,h2"
+guest.matrix.odarah.org. 3600 IN A 15.235.184.173
+guest.matrix.odarah.org. 3600 IN HTTPS 1 . alpn="h3,h2"
 rtc.matrix.odarah.org. 3600 IN A 15.235.184.173
 sable.matrix.odarah.org. 3600 IN A 15.235.184.173
 sable.matrix.odarah.org. 3600 IN HTTPS 1 . alpn="h3,h2"

@@ -92,7 +92,7 @@ guests = {
       "10.77.3.0",
       "10.77.3.2-10.77.3.9",
       "10.77.3.12-10.77.3.13",
-      "10.77.3.17-10.77.3.255",
+      "10.77.3.18-10.77.3.255",
     ]
   }
 
@@ -102,6 +102,28 @@ guests = {
     cpu_allowance = "100ms/100ms"
     memory        = "4GiB"
     disk_size     = "20GiB"
+
+    public_ports = []
+    private_ports = [
+      {
+        protocol = "tcp"
+        port     = 8008
+        source   = "10.77.3.13/32"
+      },
+    ]
+    denied_egress = [
+      "10.77.3.0",
+      "10.77.3.2-10.77.3.12",
+      "10.77.3.14-10.77.3.255",
+    ]
+  }
+
+  tuwunel-guest = {
+    image         = "images:nixos/unstable"
+    ipv4          = "10.77.3.17"
+    cpu_allowance = "50ms/100ms"
+    memory        = "1GiB"
+    disk_size     = "5GiB"
 
     public_ports = []
     private_ports = [
