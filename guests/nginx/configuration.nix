@@ -738,7 +738,7 @@ in
           "~ ^/_matrix/(?:federation|key)/" = {
             proxyPass = "http://${guestTuwunelAddress}:8008";
             extraConfig = ''
-              client_max_body_size 1M;
+              client_max_body_size 16M;
               ${guestMatrixProxyConfig}
             '';
           };

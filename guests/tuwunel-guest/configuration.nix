@@ -14,11 +14,12 @@
       ip_source = "rightmost_x_forwarded_for";
       ip_lookup_strategy = 1;
 
-      max_request_size = 1024 * 1024;
+      max_request_size = 16 * 1024 * 1024;
       max_response_size = 64 * 1024 * 1024;
       cache_capacity_modifier = 0.25;
       db_cache_capacity_mb = 64;
       db_write_buffer_capacity_mb = 32;
+      rocksdb_allow_fallocate = false;
 
       allow_registration = true;
       allow_guest_registration = false;

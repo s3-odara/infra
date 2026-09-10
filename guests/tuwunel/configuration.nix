@@ -75,6 +75,7 @@ in
       cache_capacity_modifier = 0.5;
       db_cache_capacity_mb = 128;
       db_write_buffer_capacity_mb = 52;
+      rocksdb_allow_fallocate = false;
       database_backup_path = backupDirectory;
       database_backups_to_keep = 2;
       admin_signal_execute = [
