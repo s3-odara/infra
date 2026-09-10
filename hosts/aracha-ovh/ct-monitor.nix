@@ -15,6 +15,7 @@ let
           dnsNames = [
             "cinny.matrix.odarah.org"
             "element.matrix.odarah.org"
+            "guest.matrix.odarah.org"
             "matrix.odarah.org"
             "odarah.org"
             "push.matrix.odarah.org"
