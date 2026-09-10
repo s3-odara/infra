@@ -561,7 +561,7 @@ in
       map "$request_method:$uri" $guest_matrix_client_allowed {
         default 0;
         ~^(?:GET|HEAD):/_matrix/client/ 1;
-        ~^POST:/_matrix/client/(?:r0|v3)/(?:register|refresh|user/[^/]+/filter|keys/(?:upload|query|claim|signatures/upload)|user/[^/]+/openid/request_token|join/.*|rooms/[^/]+/(?:join|knock|leave))$ 1;
+        ~^POST:/_matrix/client/(?:r0|v3)/(?:register|refresh|logout|user/[^/]+/filter|keys/(?:upload|query|claim|signatures/upload)|user/[^/]+/openid/request_token|join/.*|knock/.*|rooms/[^/]+/(?:join|leave))$ 1;
         ~^PUT:/_matrix/client/(?:r0|v3)/(?:profile/[^/]+/displayname|sendToDevice/[^/]+/[^/]+|rooms/[^/]+/state/(?:m\.call\.member|org\.matrix\.msc3401\.call\.member|org\.matrix\.msc4143\.rtc\.member)/.*)$ 1;
         ~^POST:/_matrix/client/unstable/org\.matrix\.msc4140/delayed_events/[^/]+(?:/(?:cancel|restart|send))?$ 1;
       }
