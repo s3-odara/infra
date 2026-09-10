@@ -11,7 +11,7 @@ let
       certificates = [
         {
           name = "nginx";
-          pubkeySha256 = "6369a2028d62f3a014e3e0a98cd32604b1451c988275fcc451b8a77b335caa5b";
+          pubkeySha256 = "b6691bdac9607f2d47df771acbb6b0bc231baf680435997b92b74ce2cbbb060c";
           dnsNames = [
             "cinny.matrix.odarah.org"
             "element.matrix.odarah.org"
@@ -45,6 +45,7 @@ let
     runtimeInputs = with pkgs; [
       coreutils
       curl
+      inetutils
       jq
       sops
     ];
