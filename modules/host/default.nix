@@ -167,6 +167,8 @@ in
     description = "Expire archived remote guest journals";
     serviceConfig = monitorHardening // {
       Type = "oneshot";
+      User = "systemd-journal-remote";
+      Group = "systemd-journal-remote";
       ExecStart = lib.getExe journalVacuum;
       ReadWritePaths = [ "/var/log/journal/remote" ];
     };
