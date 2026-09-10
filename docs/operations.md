@@ -50,6 +50,20 @@ incus exec GUEST -- journalctl -u nixos-upgrade.service -b
 incus exec GUEST -- nixos-rebuild list-generations
 ```
 
+## Guestログ集約
+
+Guestのjournalはhostに転送する。送信元も含めて偽装はできるがguestから削除はできない。
+
+```bash
+# remote journal全体、または送信側が申告したhostnameで検索
+journalctl --directory=/var/log/journal/remote --since today
+journalctl --directory=/var/log/journal/remote _HOSTNAME=GUEST
+
+# uploaderとreceiverを確認
+incus exec GUEST -- systemctl status systemd-journal-upload.service
+systemctl status systemd-journal-remote.socket systemd-journal-remote.service
+```
+
 ## 手動更新
 
 ゲスト：
