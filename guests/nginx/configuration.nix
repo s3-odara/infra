@@ -310,7 +310,7 @@ let
     element_call = {
       disable = false;
       use_exclusively = true;
-      guest_spa_url = "https://${guestMatrixHost}/?homeserver=${guestMatrixHost}";
+      guest_spa_url = "https://${guestMatrixHost}";
     };
   };
   elementConfigFile = pkgs.writeText "element-config.json" (builtins.toJSON elementConfig);
