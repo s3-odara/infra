@@ -541,13 +541,13 @@ in
       limit_conn_zone $guest_registration_global_key zone=guest_registration_conn_global:1m;
 
       # Element Call 0.25.0's standalone flow is read-only except for
-      # registration, crypto setup, joining/leaving, OpenID, and MatrixRTC
+      # registration, crypto setup, joining/knocking/leaving, OpenID, and MatrixRTC
       # membership. In particular, normal room send/state and media upload
       # endpoints never match this allowlist.
       map "$request_method:$uri" $guest_matrix_client_allowed {
         default 0;
         ~^(?:GET|HEAD):/_matrix/client/ 1;
-        ~^POST:/_matrix/client/(?:r0|v3)/(?:register|refresh|user/[^/]+/filter|keys/(?:upload|query|claim|signatures/upload)|user/[^/]+/openid/request_token|join/.*|rooms/[^/]+/(?:join|leave))$ 1;
+        ~^POST:/_matrix/client/(?:r0|v3)/(?:register|refresh|user/[^/]+/filter|keys/(?:upload|query|claim|signatures/upload)|user/[^/]+/openid/request_token|join/.*|rooms/[^/]+/(?:join|knock|leave))$ 1;
         ~^PUT:/_matrix/client/(?:r0|v3)/(?:profile/[^/]+/displayname|sendToDevice/[^/]+/[^/]+|rooms/[^/]+/state/(?:m\.call\.member|org\.matrix\.msc3401\.call\.member|org\.matrix\.msc4143\.rtc\.member)/.*)$ 1;
         ~^POST:/_matrix/client/unstable/org\.matrix\.msc4140/delayed_events/[^/]+(?:/(?:cancel|restart|send))?$ 1;
       }
