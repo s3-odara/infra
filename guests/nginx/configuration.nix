@@ -101,6 +101,13 @@ let
     enforcedCsp = elementCallCsp;
     xFrameOptions = "DENY";
   };
+  callLinkGeneratorSecurityHeaders = ''
+    add_header Content-Security-Policy "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'none'; frame-ancestors 'none'; script-src 'self'; script-src-attr 'none'; style-src 'self'" always;
+    add_header Permissions-Policy "accelerometer=(), ambient-light-sensor=(), autoplay=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+  '';
 
   http3PrimaryConfig = ''
     listen 0.0.0.0:443 quic reuseport;
@@ -329,6 +336,13 @@ let
     cp -R ${pkgs.element-call}/. "$out/"
     chmod -R u+w "$out"
     cp ${elementCallConfigFile} "$out/config.json"
+    ${precompressStaticAssets} "$out"
+  '';
+  callLinkGenerator = pkgs.runCommand "matrix-call-link-generator" { } ''
+    mkdir -p "$out/link"
+    cp ${./call-link-generator/index.html} "$out/link/index.html"
+    cp ${./call-link-generator/app.js} "$out/link/app.js"
+    cp ${./call-link-generator/style.css} "$out/link/style.css"
     ${precompressStaticAssets} "$out"
   '';
 
@@ -811,6 +825,18 @@ in
           "^~ /assets/".tryFiles = "$uri =404";
           "= /config.json".tryFiles = "$uri =404";
           "= /index.html".tryFiles = "$uri =404";
+          "= /link".return = "308 https://$host/link/";
+          "^~ /link/" = {
+            root = callLinkGenerator;
+            tryFiles = "$uri $uri/ =404";
+            extraConfig = ''
+              add_header_inherit off;
+              ${callLinkGeneratorSecurityHeaders}
+              add_header Strict-Transport-Security "${hstsValue}" always;
+              add_header Cache-Control "no-cache" always;
+              add_header Alt-Svc 'h3=":443"; ma=86400' always;
+            '';
+          };
           "/".extraConfig = ''
             try_files $uri $uri/ /index.html;
           '';
