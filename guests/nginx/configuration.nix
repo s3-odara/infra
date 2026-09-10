@@ -142,6 +142,70 @@ let
     proxy_send_timeout 300s;
   '';
 
+  guestRegistrationBlocklist = pkgs.writeShellScript "update-guest-registration-blocklist" ''
+    set -euo pipefail
+
+    runtime_dir=/run/guest-registration-blocklist
+    blocklist="$runtime_dir/blocklist.conf"
+    log=/var/log/nginx/guest-registration.log
+
+    exec 9>"$runtime_dir/update.lock"
+    ${pkgs.util-linux}/bin/flock -n 9 || exit 0
+    tmp="$(${pkgs.coreutils}/bin/mktemp "$runtime_dir/blocklist.tmp.XXXXXX")"
+    old="$runtime_dir/blocklist.old"
+    trap '${pkgs.coreutils}/bin/rm -f "$tmp" "$old"' EXIT
+
+    if [[ ! -r "$log" && ! -r "$log.1" ]]; then
+      exit 0
+    fi
+
+    sources=()
+    current_inode=
+    if [[ -r "$log" ]]; then
+      exec 3<"$log"
+      sources+=(/dev/fd/3)
+      current_inode="$(${pkgs.coreutils}/bin/stat -Lc '%d:%i' /dev/fd/3)"
+    fi
+    if [[ -r "$log.1" ]]; then
+      exec 4<"$log.1"
+      rotated_inode="$(${pkgs.coreutils}/bin/stat -Lc '%d:%i' /dev/fd/4)"
+      # Rotation between the two opens can make both descriptors refer to the
+      # same file. Read that inode only once; new records remain for next hour.
+      [[ "$rotated_inode" == "$current_inode" ]] || sources+=(/dev/fd/4)
+    fi
+
+    now="$(${pkgs.coreutils}/bin/date +%s)"
+    cutoff="$((now - 24 * 60 * 60))"
+    {
+      if (( ''${#sources[@]} )); then
+        ${pkgs.coreutils}/bin/cat "''${sources[@]}"
+      fi
+    } | ${pkgs.gawk}/bin/awk -v cutoff="$cutoff" -v now="$now" '
+      NF == 2 && $1 >= cutoff && $1 <= now &&
+        ($2 ~ /^[0-9.]+$/ || $2 ~ /^[0-9A-Fa-f:]+$/) { successes[$2]++ }
+      END { for (ip in successes) if (successes[ip] >= 30) print ip " 1;" }
+    ' | ${pkgs.coreutils}/bin/sort >"$tmp"
+    ${pkgs.coreutils}/bin/chmod 0644 "$tmp"
+
+    if [[ -r "$blocklist" ]] && ${pkgs.diffutils}/bin/cmp -s "$tmp" "$blocklist"; then
+      exit 0
+    fi
+    had_old=false
+    if [[ -e "$blocklist" ]]; then
+      ${pkgs.coreutils}/bin/cp -p "$blocklist" "$old"
+      had_old=true
+    fi
+    ${pkgs.coreutils}/bin/mv "$tmp" "$blocklist"
+    if ! ${pkgs.systemd}/bin/systemctl reload nginx.service; then
+      if $had_old; then
+        ${pkgs.coreutils}/bin/mv "$old" "$blocklist"
+      else
+        ${pkgs.coreutils}/bin/rm -f "$blocklist"
+      fi
+      exit 1
+    fi
+  '';
+
   precompressStaticAssets = pkgs.writeShellScript "precompress-static-assets" ''
     set -euo pipefail
 
@@ -441,6 +505,15 @@ in
 
       # Guest registration has no homeserver-side request rate limit. Empty
       # keys keep these limits scoped to the two registration endpoints.
+      log_format guest_registration_success '$msec $remote_addr';
+      map $status $guest_registration_success {
+        default 0;
+        200 1;
+      }
+      geo $guest_registration_blocked {
+        default 0;
+        include /run/guest-registration-blocklist/*.conf;
+      }
       map $uri $guest_registration_request {
         default 0;
         ~^/_matrix/client/(?:r0|v3)/register$ 1;
@@ -676,6 +749,8 @@ in
             proxyPass = "http://${guestTuwunelAddress}:8008";
             extraConfig = ''
               limit_except POST { deny all; }
+              if ($guest_registration_blocked) { return 429; }
+              access_log /var/log/nginx/guest-registration.log guest_registration_success if=$guest_registration_success;
               limit_req zone=guest_registration_ip burst=10 nodelay;
               limit_req zone=guest_registration_global burst=40 nodelay;
               limit_conn guest_registration_conn_ip 2;
@@ -690,6 +765,8 @@ in
             proxyPass = "http://${guestTuwunelAddress}:8008";
             extraConfig = ''
               limit_except POST { deny all; }
+              if ($guest_registration_blocked) { return 429; }
+              access_log /var/log/nginx/guest-registration.log guest_registration_success if=$guest_registration_success;
               limit_req zone=guest_registration_ip burst=10 nodelay;
               limit_req zone=guest_registration_global burst=40 nodelay;
               limit_conn guest_registration_conn_ip 2;
@@ -1021,6 +1098,27 @@ in
         ];
         locations."/".return = "444";
       };
+    };
+  };
+
+  systemd.tmpfiles.rules = [
+    "d /run/guest-registration-blocklist 0755 root root -"
+  ];
+
+  systemd.services.guest-registration-blocklist = {
+    description = "Update the guest registration IP blocklist";
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = guestRegistrationBlocklist;
+    };
+  };
+
+  systemd.timers.guest-registration-blocklist = {
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "hourly";
+      Persistent = true;
+      AccuracySec = "1min";
     };
   };
 
