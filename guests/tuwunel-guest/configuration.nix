@@ -23,6 +23,7 @@
 
       allow_registration = true;
       allow_guest_registration = false;
+      login_with_password = false;
       yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse = true;
       new_user_displayname_suffix = "";
       grant_admin_to_first_user = false;
@@ -34,7 +35,15 @@
       allow_federation = true;
       allowed_remote_server_names_experimental = [ "^matrix\\.odarah\\.org$" ];
       allow_room_creation = false;
+      block_non_admin_invites = true;
       allow_legacy_media = false;
+      allow_local_presence = false;
+      allow_incoming_presence = false;
+      allow_outgoing_presence = false;
+      allow_incoming_read_receipts = false;
+      allow_outgoing_read_receipts = false;
+      allow_incoming_typing = false;
+      allow_outgoing_typing = false;
       allow_public_room_directory_over_federation = false;
       allow_public_room_directory_without_auth = false;
       allow_public_room_search_by_id = false;
