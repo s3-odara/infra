@@ -1,4 +1,4 @@
-{ configurationName, ... }:
+{ configurationName, pkgs, ... }:
 
 {
   networking.hostName = configurationName;
@@ -28,6 +28,7 @@
       grant_admin_to_first_user = false;
       create_admin_room = false;
       admin_escape_commands = false;
+      admin_signal_execute = [ "media delete-range 2d --older-than" ];
       federate_admin_room = false;
 
       allow_federation = true;
@@ -46,6 +47,26 @@
       well_known.client = "https://guest.matrix.odarah.org";
       well_known.livekit_url = "https://rtc.matrix.odarah.org";
       error_on_unknown_config_opts = true;
+    };
+  };
+
+  systemd.services.tuwunel-remote-media-prune = {
+    description = "Prune cached remote media from Tuwunel";
+    after = [ "tuwunel.service" ];
+    requires = [ "tuwunel.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.systemd}/bin/systemctl kill --kill-whom=main --signal=SIGUSR2 tuwunel.service";
+    };
+  };
+
+  systemd.timers.tuwunel-remote-media-prune = {
+    description = "Daily cached remote media pruning for Tuwunel";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "daily";
+      Persistent = true;
+      RandomizedDelaySec = "1h";
     };
   };
 
