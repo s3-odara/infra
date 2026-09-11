@@ -336,6 +336,9 @@ let
     cp -R ${pkgs.element-call}/. "$out/"
     chmod -R u+w "$out"
     cp ${elementCallConfigFile} "$out/config.json"
+    cp ${./element-call-guest-only.css} "$out/guest-only.css"
+    substituteInPlace "$out/index.html" \
+      --replace-fail '</head>' '<link rel="stylesheet" href="/guest-only.css"></head>'
     ${precompressStaticAssets} "$out"
   '';
   callLinkGenerator = pkgs.runCommand "matrix-call-link-generator" { } ''

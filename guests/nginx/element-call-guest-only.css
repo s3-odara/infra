@@ -1,0 +1,11 @@
+/* Keep the standalone guest service focused on temporary call participation.
+ * Direct access to /login and /register remains available. */
+a[href="/login"],
+a[href="/register"],
+[data-testid="usermenu_login"],
+p:has(> a[href="/login"]),
+p:has(> a[href="/register"]),
+div:has(> a[href="/register"]),
+p:has(a[href="https://www.google.com/policies/privacy/"]):has(a[href="https://policies.google.com/terms"]) {
+  display: none !important;
+}
