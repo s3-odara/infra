@@ -12,6 +12,7 @@
       address = [ "10.77.3.17" ];
       port = [ 8008 ];
       ip_source = "rightmost_x_forwarded_for";
+      ip_source_trusted_subnets = [ "10.77.3.0/24" ];
       ip_lookup_strategy = 1;
 
       max_request_size = 16 * 1024 * 1024;
@@ -27,8 +28,10 @@
       yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse = true;
       new_user_displayname_suffix = "";
       grant_admin_to_first_user = false;
-      create_admin_room = false;
+      create_admin_room = true;
       admin_escape_commands = false;
+      admin_execute_errors_ignore = true;
+      admin_execute = [ "users make-user-admin @invite-bot-guest:guest.matrix.odarah.org" ];
       admin_signal_execute = [ "media delete-range 2d --older-than" ];
       federate_admin_room = false;
 
