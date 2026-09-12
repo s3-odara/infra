@@ -114,7 +114,8 @@ guests = {
     denied_egress = [
       "10.77.3.0",
       "10.77.3.2-10.77.3.12",
-      "10.77.3.14-10.77.3.255",
+      "10.77.3.14-10.77.3.16",
+      "10.77.3.18-10.77.3.255",
     ]
   }
 
@@ -131,6 +132,12 @@ guests = {
         protocol = "tcp"
         port     = 8008
         source   = "10.77.3.13/32"
+      },
+      # invite-bot (on tuwunel, .14) toggles registration via the Admin API
+      {
+        protocol = "tcp"
+        port     = 8008
+        source   = "10.77.3.14/32"
       },
     ]
     denied_egress = [

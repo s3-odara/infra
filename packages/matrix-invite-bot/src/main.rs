@@ -39,6 +39,7 @@ use tokio::sync::Mutex;
 
 const HOMESERVER: &str = "http://127.0.0.1:8008";
 const ADMIN_API: &str = "http://127.0.0.1:8008/_synapse/admin/v1/registration_tokens/new";
+const GUEST_ADMIN_API_BASE: &str = "http://10.77.3.17:8008/_synapse/admin/v1/registration_tokens";
 const INVITER: &str = "@odara:matrix.odarah.org";
 const BOT_USER: &str = "@invite-bot:matrix.odarah.org";
 const INVITE_BASE: &str = "https://cinny.matrix.odarah.org/register/matrix.odarah.org/?token=";
@@ -57,6 +58,7 @@ struct App {
     matrix: Client,
     calls: Arc<CallStore>,
     close_lock: Arc<Mutex<()>>,
+    guest: Option<GuestRegistration>,
 }
 
 #[derive(Serialize)]
@@ -122,6 +124,96 @@ impl CallStore {
         fs::write(&temporary, serde_json::to_vec_pretty(calls)?)?;
         fs::rename(&temporary, &self.path)?;
         Ok(())
+    }
+}
+
+#[derive(Clone)]
+struct GuestRegistration {
+    http: reqwest::Client,
+    admin_token: Arc<str>,
+    /// Leaking it lets anyone register while the gate is meant to be closed.
+    sentinel: Arc<str>,
+}
+
+impl GuestRegistration {
+    /// The guest homeserver requires a token for all registrations once any
+    /// valid one exists, so an undisclosed token closes registration and
+    /// deleting it reopens it.
+    async fn set_open(&self, open: bool) -> Result<()> {
+        if open {
+            self.delete_sentinel().await
+        } else {
+            self.create_sentinel().await
+        }
+    }
+
+    async fn delete_sentinel(&self) -> Result<()> {
+        let url = format!(
+            "{GUEST_ADMIN_API_BASE}/{}",
+            encode_fragment_component(self.sentinel.as_ref()),
+        );
+        let response = self.http.delete(url)
+            .bearer_auth(self.admin_token.as_ref())
+            .send()
+            .await
+            .context("guest registration-token delete request")?;
+        // Accept only M_NOT_FOUND as "already open"; an unrouted request
+        // also 404s with M_UNRECOGNIZED and must fail loudly.
+        if response.status() == reqwest::StatusCode::NOT_FOUND {
+            let body = response.text().await.unwrap_or_default();
+            if body.contains("M_NOT_FOUND") {
+                return Ok(());
+            }
+            bail!("guest registration-token delete failed: HTTP 404: {body}");
+        }
+        response
+            .error_for_status()
+            .context("guest registration-token delete failed")?;
+        Ok(())
+    }
+
+    async fn create_sentinel(&self) -> Result<()> {
+        let response = self.http.post(format!("{GUEST_ADMIN_API_BASE}/new"))
+            .bearer_auth(self.admin_token.as_ref())
+            .json(&json!({
+                "token": self.sentinel.as_ref(),
+                "uses_allowed": None::<u32>,
+                "expiry_time": None::<u64>,
+            }))
+            .send()
+            .await
+            .context("guest registration-token create request")?;
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        // A duplicate means the gate is already closed; any other 400 is a
+        // real failure.
+        if status == reqwest::StatusCode::BAD_REQUEST && body.contains("already exists") {
+            return Ok(());
+        }
+        if !status.is_success() {
+            bail!("guest registration-token create failed: HTTP {status}: {body}");
+        }
+        Ok(())
+    }
+}
+
+async fn settle_guest_registration(app: &App, dm: Option<&Room>) {
+    if app.calls.snapshot().await.is_empty()
+        && let Err(error) = set_guest_registration(app, false).await
+    {
+        eprintln!("failed to close guest registration: {error:#}");
+        if let Some(dm) = dm {
+            let _ = dm.send(RoomMessageEventContent::text_plain(
+                "注意: guest homeserverの登録閉鎖に失敗しました。",
+            )).await;
+        }
+    }
+}
+
+async fn set_guest_registration(app: &App, open: bool) -> Result<()> {
+    match &app.guest {
+        Some(registration) => registration.set_open(open).await,
+        None => Ok(()),
     }
 }
 
@@ -295,6 +387,15 @@ fn raw<T>(value: Value) -> Result<Raw<T>> {
 }
 
 async fn create_call_room(control_room: &Room, name: &str, app: &App) -> Result<()> {
+    // Held by both create and close, so a racing close cannot re-create the
+    // sentinel after the create deleted it, stranding an existing room behind
+    // a closed gate.
+    let _guard = app.close_lock.lock().await;
+    // Delete is idempotent, so no emptiness check: opening unconditionally
+    // also reaps a gate a failed close left open.
+    set_guest_registration(app, true).await
+        .context("guest homeserverの登録を開放できませんでした")?;
+
     let inviter: OwnedUserId = INVITER.parse().context("invalid configured inviter")?;
     let initial_state: Vec<Raw<AnyInitialStateEvent>> = vec![
         raw(json!({
@@ -362,6 +463,9 @@ async fn close_room(app: &App, room_id: &OwnedRoomId, reason: CloseReason) -> Re
     };
     if room.state() == RoomState::Left {
         app.calls.remove(room_id.as_str()).await?;
+        let dm = call.control_room_id.parse::<OwnedRoomId>().ok()
+            .and_then(|room_id| app.matrix.get_room(&room_id));
+        settle_guest_registration(app, dm.as_ref()).await;
         return Ok(());
     }
 
@@ -385,10 +489,19 @@ async fn close_room(app: &App, room_id: &OwnedRoomId, reason: CloseReason) -> Re
     ))).with_transaction_id(txn_id).await.context("notify call room closure")?;
     room.leave().await.context("leave closed call room")?;
     app.calls.remove(room_id.as_str()).await?;
+    settle_guest_registration(app, Some(&dm)).await;
     Ok(())
 }
 
 async fn reconcile_all(app: &App) {
+    // Heals a gate left open by a failed close or a failed create. The lock
+    // keeps the empty-store check from racing a create between its gate-open
+    // and store insert.
+    {
+        let _guard = app.close_lock.lock().await;
+        settle_guest_registration(app, None).await;
+    }
+
     let now = match now_secs() {
         Ok(now) => now,
         Err(error) => {
@@ -448,13 +561,38 @@ async fn main() -> Result<()> {
         bail!("restored Matrix session is not the configured dedicated bot device");
     }
 
+    let http = reqwest::Client::builder().timeout(Duration::from_secs(15)).build()?;
+    let registration = match (env::var("GUEST_ADMIN_ACCESS_TOKEN"), env::var("GUEST_SENTINEL_TOKEN")) {
+        (Ok(token), Ok(sentinel)) if !token.is_empty() && !sentinel.is_empty() => {
+            Some(GuestRegistration {
+                http: http.clone(),
+                admin_token: token.into(),
+                sentinel: sentinel.into(),
+            })
+        }
+        _ => {
+            eprintln!(
+                "guest registration gating is disabled: set GUEST_ADMIN_ACCESS_TOKEN and \
+                 GUEST_SENTINEL_TOKEN to enable it"
+            );
+            None
+        }
+    };
+
     let app = App {
-        http: reqwest::Client::builder().timeout(Duration::from_secs(15)).build()?,
+        http,
         access_token,
         matrix: client.clone(),
         calls,
         close_lock: Arc::new(Mutex::new(())),
+        guest: registration,
     };
+
+    // Opening when managed calls already exist happens only here and on call
+    // create; the reconcile loop only ever closes the gate.
+    if let Err(error) = set_guest_registration(&app, !app.calls.snapshot().await.is_empty()).await {
+        eprintln!("failed to reconcile guest registration on startup: {error:#}");
+    }
     client.add_event_handler(handle_invite);
 
     let has_sync_token = client.state_store().get_kv_data(StateStoreDataKey::SyncToken)
@@ -485,6 +623,11 @@ mod tests {
         );
         assert!(parse_call_name("call create   ").is_err());
         assert!(parse_close_room("call close nope").is_err());
+    }
+
+    #[test]
+    fn leaves_url_safe_sentinel_tokens_untouched() {
+        assert_eq!(encode_fragment_component("abc123XYZ"), "abc123XYZ");
     }
 
     #[test]

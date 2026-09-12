@@ -17,3 +17,9 @@ override.tf.json
 *_override.tf.json
 
 /bootstrap/
+
+# Rust build artifacts (any package)
+target/
+
+# Local agent tooling working directory
+.agents/

@@ -147,6 +147,8 @@ in
       restic_repository_password = { };
       matrix_invite_bot_device_id = { };
       matrix_invite_bot_access_token = { };
+      guest_registration_admin_token = { };
+      guest_registration_sentinel = { };
     };
 
     templates = {
@@ -166,6 +168,8 @@ in
           MATRIX_USER_ID=@invite-bot:matrix.odarah.org
           MATRIX_DEVICE_ID=${config.sops.placeholder.matrix_invite_bot_device_id}
           MATRIX_ACCESS_TOKEN=${config.sops.placeholder.matrix_invite_bot_access_token}
+          GUEST_ADMIN_ACCESS_TOKEN=${config.sops.placeholder.guest_registration_admin_token}
+          GUEST_SENTINEL_TOKEN=${config.sops.placeholder.guest_registration_sentinel}
         '';
         owner = "matrix-invite-bot";
         group = "matrix-invite-bot";
@@ -284,7 +288,11 @@ in
       UMask = "0077";
 
       IPAddressDeny = "any";
-      IPAddressAllow = "localhost";
+      IPAddressAllow = [
+        "localhost"
+        # Guest tuwunel: the bot toggles registration via its Admin API.
+        "10.77.3.17"
+      ];
       NoNewPrivileges = true;
       ProtectSystem = "strict";
       RestrictNamespaces = true;
