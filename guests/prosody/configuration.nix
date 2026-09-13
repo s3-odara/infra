@@ -204,7 +204,7 @@ in
     ];
 
     extraConfig = ''
-      use_dane = true
+      use_dane = false
       ssl_ports = { 443 }
       c2s_direct_tls_ports = { 5223 }
       s2s_direct_tls_ports = { 5270 }
