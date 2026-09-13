@@ -265,8 +265,8 @@ let
         cp -R ${pkgs.cinny-unwrapped} "$out"
         chmod -R u+w "$out"
         printf '%s  %s\n' \
-          30f2441cfa124d288e9ca687176f944a1820d9a273166ce79b7aadfd37282aeb "$out/index.html" \
-          1d56d885dbb9630cb8293973325c5b578ae580a59b9bbd0ae55b8d7746e608c1 "$out/assets/index-1wRjqYyV.js" \
+          868c87dcdf4e6a3699cfa9cd11d214c67f1e64a72448c4093ccfbb252096595c "$out/index.html" \
+          2cdc1873b65680203103b172a6a0c5ee004b6b0bc97d26195f453fe2ff0dff5a "$out/assets/index-jjv-vqqs.js" \
           22e81071d91cce22ab9445a9145afb177fe5da118b7d90d445ef557b8b9d7434 "$out/public/element-call/index.html" \
           | ${pkgs.coreutils}/bin/sha256sum -c - || {
             echo "Cinny ${pkgs.cinny-unwrapped.version} upstream web artifact changed." >&2
@@ -275,7 +275,7 @@ let
           }
         ${pkgs.findutils}/bin/find "$out" -type f \( -name '*.gz' -o -name '*.br' \) -delete
         patch --batch --fuzz=0 --no-backup-if-mismatch -d "$out" -p1 < ${webClientPatches}/cinny-4.12.6.patch
-        substituteInPlace "$out/assets/index-1wRjqYyV.js" \
+        substituteInPlace "$out/assets/index-jjv-vqqs.js" \
           --replace-fail \
             'document.head.appendChild(e),(t=e.sheet)===null||t===void 0||t.insertRule("* { pointer-events: none !important; }")' \
             'e.textContent="* { pointer-events: none !important; }",document.head.appendChild(e)'
