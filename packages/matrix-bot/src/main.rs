@@ -13,11 +13,10 @@ use matrix_sdk::{
     config::SyncSettings,
     deserialized_responses::EncryptionInfo,
     ruma::{
-        api::client::{
-            room::{
-                Visibility,
-                create_room::{RoomPowerLevelsContentOverride, v3::Request as CreateRoomRequest},
-            },
+        OwnedDeviceId, OwnedRoomId, OwnedTransactionId, OwnedUserId,
+        api::client::room::{
+            Visibility,
+            create_room::{RoomPowerLevelsContentOverride, v3::Request as CreateRoomRequest},
         },
         events::{
             AnyInitialStateEvent,
@@ -29,7 +28,6 @@ use matrix_sdk::{
         },
         room::JoinRule,
         serde::Raw,
-        OwnedDeviceId, OwnedRoomId, OwnedTransactionId, OwnedUserId,
     },
     store::StateStoreDataKey,
 };
@@ -107,7 +105,10 @@ impl CallStore {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => BTreeMap::new(),
             Err(error) => return Err(error).with_context(|| format!("read {}", path.display())),
         };
-        Ok(Self { path, calls: Mutex::new(calls) })
+        Ok(Self {
+            path,
+            calls: Mutex::new(calls),
+        })
     }
 
     async fn snapshot(&self) -> ManagedCalls {
@@ -131,7 +132,10 @@ impl CallStore {
     }
 
     fn save(&self, calls: &ManagedCalls) -> Result<()> {
-        let parent = self.path.parent().context("managed call state has no parent")?;
+        let parent = self
+            .path
+            .parent()
+            .context("managed call state has no parent")?;
         fs::create_dir_all(parent)?;
         let temporary = self.path.with_extension("json.tmp");
         fs::write(&temporary, serde_json::to_vec_pretty(calls)?)?;
@@ -163,7 +167,9 @@ impl GuestRegistration {
             "{GUEST_ADMIN_API_BASE}/{}",
             encode_fragment_component(self.sentinel.as_ref()),
         );
-        let response = self.http.delete(url)
+        let response = self
+            .http
+            .delete(url)
             .bearer_auth(self.admin_token.as_ref())
             .send()
             .await
@@ -183,7 +189,9 @@ impl GuestRegistration {
     }
 
     async fn create_sentinel(&self) -> Result<()> {
-        let response = self.http.post(format!("{GUEST_ADMIN_API_BASE}/new"))
+        let response = self
+            .http
+            .post(format!("{GUEST_ADMIN_API_BASE}/new"))
             .bearer_auth(self.admin_token.as_ref())
             .json(&json!({
                 "token": self.sentinel.as_ref(),
@@ -208,7 +216,9 @@ impl GuestRegistration {
     async fn deactivate_non_admin_users(&self) -> Result<()> {
         loop {
             // Deactivation shrinks this result, so repeatedly read page one.
-            let page = self.http.get(GUEST_ADMIN_USERS_API)
+            let page = self
+                .http
+                .get(GUEST_ADMIN_USERS_API)
                 .bearer_auth(self.admin_token.as_ref())
                 .send()
                 .await
@@ -226,14 +236,17 @@ impl GuestRegistration {
                     "{GUEST_ADMIN_DEACTIVATE_API}/{}",
                     encode_fragment_component(&user.name),
                 );
-                self.http.post(url)
+                self.http
+                    .post(url)
                     .bearer_auth(self.admin_token.as_ref())
                     .json(&json!({ "erase": true }))
                     .send()
                     .await
                     .with_context(|| format!("deactivate guest user {}", user.name))?
                     .error_for_status()
-                    .with_context(|| format!("guest user deactivation rejected for {}", user.name))?;
+                    .with_context(|| {
+                        format!("guest user deactivation rejected for {}", user.name)
+                    })?;
             }
         }
     }
@@ -245,7 +258,8 @@ async fn delete_main_room(app: &App, room_id: &OwnedRoomId) -> Result<()> {
         "{ADMIN_ROOMS_API}/{}",
         encode_fragment_component(room_id.as_str()),
     );
-    app.http.delete(url)
+    app.http
+        .delete(url)
         .bearer_auth(app.access_token.as_ref())
         .json(&json!({}))
         .send()
@@ -263,9 +277,11 @@ async fn settle_guest_registration(app: &App, dm: Option<&Room>) {
     if let Err(error) = set_guest_registration(app, false).await {
         eprintln!("failed to close guest registration: {error:#}");
         if let Some(dm) = dm {
-            let _ = dm.send(RoomMessageEventContent::text_plain(
-                "注意: guest homeserverの登録閉鎖に失敗しました。",
-            )).await;
+            let _ = dm
+                .send(RoomMessageEventContent::text_plain(
+                    "注意: guest homeserverの登録閉鎖に失敗しました。",
+                ))
+                .await;
         }
         return;
     }
@@ -274,9 +290,11 @@ async fn settle_guest_registration(app: &App, dm: Option<&Room>) {
     {
         eprintln!("failed to deactivate guest users: {error:#}");
         if let Some(dm) = dm {
-            let _ = dm.send(RoomMessageEventContent::text_plain(
-                "注意: guest accountの無効化に失敗しました。",
-            )).await;
+            let _ = dm
+                .send(RoomMessageEventContent::text_plain(
+                    "注意: guest accountの無効化に失敗しました。",
+                ))
+                .await;
         }
     }
 }
@@ -321,7 +339,10 @@ fn call_url(name: &str, room_id: &str) -> String {
         .append_pair("roomId", room_id)
         .append_pair("viaServers", MAIN_SERVER)
         .finish();
-    format!("{CALL_BASE}#/{name}?{query}", name = encode_fragment_component(name))
+    format!(
+        "{CALL_BASE}#/{name}?{query}",
+        name = encode_fragment_component(name)
+    )
 }
 
 fn parse_call_name(body: &str) -> Result<Option<&str>> {
@@ -342,14 +363,20 @@ fn parse_close_room(body: &str) -> Result<Option<OwnedRoomId>> {
     let Some(room_id) = body.strip_prefix("call close ") else {
         return Ok(None);
     };
-    Ok(Some(room_id.trim().parse().context("call closeには有効なroom IDを指定してください")?))
+    Ok(Some(room_id.trim().parse().context(
+        "call closeには有効なroom IDを指定してください",
+    )?))
 }
 
 async fn is_expected_dm(room: &Room) -> Result<bool> {
     let members = room.members(RoomMemberships::ACTIVE).await?;
     Ok(members.len() == 2
-        && members.iter().any(|member| member.user_id().as_str() == INVITER)
-        && members.iter().any(|member| member.user_id() == room.own_user_id()))
+        && members
+            .iter()
+            .any(|member| member.user_id().as_str() == INVITER)
+        && members
+            .iter()
+            .any(|member| member.user_id() == room.own_user_id()))
 }
 
 async fn handle_invite(event: StrippedRoomMemberEvent, room: Room) {
@@ -413,18 +440,23 @@ async fn try_handle_message(
         } else if let Some(name) = parse_call_name(&text.body)? {
             create_call_room(&room, name, &app).await?;
         } else if let Some(room_id) = parse_close_room(&text.body)? {
-            app.calls.get(room_id.as_str()).await
+            app.calls
+                .get(room_id.as_str())
+                .await
                 .context("このroomはbotの管理対象ではありません")?;
             close_room(&app, &room_id, CloseReason::Manual).await?;
         }
         Ok(())
-    }.await;
+    }
+    .await;
 
     if let Err(error) = result {
         eprintln!("bot request failed: {error:#}");
         room.send(RoomMessageEventContent::text_plain(
             "処理に失敗しました。詳細はbotのjournalを確認してください。",
-        )).await.context("notify command failure")?;
+        ))
+        .await
+        .context("notify command failure")?;
     }
     Ok(())
 }
@@ -434,26 +466,41 @@ async fn create_registration_token(room: &Room, app: &App) -> Result<()> {
         .checked_add(TOKEN_TTL_SECS)
         .and_then(|seconds| seconds.checked_mul(1000))
         .context("expiry overflow")?;
-    let response = app.http.post(ADMIN_API)
+    let response = app
+        .http
+        .post(ADMIN_API)
         .bearer_auth(app.access_token.as_ref())
-        .json(&CreateTokenRequest { uses_allowed: 1, expiry_time: requested_expiry_ms, length: 32 })
-        .send().await.context("call private registration-token API")?
-        .error_for_status().context("registration-token API rejected request")?
-        .json::<CreateTokenResponse>().await.context("decode registration-token response")?;
+        .json(&CreateTokenRequest {
+            uses_allowed: 1,
+            expiry_time: requested_expiry_ms,
+            length: 32,
+        })
+        .send()
+        .await
+        .context("call private registration-token API")?
+        .error_for_status()
+        .context("registration-token API rejected request")?
+        .json::<CreateTokenResponse>()
+        .await
+        .context("decode registration-token response")?;
     if response.token.is_empty() {
         bail!("registration-token response omitted token");
     }
 
     let encoded: String = url::form_urlencoded::byte_serialize(response.token.as_bytes()).collect();
-    let expiry = chrono::DateTime::from_timestamp_millis(requested_expiry_ms as i64)
+    let requested_expiry_ms = i64::try_from(requested_expiry_ms)
+        .context("registration-token expiry exceeds supported range")?;
+    let expiry = chrono::DateTime::from_timestamp_millis(requested_expiry_ms)
         .context("invalid registration-token expiry")?;
     room.send(RoomMessageEventContent::text_plain(format!(
-        "{INVITE_BASE}{encoded}\nExpires {}.", expiry.to_rfc3339()
-    ))).await?;
+        "{INVITE_BASE}{encoded}\nExpires {}.",
+        expiry.to_rfc3339()
+    )))
+    .await?;
     Ok(())
 }
 
-fn raw<T>(value: Value) -> Result<Raw<T>> {
+fn raw<T>(value: &Value) -> Result<Raw<T>> {
     Raw::from_json_string(value.to_string()).context("encode raw Matrix event content")
 }
 
@@ -461,23 +508,24 @@ async fn create_call_room(control_room: &Room, name: &str, app: &App) -> Result<
     // Prevent close from restoring the sentinel while creation is in progress.
     let _guard = app.close_lock.lock().await;
     // Deletion is idempotent, so open unconditionally.
-    set_guest_registration(app, true).await
+    set_guest_registration(app, true)
+        .await
         .context("guest homeserverの登録を開放できませんでした")?;
 
     let inviter: OwnedUserId = INVITER.parse().context("invalid configured inviter")?;
     let initial_state: Vec<Raw<AnyInitialStateEvent>> = vec![
-        raw(json!({
+        raw(&json!({
             "type": "m.room.encryption",
             "state_key": "",
             "content": { "algorithm": "m.megolm.v1.aes-sha2" }
         }))?,
-        raw(json!({
+        raw(&json!({
             "type": "m.room.join_rules",
             "state_key": "",
             "content": { "join_rule": "invite" }
         }))?,
     ];
-    let power_levels: Raw<RoomPowerLevelsContentOverride> = raw(json!({
+    let power_levels: Raw<RoomPowerLevelsContentOverride> = raw(&json!({
         "ban": 50,
         "events": {
             "m.room.encryption": 100,
@@ -502,7 +550,11 @@ async fn create_call_room(control_room: &Room, name: &str, app: &App) -> Result<
     request.invite = vec![inviter];
     request.initial_state = initial_state;
     request.power_level_content_override = Some(power_levels);
-    let call_room = app.matrix.create_room(request).await.context("create call room")?;
+    let call_room = app
+        .matrix
+        .create_room(request)
+        .await
+        .context("create call room")?;
     let room_id = call_room.room_id();
 
     // Track before making the room public.
@@ -511,13 +563,17 @@ async fn create_call_room(control_room: &Room, name: &str, app: &App) -> Result<
         control_room_id: control_room.room_id().to_string(),
     };
     app.calls.insert(room_id.to_string(), call.clone()).await?;
-    call_room.send_state_event(RoomJoinRulesEventContent::new(JoinRule::Public))
-        .await.context("open newly created call room")?;
+    call_room
+        .send_state_event(RoomJoinRulesEventContent::new(JoinRule::Public))
+        .await
+        .context("open newly created call room")?;
 
     let link = call_url(name, room_id.as_str());
-    control_room.send(RoomMessageEventContent::text_plain(format!(
-        "通話roomを作成しました。\n{link}\n\n閉じる: call close {room_id}"
-    ))).await?;
+    control_room
+        .send(RoomMessageEventContent::text_plain(format!(
+            "通話roomを作成しました。\n{link}\n\n閉じる: call close {room_id}"
+        )))
+        .await?;
     Ok(())
 }
 
@@ -531,40 +587,55 @@ async fn close_room(app: &App, room_id: &OwnedRoomId, reason: CloseReason) -> Re
     };
     if room.state() == RoomState::Left {
         app.calls.remove(room_id.as_str()).await?;
-        let dm = call.control_room_id.parse::<OwnedRoomId>().ok()
+        let dm = call
+            .control_room_id
+            .parse::<OwnedRoomId>()
+            .ok()
             .and_then(|room_id| app.matrix.get_room(&room_id));
         settle_guest_registration(app, dm.as_ref()).await;
         return Ok(());
     }
 
     room.send_state_event(RoomJoinRulesEventContent::new(JoinRule::Invite))
-        .await.context("seal call room")?;
+        .await
+        .context("seal call room")?;
     // Fetch after sealing so a join accepted just before the change is not missed.
     for member in room.members(RoomMemberships::JOIN).await? {
         if member.user_id().as_str().ends_with(GUEST_SERVER_SUFFIX) {
             room.kick_user(member.user_id(), Some("Temporary call room closed"))
-                .await.with_context(|| format!("remove guest {}", member.user_id()))?;
+                .await
+                .with_context(|| format!("remove guest {}", member.user_id()))?;
         }
     }
 
-    let control_room_id: OwnedRoomId = call.control_room_id.parse()
+    let control_room_id: OwnedRoomId = call
+        .control_room_id
+        .parse()
         .context("invalid persisted control room ID")?;
-    let dm = app.matrix.get_room(&control_room_id)
+    let dm = app
+        .matrix
+        .get_room(&control_room_id)
         .context("control DM room is unavailable")?;
     let txn_id: OwnedTransactionId = format!("call-close-{room_id}-{}", call.created_at).into();
     room.leave().await.context("leave closed call room")?;
     // Deletion does not federate; keep tracking cleanup independent of this purge.
     if let Err(error) = delete_main_room(app, room_id).await {
         eprintln!("failed to purge closed call room {room_id}: {error:#}");
-        let _ = dm.send(RoomMessageEventContent::text_plain(
-            "注意: 閉鎖したroomのデータ削除に失敗しました。",
-        )).await;
+        let _ = dm
+            .send(RoomMessageEventContent::text_plain(
+                "注意: 閉鎖したroomのデータ削除に失敗しました。",
+            ))
+            .await;
     }
     app.calls.remove(room_id.as_str()).await?;
     settle_guest_registration(app, Some(&dm)).await;
-    let _ = dm.send(RoomMessageEventContent::text_plain(format!(
-        "通話room {room_id} を閉鎖しました（{}）。", reason.description()
-    ))).with_transaction_id(txn_id).await;
+    let _ = dm
+        .send(RoomMessageEventContent::text_plain(format!(
+            "通話room {room_id} を閉鎖しました（{}）。",
+            reason.description()
+        )))
+        .with_transaction_id(txn_id)
+        .await;
     Ok(())
 }
 
@@ -589,7 +660,8 @@ async fn reconcile_all(app: &App) {
         let result = async {
             let room_id: OwnedRoomId = room_id.parse().context("invalid managed room ID")?;
             close_room(app, &room_id, CloseReason::MaxAge).await
-        }.await;
+        }
+        .await;
         if let Err(error) = result {
             eprintln!("failed to close expired call room {room_id}: {error:#}");
         }
@@ -608,11 +680,15 @@ async fn reconcile_loop(app: App) {
 #[tokio::main]
 async fn main() -> Result<()> {
     let access_token: Arc<str> = env::var("MATRIX_ACCESS_TOKEN")
-        .context("MATRIX_ACCESS_TOKEN is not set")?.into();
+        .context("MATRIX_ACCESS_TOKEN is not set")?
+        .into();
     let device_id: OwnedDeviceId = env::var("MATRIX_DEVICE_ID")
-        .context("MATRIX_DEVICE_ID is not set")?.into();
+        .context("MATRIX_DEVICE_ID is not set")?
+        .into();
     let user_id: OwnedUserId = env::var("MATRIX_USER_ID")
-        .context("MATRIX_USER_ID is not set")?.parse().context("invalid MATRIX_USER_ID")?;
+        .context("MATRIX_USER_ID is not set")?
+        .parse()
+        .context("invalid MATRIX_USER_ID")?;
     if user_id.as_str() != BOT_USER {
         bail!("MATRIX_USER_ID must be {BOT_USER}");
     }
@@ -624,18 +700,36 @@ async fn main() -> Result<()> {
     let client = Client::builder()
         .homeserver_url(HOMESERVER)
         .sqlite_store(state_dir.join("matrix-sdk"), None)
-        .build().await?;
-    client.restore_session(MatrixSession {
-        meta: SessionMeta { user_id: user_id.clone(), device_id: device_id.clone() },
-        tokens: SessionTokens { access_token: access_token.to_string(), refresh_token: None },
-    }).await?;
-    let whoami = client.whoami().await.context("verify restored Matrix session")?;
-    if whoami.user_id != user_id || whoami.device_id.as_ref() != Some(&device_id) || whoami.is_guest {
+        .build()
+        .await?;
+    client
+        .restore_session(MatrixSession {
+            meta: SessionMeta {
+                user_id: user_id.clone(),
+                device_id: device_id.clone(),
+            },
+            tokens: SessionTokens {
+                access_token: access_token.to_string(),
+                refresh_token: None,
+            },
+        })
+        .await?;
+    let whoami = client
+        .whoami()
+        .await
+        .context("verify restored Matrix session")?;
+    if whoami.user_id != user_id || whoami.device_id.as_ref() != Some(&device_id) || whoami.is_guest
+    {
         bail!("restored Matrix session is not the configured dedicated bot device");
     }
 
-    let http = reqwest::Client::builder().timeout(Duration::from_secs(15)).build()?;
-    let registration = match (env::var("GUEST_ADMIN_ACCESS_TOKEN"), env::var("GUEST_SENTINEL_TOKEN")) {
+    let http = reqwest::Client::builder()
+        .timeout(Duration::from_secs(15))
+        .build()?;
+    let registration = match (
+        env::var("GUEST_ADMIN_ACCESS_TOKEN"),
+        env::var("GUEST_SENTINEL_TOKEN"),
+    ) {
         (Ok(token), Ok(sentinel)) if !token.is_empty() && !sentinel.is_empty() => {
             Some(GuestRegistration {
                 http: http.clone(),
@@ -667,8 +761,11 @@ async fn main() -> Result<()> {
     }
     client.add_event_handler(handle_invite);
 
-    let has_sync_token = client.state_store().get_kv_data(StateStoreDataKey::SyncToken)
-        .await?.is_some();
+    let has_sync_token = client
+        .state_store()
+        .get_kv_data(StateStoreDataKey::SyncToken)
+        .await?
+        .is_some();
     if !has_sync_token {
         client.sync_once(SyncSettings::default()).await?;
     }
@@ -688,9 +785,15 @@ mod tests {
 
     #[test]
     fn parses_call_commands() {
-        assert_eq!(parse_call_name("call create Weekly call").unwrap(), Some("Weekly call"));
         assert_eq!(
-            parse_close_room("call close !abc:matrix.odarah.org").unwrap().unwrap().as_str(),
+            parse_call_name("call create Weekly call").unwrap(),
+            Some("Weekly call")
+        );
+        assert_eq!(
+            parse_close_room("call close !abc:matrix.odarah.org")
+                .unwrap()
+                .unwrap()
+                .as_str(),
             "!abc:matrix.odarah.org"
         );
         assert!(parse_call_name("call create   ").is_err());
