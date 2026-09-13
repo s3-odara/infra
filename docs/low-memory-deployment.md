@@ -42,6 +42,16 @@ archiveは`/home/me/.nixos-system.nar`へmode `0600`で置く。2番目のSSH接
 
 ゲストにはSSH serverがない。Incusホストを中継し、ゲスト内のroot `nix-store`へ直接送る。
 
+aracha-ovhの全ゲストを管理端末で先にビルドし、各ゲストに存在しないstore pathだけを転送してから一括でactivationする。
+
+```bash
+just deploy-guest-closures me@aracha-ovh
+```
+
+SSH先の短いhostnameに対応する`tofu/hosts/HOST.tfvars`からguest一覧を取得する。接続は一時的なSSH ControlMasterで共有する。全closureの転送が成功した後に一度だけ確認を求める。SOPS暗号文は配送しない。
+
+単一ゲストを手動で転送する場合は次の手順を使う。
+
 ```bash
 (
   set -euo pipefail

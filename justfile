@@ -19,6 +19,7 @@ help topic="":
       check                   Validate the configuration statically
       install-host            Install a NixOS host
       deploy-guests           Deploy Incus resources and guest configurations
+      deploy-guest-closures   Build and remotely activate aracha-ovh guests
       manage-secrets          Manage host and guest secrets
 
       apply-tofu              Apply only the Incus OpenTofu configuration
@@ -91,6 +92,9 @@ _check-shell:
 
 deploy-guests: apply-tofu
     ./scripts/guests.sh
+
+deploy-guest-closures host:
+    ./scripts/deploy-guest-closures.sh "$@"
 
 apply-tofu:
     doas /run/current-system/sw/bin/tofu -chdir=tofu init
