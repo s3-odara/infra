@@ -3,6 +3,7 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    tuwunel.url = "github:matrix-construct/tuwunel/v1.9.1";
 
     disko = {
       url = "github:nix-community/disko";
@@ -27,6 +28,7 @@
       disko,
       nixos-anywhere,
       sops-nix,
+      tuwunel,
       ...
     }:
     {
@@ -127,6 +129,7 @@
             ./modules/guest
             ./modules/guest/secrets.nix
             ./guests/tuwunel/configuration.nix
+            { services.matrix-tuwunel.package = tuwunel.packages.x86_64-linux.default; }
           ];
         };
 
@@ -136,6 +139,7 @@
           modules = [
             ./modules/guest
             ./guests/tuwunel-guest/configuration.nix
+            { services.matrix-tuwunel.package = tuwunel.packages.x86_64-linux.default; }
           ];
         };
 
