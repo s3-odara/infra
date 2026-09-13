@@ -618,7 +618,7 @@ async fn main() -> Result<()> {
     }
 
     let state_dir = PathBuf::from(
-        env::var("STATE_DIRECTORY").unwrap_or_else(|_| "/var/lib/matrix-invite-bot".to_owned()),
+        env::var("STATE_DIRECTORY").unwrap_or_else(|_| "/var/lib/matrix-bot".to_owned()),
     );
     let calls = Arc::new(CallStore::load(state_dir.join("managed-calls.json"))?);
     let client = Client::builder()

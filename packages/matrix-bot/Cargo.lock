@@ -1733,7 +1733,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "matrix-invite-bot"
+name = "matrix-bot"
 version = "0.1.0"
 dependencies = [
  "anyhow",

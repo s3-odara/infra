@@ -37,9 +37,7 @@
         curl = nixpkgs.legacyPackages.x86_64-linux.curl;
         eturnal = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/eturnal/package.nix { };
         jq = nixpkgs.legacyPackages.x86_64-linux.jq;
-        matrix-invite-bot =
-          nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/matrix-invite-bot/package.nix
-            { };
+        matrix-bot = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/matrix-bot/package.nix { };
         mkpasswd = nixpkgs.legacyPackages.x86_64-linux.mkpasswd;
         nix-prefetch-docker = nixpkgs.legacyPackages.x86_64-linux.nix-prefetch-docker;
         nixos-anywhere = nixos-anywhere.packages.x86_64-linux.nixos-anywhere;

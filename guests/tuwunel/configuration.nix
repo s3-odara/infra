@@ -7,7 +7,7 @@
 }:
 
 let
-  inviteBot = pkgs.callPackage ../../packages/matrix-invite-bot/package.nix { };
+  matrixBot = pkgs.callPackage ../../packages/matrix-bot/package.nix { };
   registrationToken = "/var/lib/tuwunel/registration-token";
   backupDirectory = "/var/lib/tuwunel-backups";
   backupFailureNotifier = pkgs.writeShellScript "notify-backup-failure" ''
@@ -34,11 +34,29 @@ in
     pkgs.jq
   ];
 
-  users.groups.matrix-invite-bot = { };
-  users.users.matrix-invite-bot = {
+  users.groups.matrix-bot = { };
+  users.users.matrix-bot = {
     isSystemUser = true;
-    group = "matrix-invite-bot";
-    home = "/var/lib/matrix-invite-bot";
+    group = "matrix-bot";
+    home = "/var/lib/matrix-bot";
+  };
+
+  systemd.services.matrix-bot-state-migration = {
+    description = "Migrate Matrix bot state directory";
+    serviceConfig.Type = "oneshot";
+    script = ''
+      old=/var/lib/private/matrix-invite-bot
+      new=/var/lib/private/matrix-bot
+      if [[ -e "$old" ]]; then
+        if [[ -e "$new" ]]; then
+          echo "both Matrix bot state directories exist" >&2
+          exit 1
+        fi
+        ${pkgs.coreutils}/bin/mv "$old" "$new"
+        ${pkgs.coreutils}/bin/rm -f /var/lib/matrix-invite-bot
+        ${pkgs.coreutils}/bin/chown -R matrix-bot:matrix-bot "$new"
+      fi
+    '';
   };
 
   services.matrix-tuwunel = {
@@ -151,8 +169,8 @@ in
       r2_access_key_id = { };
       r2_secret_access_key = { };
       restic_repository_password = { };
-      matrix_invite_bot_device_id = { };
-      matrix_invite_bot_access_token = { };
+      matrix_bot_device_id = { };
+      matrix_bot_access_token = { };
       guest_registration_admin_token = { };
       guest_registration_sentinel = { };
     };
@@ -169,18 +187,18 @@ in
         mode = "0400";
       };
 
-      "matrix-invite-bot.env" = {
+      "matrix-bot.env" = {
         content = ''
           MATRIX_USER_ID=@invite-bot:matrix.odarah.org
-          MATRIX_DEVICE_ID=${config.sops.placeholder.matrix_invite_bot_device_id}
-          MATRIX_ACCESS_TOKEN=${config.sops.placeholder.matrix_invite_bot_access_token}
+          MATRIX_DEVICE_ID=${config.sops.placeholder.matrix_bot_device_id}
+          MATRIX_ACCESS_TOKEN=${config.sops.placeholder.matrix_bot_access_token}
           GUEST_ADMIN_ACCESS_TOKEN=${config.sops.placeholder.guest_registration_admin_token}
           GUEST_SENTINEL_TOKEN=${config.sops.placeholder.guest_registration_sentinel}
         '';
-        owner = "matrix-invite-bot";
-        group = "matrix-invite-bot";
+        owner = "matrix-bot";
+        group = "matrix-bot";
         mode = "0400";
-        restartUnits = [ "matrix-invite-bot.service" ];
+        restartUnits = [ "matrix-bot.service" ];
       };
     };
   };
@@ -191,7 +209,7 @@ in
       backupDirectory
       "/var/lib/tuwunel/media"
       registrationToken
-      "/var/lib/matrix-invite-bot"
+      "/var/lib/matrix-bot"
     ];
     environmentFile = config.sops.templates."restic-r2.env".path;
     passwordFile = config.sops.secrets.restic_repository_password.path;
@@ -201,10 +219,10 @@ in
       "--keep-weekly 8"
     ];
     backupPrepareCommand = ''
-      ${pkgs.systemd}/bin/systemctl stop matrix-invite-bot.service
+      ${pkgs.systemd}/bin/systemctl stop matrix-bot.service
     '';
     backupCleanupCommand = ''
-      ${pkgs.systemd}/bin/systemctl start matrix-invite-bot.service
+      ${pkgs.systemd}/bin/systemctl start matrix-bot.service
     '';
     timerConfig = {
       OnCalendar = "*-*-* 04:30:00 Asia/Tokyo";
@@ -231,7 +249,7 @@ in
       EnvironmentFile = config.sops.templates."restic-r2.env".path;
     };
     preStart = ''
-      ${pkgs.systemd}/bin/systemctl stop matrix-invite-bot.service
+      ${pkgs.systemd}/bin/systemctl stop matrix-bot.service
     '';
     script = ''
       set -o pipefail
@@ -250,14 +268,14 @@ in
         --create --file=- --directory=/ --numeric-owner --acls --xattrs --sparse \
         var/lib/tuwunel-backups \
         var/lib/tuwunel/registration-token \
-        var/lib/matrix-invite-bot \
+        var/lib/matrix-bot \
         | ${pkgs.zstd}/bin/zstd --quiet --threads=1 --stdout \
         | ${lib.getExe pkgs.age} --encrypt --recipient "$recipient" \
         | ${lib.getExe pkgs.rclone} --config /dev/null rcat \
           "r2:tuwunel/archive/$month/$timestamp.tar.zst.age"
     '';
     postStop = ''
-      ${pkgs.systemd}/bin/systemctl start matrix-invite-bot.service
+      ${pkgs.systemd}/bin/systemctl start matrix-bot.service
     '';
   };
 
@@ -271,24 +289,28 @@ in
     };
   };
 
-  systemd.services.matrix-invite-bot = {
-    description = "Encrypted Matrix registration invite bot";
+  systemd.services.matrix-bot = {
+    description = "Encrypted Matrix access and call bot";
     wantedBy = [ "multi-user.target" ];
-    requires = [ "tuwunel.service" ];
+    requires = [
+      "matrix-bot-state-migration.service"
+      "tuwunel.service"
+    ];
     wants = [ "network-online.target" ];
     after = [
+      "matrix-bot-state-migration.service"
       "network-online.target"
       "tuwunel.service"
     ];
-    unitConfig.ConditionPathExists = config.sops.templates."matrix-invite-bot.env".path;
+    unitConfig.ConditionPathExists = config.sops.templates."matrix-bot.env".path;
 
     serviceConfig = {
-      User = "matrix-invite-bot";
-      Group = "matrix-invite-bot";
-      StateDirectory = "matrix-invite-bot";
+      User = "matrix-bot";
+      Group = "matrix-bot";
+      StateDirectory = "matrix-bot";
       StateDirectoryMode = "0700";
-      EnvironmentFile = config.sops.templates."matrix-invite-bot.env".path;
-      ExecStart = lib.getExe inviteBot;
+      EnvironmentFile = config.sops.templates."matrix-bot.env".path;
+      ExecStart = lib.getExe matrixBot;
       Restart = "on-failure";
       RestartSec = "30s";
       UMask = "0077";

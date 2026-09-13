@@ -133,7 +133,7 @@ guests = {
         port     = 8008
         source   = "10.77.3.13/32"
       },
-      # invite-bot (on tuwunel, .14) toggles registration via the Admin API
+      # matrix-bot (on tuwunel, .14) toggles registration via the Admin API
       {
         protocol = "tcp"
         port     = 8008

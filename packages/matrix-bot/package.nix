@@ -5,11 +5,11 @@
 }:
 
 rustPlatform.buildRustPackage {
-  pname = "matrix-invite-bot";
+  pname = "matrix-bot";
   version = "0.1.0";
   src = ./.;
   cargoLock.lockFile = ./Cargo.lock;
-  meta.mainProgram = "matrix-invite-bot";
+  meta.mainProgram = "matrix-bot";
   nativeBuildInputs = [ pkg-config ];
   buildInputs = [ sqlite ];
 }
