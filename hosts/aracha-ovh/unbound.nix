@@ -47,6 +47,8 @@ in
       # records cannot enlarge responses even if a future client requests them.
       module-config = "iterator";
       disable-edns-do = true;
+      tcp-upstream = true;
+      outgoing-num-tcp = 64;
 
       # Reduce query disclosure and reject malformed or out-of-bailiwick data.
       qname-minimisation = true;
@@ -62,9 +64,8 @@ in
       hide-identity = true;
       hide-version = true;
 
-      # Keep UDP DNS within the classic 512-byte limit to avoid fragmentation;
-      # larger answers fall back to TCP.
-      edns-buffer-size = 512;
+      # Bound UDP responses to local downstream clients. Upstream requests use
+      # TCP exclusively.
       max-udp-size = 4096;
 
       # Do not return special-use addresses learned from public DNS, or send
@@ -83,11 +84,6 @@ in
       max-sent-count = 32;
       max-query-restarts = 11;
       unwanted-reply-threshold = 10000000;
-
-      # Connect UDP sockets to their peers to mitigate ICMP side-channel leaks,
-      # and retain timed-out ports briefly so late replies cannot hit reused ones.
-      udp-connect = true;
-      delay-close = 1500;
 
       # Prefer a stale cached answer over a federation outage while an
       # authoritative server is temporarily unavailable. Wait up to three
