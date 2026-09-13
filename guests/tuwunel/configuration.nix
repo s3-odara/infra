@@ -77,6 +77,7 @@ in
       admin_escape_commands = false;
       federate_admin_room = false;
       allow_unlisted_room_search_by_id = false;
+      delete_rooms_after_leave = true;
       require_auth_for_profile_requests = true;
       cache_capacity_modifier = 0.5;
       db_cache_capacity_mb = 128;
