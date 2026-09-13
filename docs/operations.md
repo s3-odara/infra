@@ -64,31 +64,43 @@ incus exec GUEST -- systemctl status systemd-journal-upload.service
 systemctl status systemd-journal-remote.socket systemd-journal-remote.service
 ```
 
-## 手動更新
+## Matrix bot
 
-ゲスト：
+### 初期セットアップ
 
-```bash
-incus exec GUEST -- \
-  nixos-rebuild switch --refresh \
-  --option experimental-features "nix-command flakes" \
-  --flake github:s3-odara/infra#GUEST
-```
+guest側のmatrixはバックアップしていないのでguestをボンバーさせたらbot用のtokenを作り直し。
 
-ホスト：
+1. guest DBを捨てる
 
-```bash
-ssh -t me@HOST \
-  'doas nixos-rebuild switch --refresh --flake github:s3-odara/infra#HOST_CONFIG'
-```
+   ```bash
+   incus exec tuwunel-guest -- systemctl stop tuwunel
+   # /var/lib/tuwunel は systemd の StateDirectory による /var/lib/private/tuwunel への symlink
+   incus exec tuwunel-guest -- rm -rf /var/lib/private/tuwunel
+   incus exec tuwunel-guest -- systemctl start tuwunel
+   ```
 
-kernel更新を次回bootへ登録して再起動する。
+2. bot用アカウントをtuwunelコンテナ越しに登録。
 
-```bash
-ssh -t me@HOST \
-  'doas nixos-rebuild boot --refresh --flake github:s3-odara/infra#HOST_CONFIG && \
-   doas systemctl reboot'
-```
+   ```bash
+   incus exec tuwunel -- curl -s http://10.77.3.17:8008/_matrix/client/v3/register \
+     -H 'Content-Type: application/json' \
+     -d '{"username":"invite-bot-guest","password":"<任意の長いランダム文字列>","auth":{"type":"m.login.dummy"}}'
+   ```
+
+   レスポンスの`access_token`を控える。
+
+3. secretを追加する。
+
+   ```bash
+   nix run .#sops -- edit secrets/guests/aracha-ovh/tuwunel/secrets.sops.yaml
+   ```
+
+   ```yaml
+   guest_registration_admin_token: <手順2のaccess_token>
+   guest_registration_sentinel: <openssl rand -hex 24 の出力>
+   ```
+
+4. `just upgrade-guests tuwunel`でbotを再起動、guest tuwunelも再起動する。
 
 ## rollback
 
@@ -122,7 +134,7 @@ doas /run/current-system/sw/bin/tofu init
 doas /run/current-system/sw/bin/tofu apply -var-file=hosts/HOST.tfvars
 ```
 
-## 復旧しないが依存してる状態
+## バックアップしないが依存してる状態
 
 ACMEの秘密鍵とアカウントはバックアップしないが、CAAのaccounturi, DANE for XMPPのTLSA、CT log監視がそれに依存しているので、guestを消して再生成した時は登録し直す。
 
