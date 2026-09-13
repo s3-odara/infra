@@ -41,24 +41,6 @@ in
     home = "/var/lib/matrix-bot";
   };
 
-  systemd.services.matrix-bot-state-migration = {
-    description = "Migrate Matrix bot state directory";
-    serviceConfig.Type = "oneshot";
-    script = ''
-      old=/var/lib/private/matrix-invite-bot
-      new=/var/lib/private/matrix-bot
-      if [[ -e "$old" ]]; then
-        if [[ -e "$new" ]]; then
-          echo "both Matrix bot state directories exist" >&2
-          exit 1
-        fi
-        ${pkgs.coreutils}/bin/mv "$old" "$new"
-        ${pkgs.coreutils}/bin/rm -f /var/lib/matrix-invite-bot
-        ${pkgs.coreutils}/bin/chown -R matrix-bot:matrix-bot "$new"
-      fi
-    '';
-  };
-
   services.matrix-tuwunel = {
     enable = true;
     settings.global = {
@@ -292,13 +274,9 @@ in
   systemd.services.matrix-bot = {
     description = "Encrypted Matrix access and call bot";
     wantedBy = [ "multi-user.target" ];
-    requires = [
-      "matrix-bot-state-migration.service"
-      "tuwunel.service"
-    ];
+    requires = [ "tuwunel.service" ];
     wants = [ "network-online.target" ];
     after = [
-      "matrix-bot-state-migration.service"
       "network-online.target"
       "tuwunel.service"
     ];
