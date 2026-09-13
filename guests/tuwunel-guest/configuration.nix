@@ -50,6 +50,7 @@
       allow_public_room_directory_over_federation = false;
       allow_public_room_directory_without_auth = false;
       allow_public_room_search_by_id = false;
+      delete_rooms_after_leave = true;
       allow_unlisted_room_search_by_id = false;
       show_all_local_users_in_user_directory = false;
       lockdown_public_room_directory = true;

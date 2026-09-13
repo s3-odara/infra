@@ -39,6 +39,7 @@ use tokio::sync::Mutex;
 
 const HOMESERVER: &str = "http://127.0.0.1:8008";
 const ADMIN_API: &str = "http://127.0.0.1:8008/_synapse/admin/v1/registration_tokens/new";
+const ADMIN_ROOMS_API: &str = "http://127.0.0.1:8008/_synapse/admin/v1/rooms";
 const GUEST_ADMIN_API_BASE: &str = "http://10.77.3.17:8008/_synapse/admin/v1/registration_tokens";
 const INVITER: &str = "@odara:matrix.odarah.org";
 const BOT_USER: &str = "@invite-bot:matrix.odarah.org";
@@ -195,6 +196,24 @@ impl GuestRegistration {
         }
         Ok(())
     }
+}
+
+async fn delete_main_room(app: &App, room_id: &OwnedRoomId) -> Result<()> {
+    // v1's purge defaults to true: evicts local users and wipes storage
+    // synchronously.
+    let url = format!(
+        "{ADMIN_ROOMS_API}/{}",
+        encode_fragment_component(room_id.as_str()),
+    );
+    app.http.delete(url)
+        .bearer_auth(app.access_token.as_ref())
+        .json(&json!({}))
+        .send()
+        .await
+        .context("call purge-room API")?
+        .error_for_status()
+        .context("purge-room API rejected request")?;
+    Ok(())
 }
 
 async fn settle_guest_registration(app: &App, dm: Option<&Room>) {
@@ -484,12 +503,22 @@ async fn close_room(app: &App, room_id: &OwnedRoomId, reason: CloseReason) -> Re
     let dm = app.matrix.get_room(&control_room_id)
         .context("control DM room is unavailable")?;
     let txn_id: OwnedTransactionId = format!("call-close-{room_id}-{}", call.created_at).into();
-    dm.send(RoomMessageEventContent::text_plain(format!(
-        "通話room {room_id} を閉鎖しました（{}）。", reason.description()
-    ))).with_transaction_id(txn_id).await.context("notify call room closure")?;
     room.leave().await.context("leave closed call room")?;
+    // Purge the main-side copy too; room deletion does not federate. The
+    // bot is a local admin, so the v1 shutdown route accepts it. Purge
+    // failure must not keep the room tracked, so log and notify instead of
+    // aborting.
+    if let Err(error) = delete_main_room(app, room_id).await {
+        eprintln!("failed to purge closed call room {room_id}: {error:#}");
+        let _ = dm.send(RoomMessageEventContent::text_plain(
+            "注意: 閉鎖したroomのデータ削除に失敗しました。",
+        )).await;
+    }
     app.calls.remove(room_id.as_str()).await?;
     settle_guest_registration(app, Some(&dm)).await;
+    let _ = dm.send(RoomMessageEventContent::text_plain(format!(
+        "通話room {room_id} を閉鎖しました（{}）。", reason.description()
+    ))).with_transaction_id(txn_id).await;
     Ok(())
 }
 
