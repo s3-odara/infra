@@ -543,11 +543,17 @@ in
 
       # Element Call 0.25.0's standalone flow is read-only except for
       # registration, crypto setup, joining/leaving, OpenID, and MatrixRTC
-      # membership. In particular, normal room send/state and media upload
-      # endpoints never match this allowlist.
+      # membership. Its pinned matrix-js-sdk startup reads and authenticated
+      # avatar media are listed explicitly below; re-audit them on upgrades.
+      # Normal room send/state and media upload endpoints never match.
       map "$request_method:$uri" $guest_matrix_client_allowed {
         default 0;
-        ~^(?:GET|HEAD):/_matrix/client/ 1;
+        ~^GET:/_matrix/client/versions$ 1;
+        ~^GET:/_matrix/client/(?:r0|v3)/(?:sync|capabilities|pushrules/|voip/turnServer|room_keys/version)$ 1;
+        ~^GET:/_matrix/client/(?:r0|v3)/user/[^/]+/filter/[^/]+$ 1;
+        ~^GET:/_matrix/client/v1/media/(?:download|thumbnail)/[^/]+/[^/]+$ 1;
+        ~^GET:/_matrix/client/unstable/org\.matrix\.msc4143/rtc/transports$ 1;
+        ~^GET:/_matrix/client/unstable/im\.nheko\.summary/(?:summary/.*|rooms/.*/summary)$ 1;
         ~^POST:/_matrix/client/(?:r0|v3)/(?:register|refresh|logout|user/[^/]+/filter|keys/(?:upload|query|claim|signatures/upload)|user/[^/]+/openid/request_token|join/.*|rooms/[^/]+/(?:join|leave))$ 1;
         ~^PUT:/_matrix/client/(?:r0|v3)/(?:profile/[^/]+/displayname|sendToDevice/[^/]+/[^/]+|rooms/[^/]+/state/(?:org\.matrix\.msc3401\.call\.member|org\.matrix\.msc4143\.rtc\.member)/.*)$ 1;
         ~^POST:/_matrix/client/unstable/org\.matrix\.msc4140/delayed_events/[^/]+(?:/(?:cancel|restart|send))?$ 1;

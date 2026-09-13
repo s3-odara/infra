@@ -41,6 +41,8 @@ const HOMESERVER: &str = "http://127.0.0.1:8008";
 const ADMIN_API: &str = "http://127.0.0.1:8008/_synapse/admin/v1/registration_tokens/new";
 const ADMIN_ROOMS_API: &str = "http://127.0.0.1:8008/_synapse/admin/v1/rooms";
 const GUEST_ADMIN_API_BASE: &str = "http://10.77.3.17:8008/_synapse/admin/v1/registration_tokens";
+const GUEST_ADMIN_USERS_API: &str = "http://10.77.3.17:8008/_synapse/admin/v3/users?limit=100&admins=false&deactivated=false&locked=true";
+const GUEST_ADMIN_DEACTIVATE_API: &str = "http://10.77.3.17:8008/_synapse/admin/v1/deactivate";
 const INVITER: &str = "@odara:matrix.odarah.org";
 const BOT_USER: &str = "@invite-bot:matrix.odarah.org";
 const INVITE_BASE: &str = "https://cinny.matrix.odarah.org/register/matrix.odarah.org/?token=";
@@ -72,6 +74,16 @@ struct CreateTokenRequest {
 #[derive(Deserialize)]
 struct CreateTokenResponse {
     token: String,
+}
+
+#[derive(Deserialize)]
+struct GuestUsersPage {
+    users: Vec<GuestUser>,
+}
+
+#[derive(Deserialize)]
+struct GuestUser {
+    name: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -132,14 +144,12 @@ impl CallStore {
 struct GuestRegistration {
     http: reqwest::Client,
     admin_token: Arc<str>,
-    /// Leaking it lets anyone register while the gate is meant to be closed.
+    /// Must stay secret because it authorizes registration while the gate is closed.
     sentinel: Arc<str>,
 }
 
 impl GuestRegistration {
-    /// The guest homeserver requires a token for all registrations once any
-    /// valid one exists, so an undisclosed token closes registration and
-    /// deleting it reopens it.
+    /// A secret valid token makes all guest registrations require that token.
     async fn set_open(&self, open: bool) -> Result<()> {
         if open {
             self.delete_sentinel().await
@@ -158,8 +168,7 @@ impl GuestRegistration {
             .send()
             .await
             .context("guest registration-token delete request")?;
-        // Accept only M_NOT_FOUND as "already open"; an unrouted request
-        // also 404s with M_UNRECOGNIZED and must fail loudly.
+        // A bad route also returns 404; only M_NOT_FOUND means already open.
         if response.status() == reqwest::StatusCode::NOT_FOUND {
             let body = response.text().await.unwrap_or_default();
             if body.contains("M_NOT_FOUND") {
@@ -186,8 +195,7 @@ impl GuestRegistration {
             .context("guest registration-token create request")?;
         let status = response.status();
         let body = response.text().await.unwrap_or_default();
-        // A duplicate means the gate is already closed; any other 400 is a
-        // real failure.
+        // Only a duplicate means already closed.
         if status == reqwest::StatusCode::BAD_REQUEST && body.contains("already exists") {
             return Ok(());
         }
@@ -196,11 +204,43 @@ impl GuestRegistration {
         }
         Ok(())
     }
+
+    async fn deactivate_non_admin_users(&self) -> Result<()> {
+        loop {
+            // Deactivation shrinks this result, so repeatedly read page one.
+            let page = self.http.get(GUEST_ADMIN_USERS_API)
+                .bearer_auth(self.admin_token.as_ref())
+                .send()
+                .await
+                .context("guest user-list request")?
+                .error_for_status()
+                .context("guest user-list API rejected request")?
+                .json::<GuestUsersPage>()
+                .await
+                .context("decode guest user-list response")?;
+            if page.users.is_empty() {
+                return Ok(());
+            }
+            for user in page.users {
+                let url = format!(
+                    "{GUEST_ADMIN_DEACTIVATE_API}/{}",
+                    encode_fragment_component(&user.name),
+                );
+                self.http.post(url)
+                    .bearer_auth(self.admin_token.as_ref())
+                    .json(&json!({ "erase": true }))
+                    .send()
+                    .await
+                    .with_context(|| format!("deactivate guest user {}", user.name))?
+                    .error_for_status()
+                    .with_context(|| format!("guest user deactivation rejected for {}", user.name))?;
+            }
+        }
+    }
 }
 
 async fn delete_main_room(app: &App, room_id: &OwnedRoomId) -> Result<()> {
-    // v1's purge defaults to true: evicts local users and wipes storage
-    // synchronously.
+    // v1 purges synchronously by default.
     let url = format!(
         "{ADMIN_ROOMS_API}/{}",
         encode_fragment_component(room_id.as_str()),
@@ -217,13 +257,25 @@ async fn delete_main_room(app: &App, room_id: &OwnedRoomId) -> Result<()> {
 }
 
 async fn settle_guest_registration(app: &App, dm: Option<&Room>) {
-    if app.calls.snapshot().await.is_empty()
-        && let Err(error) = set_guest_registration(app, false).await
-    {
+    if !app.calls.snapshot().await.is_empty() {
+        return;
+    }
+    if let Err(error) = set_guest_registration(app, false).await {
         eprintln!("failed to close guest registration: {error:#}");
         if let Some(dm) = dm {
             let _ = dm.send(RoomMessageEventContent::text_plain(
                 "注意: guest homeserverの登録閉鎖に失敗しました。",
+            )).await;
+        }
+        return;
+    }
+    if let Some(registration) = &app.guest
+        && let Err(error) = registration.deactivate_non_admin_users().await
+    {
+        eprintln!("failed to deactivate guest users: {error:#}");
+        if let Some(dm) = dm {
+            let _ = dm.send(RoomMessageEventContent::text_plain(
+                "注意: guest accountの無効化に失敗しました。",
             )).await;
         }
     }
@@ -406,12 +458,9 @@ fn raw<T>(value: Value) -> Result<Raw<T>> {
 }
 
 async fn create_call_room(control_room: &Room, name: &str, app: &App) -> Result<()> {
-    // Held by both create and close, so a racing close cannot re-create the
-    // sentinel after the create deleted it, stranding an existing room behind
-    // a closed gate.
+    // Prevent close from restoring the sentinel while creation is in progress.
     let _guard = app.close_lock.lock().await;
-    // Delete is idempotent, so no emptiness check: opening unconditionally
-    // also reaps a gate a failed close left open.
+    // Deletion is idempotent, so open unconditionally.
     set_guest_registration(app, true).await
         .context("guest homeserverの登録を開放できませんでした")?;
 
@@ -456,7 +505,7 @@ async fn create_call_room(control_room: &Room, name: &str, app: &App) -> Result<
     let call_room = app.matrix.create_room(request).await.context("create call room")?;
     let room_id = call_room.room_id();
 
-    // Persist before changing invite-only to public, so an untracked room is never opened.
+    // Track before making the room public.
     let call = ManagedCall {
         created_at: now_secs()?,
         control_room_id: control_room.room_id().to_string(),
@@ -504,10 +553,7 @@ async fn close_room(app: &App, room_id: &OwnedRoomId, reason: CloseReason) -> Re
         .context("control DM room is unavailable")?;
     let txn_id: OwnedTransactionId = format!("call-close-{room_id}-{}", call.created_at).into();
     room.leave().await.context("leave closed call room")?;
-    // Purge the main-side copy too; room deletion does not federate. The
-    // bot is a local admin, so the v1 shutdown route accepts it. Purge
-    // failure must not keep the room tracked, so log and notify instead of
-    // aborting.
+    // Deletion does not federate; keep tracking cleanup independent of this purge.
     if let Err(error) = delete_main_room(app, room_id).await {
         eprintln!("failed to purge closed call room {room_id}: {error:#}");
         let _ = dm.send(RoomMessageEventContent::text_plain(
@@ -523,9 +569,7 @@ async fn close_room(app: &App, room_id: &OwnedRoomId, reason: CloseReason) -> Re
 }
 
 async fn reconcile_all(app: &App) {
-    // Heals a gate left open by a failed close or a failed create. The lock
-    // keeps the empty-store check from racing a create between its gate-open
-    // and store insert.
+    // Do not close the gate between a concurrent create's open and insert.
     {
         let _guard = app.close_lock.lock().await;
         settle_guest_registration(app, None).await;
@@ -617,8 +661,7 @@ async fn main() -> Result<()> {
         guest: registration,
     };
 
-    // Opening when managed calls already exist happens only here and on call
-    // create; the reconcile loop only ever closes the gate.
+    // Reconcile only closes the gate, so restore it here for persisted calls.
     if let Err(error) = set_guest_registration(&app, !app.calls.snapshot().await.is_empty()).await {
         eprintln!("failed to reconcile guest registration on startup: {error:#}");
     }
