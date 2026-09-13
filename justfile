@@ -28,6 +28,7 @@ help topic="":
       regenerate-sops         Regenerate .sops.yaml
       update-eturnal          Update eturnal and its locked dependencies
       update-matrix-bot        Update Matrix bot dependencies
+      update-providers         Update OpenTofu provider locks
       update-sygnal           Update Sygnal
       update-web-clients      Update Sable
       update-flake            Update flake inputs and generated files
@@ -135,10 +136,25 @@ install-host configuration target:
 update-eturnal:
     nix shell "path:{{ repo_root }}#curl" "path:{{ repo_root }}#jq" -c ./scripts/update-eturnal.sh
 
-# Matrix botのRust依存を更新する
+# Matrix botの依存をtoml含めて更新する
 update-matrix-bot:
-    nix shell --inputs-from "path:{{ repo_root }}" nixpkgs#cargo -c cargo update --manifest-path packages/matrix-bot/Cargo.toml
+    nix shell --inputs-from "path:{{ repo_root }}" nixpkgs#cargo nixpkgs#cargo-edit -c \
+      cargo upgrade --manifest-path packages/matrix-bot/Cargo.toml --incompatible allow
+    nix shell --inputs-from "path:{{ repo_root }}" nixpkgs#cargo -c \
+      cargo update --manifest-path packages/matrix-bot/Cargo.toml
     nix build --no-link "path:{{ repo_root }}#matrix-bot"
+
+# OpenTofu providerを更新する
+update-providers:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    nix shell "path:{{ repo_root }}#opentofu" -c sh -euc '
+      tofu -chdir=tofu init -backend=false -upgrade
+      tofu -chdir=tofu validate
+      tofu -chdir=cloudflare init -backend=false -upgrade
+      tofu -chdir=cloudflare validate
+    '
 
 # Sygnal本体のreleaseとsource hashを更新する
 update-sygnal:
