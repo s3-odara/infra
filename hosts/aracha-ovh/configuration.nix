@@ -10,6 +10,7 @@
     ./ct-monitor.nix
     ./hardening.nix
     ./kernel.nix
+    ./unbound.nix
   ];
 
   networking.hostName = configurationName;
@@ -102,7 +103,7 @@
     '';
   };
 
-  # instanceからIncus bridge上のホストが提供するDHCP/DNSへ到達できるようにする
+  # Allow guests to reach the DHCP/DNS service on the managed Incus bridge.
   networking.firewall.interfaces.incusbr0 = {
     allowedTCPPorts = [ 53 ];
     allowedUDPPorts = [
