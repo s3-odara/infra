@@ -65,7 +65,7 @@ help topic="":
 check: _check-nix _check-tofu _check-cloudflare _check-shell
 
 _check-nix:
-    nix flake check --no-build "path:{{ repo_root }}"
+    nix flake check "path:{{ repo_root }}"
     nix eval --json "path:{{ repo_root }}#nixosConfigurations" --apply 'configs: builtins.mapAttrs (_: cfg: cfg.config.system.build.toplevel.drvPath) configs' >/dev/null
     git ls-files -z -- '*.nix' | xargs -0 -r nix fmt -- --check
 
