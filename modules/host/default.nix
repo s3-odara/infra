@@ -100,6 +100,7 @@ in
   systemd.sockets.systemd-journal-remote = {
     after = [ "incus.service" ];
     requires = [ "incus.service" ];
+    partOf = [ "incus.service" ];
     socketConfig.BindToDevice = "incusbr0";
   };
   networking.firewall.interfaces.incusbr0.allowedTCPPorts = [ 19532 ];
