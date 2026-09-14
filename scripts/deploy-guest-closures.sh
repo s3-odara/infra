@@ -95,17 +95,22 @@ for guest in "${guests[@]}"; do
   secret="$repo_root/secrets/guests/$configuration/$guest/secrets.sops.yaml"
   [[ -f $secret ]] || continue
   [[ -s $secret ]] || fail "encrypted secrets file is empty: ${secret#"$repo_root/"}"
-  secret_temporary=".secrets.sops.yaml.deploy.$$.$RANDOM"
 
   echo "$guest: synchronizing encrypted secrets..."
   if ! ssh_remote -T "$host" \
-    "incus exec -T '$guest' -- install -d -o root -g root -m 0700 /var/lib/sops-nix &&
-     incus file push - '$guest/var/lib/sops-nix/$secret_temporary' --uid 0 --gid 0 --mode 0600 &&
-     incus exec -T '$guest' -- mv -f '/var/lib/sops-nix/$secret_temporary' /var/lib/sops-nix/secrets.sops.yaml" \
-    <"$secret"; then
-    ssh_remote -T "$host" \
-      "incus exec -T '$guest' -- rm -f '/var/lib/sops-nix/$secret_temporary'" || true
-    fail "failed to synchronize encrypted secrets into $guest"
+    "incus exec -T '$guest' -- sh -eu -c '
+      directory=/var/lib/sops-nix
+      install -d -o root -g root -m 0700 \$directory
+      temporary=\$(mktemp \$directory/.secrets.sops.yaml.XXXXXX)
+      trap \"rm -f -- \$temporary\" EXIT
+      cat >\$temporary
+      test -s \$temporary
+      chown root:root \$temporary
+      chmod 0600 \$temporary
+      mv -f \$temporary \$directory/secrets.sops.yaml
+      trap - EXIT
+    '" <"$secret"; then
+    fail "failed to install encrypted secrets in $guest"
   fi
 done
 
