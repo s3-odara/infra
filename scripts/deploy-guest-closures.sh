@@ -24,7 +24,7 @@ flake="path:$repo_root"
 temporary=$(mktemp -d)
 ssh_options=(
   -o ControlMaster=auto
-  -o ControlPersist=60
+  -o ControlPersist=yes
   -o "ControlPath=$temporary/ssh"
 )
 ssh_remote() {
