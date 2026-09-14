@@ -30,7 +30,7 @@ just update-flake
 - `update-sygnal`: Sygnalの最新releaseとsource hashへ更新し、単体packageをbuildする。更新時は上流のPythonバージョンと個別に定義しているパッケージの上流での固定バージョンを確認し、個別定義が互換性問題で依然必要かテストする。
 - `update-flake`: flake inputと生成済みkernel configを更新し、Nix構成を評価する
 
-ホストとゲストでは`system.autoUpgrade`も動く。ゲストの自動更新はSOPS暗号文を配送しない。暗号文を変更したら`just upgrade-guests GUEST`を実行する。
+ホストとゲストでは`system.autoUpgrade`も動く。ゲストの自動更新はSOPS暗号文を配送しない。暗号文を変更したら、Incusホスト上で`just upgrade-guests GUEST`を実行するか、管理端末から`just deploy-guest-closures USER@HOST`でclosureと暗号文をまとめて配送する。
 
 ## 状態とログ
 
