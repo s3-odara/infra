@@ -80,6 +80,8 @@ let
   };
 in
 {
+  imports = [ ../cachix.nix ];
+
   services.journald = {
     settings.Journal = {
       SystemMaxUse = "200M";

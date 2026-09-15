@@ -24,6 +24,7 @@ help topic="":
 
       apply-tofu              Apply only the Incus OpenTofu configuration
       apply-cloudflare        Apply the Cloudflare R2 policies locally
+      apply-github            Apply the GitHub repository settings locally
       upgrade-guests          Upgrade guest configurations
       upgrade-host            Upgrade the host configuration
       regenerate-sops         Regenerate .sops.yaml
@@ -37,6 +38,7 @@ help topic="":
     Examples:
       just install-host mecha-vultr root@HOST
       just deploy-guests
+      just apply-github
       just manage-secrets init prosody
       just manage-secrets init host
 
@@ -62,10 +64,10 @@ help topic="":
         ;;
     esac
 
-check: _check-nix _check-tofu _check-cloudflare _check-shell
+check: _check-nix _check-tofu _check-cloudflare _check-github _check-shell
 
 _check-nix:
-    nix flake check --no-build "path:{{ repo_root }}"
+    nix flake check "path:{{ repo_root }}"
     nix eval --json "path:{{ repo_root }}#nixosConfigurations" --apply 'configs: builtins.mapAttrs (_: cfg: cfg.config.system.build.toplevel.drvPath) configs' >/dev/null
     git ls-files -z -- '*.nix' | xargs -0 -r nix fmt -- --check
 
@@ -73,7 +75,7 @@ _check-tofu:
     nix shell "path:{{ repo_root }}#opentofu" -c sh -eu -c '\
       tofu=$(command -v tofu); \
       "$tofu" -chdir=tofu fmt -check -recursive; \
-      doas "$tofu" -chdir=tofu init -backend=false -lockfile=readonly; \
+      "$tofu" -chdir=tofu init -backend=false -lockfile=readonly; \
       "$tofu" -chdir=tofu validate; \
       for var_file in tofu/hosts/*.tfvars; do \
         "$tofu" -chdir=tofu test -var-file="${var_file#tofu/}"; \
@@ -85,6 +87,13 @@ _check-cloudflare:
       "$tofu" -chdir=cloudflare fmt -check -recursive; \
       "$tofu" -chdir=cloudflare init -backend=false -lockfile=readonly; \
       "$tofu" -chdir=cloudflare validate'
+
+_check-github:
+    nix shell "path:{{ repo_root }}#opentofu" -c sh -eu -c '\
+      tofu=$(command -v tofu); \
+      "$tofu" -chdir=github fmt -check -recursive; \
+      "$tofu" -chdir=github init -backend=false -lockfile=readonly; \
+      "$tofu" -chdir=github validate'
 
 _check-shell:
     find scripts modules -type f -name '*.sh' -print0 | xargs -0 -r bash -n
@@ -106,6 +115,21 @@ apply-cloudflare:
     : "${CLOUDFLARE_API_TOKEN:?Set CLOUDFLARE_API_TOKEN on the administrator workstation}"
     nix shell "path:{{ repo_root }}#opentofu" -c tofu -chdir=cloudflare init
     nix shell "path:{{ repo_root }}#opentofu" -c tofu -chdir=cloudflare apply
+
+apply-github:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    encrypted_key="{{ repo_root }}/secrets/github-apps/infra-tofu.private-key.sops.json"
+    nix shell "path:{{ repo_root }}#sops" "path:{{ repo_root }}#opentofu" -c \
+      bash -euc '
+        export TF_VAR_github_app_pem_file="$(
+          sops decrypt --input-type json --output-type binary "$1"
+        )"
+        unset GITHUB_TOKEN GH_TOKEN
+        tofu -chdir=github init
+        tofu -chdir=github apply
+      ' bash "$encrypted_key"
 
 upgrade-guests *guests:
     ./scripts/guests.sh "$@"
@@ -158,6 +182,8 @@ update-providers:
       tofu -chdir=tofu validate
       tofu -chdir=cloudflare init -backend=false -upgrade
       tofu -chdir=cloudflare validate
+      tofu -chdir=github init -backend=false -upgrade
+      tofu -chdir=github validate
     '
 
 # Sygnal本体のreleaseとsource hashを更新する

@@ -1,0 +1,72 @@
+name: Build and cache
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-cache-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  CACHIX_CACHE_NAME: ${{ vars.CACHIX_CACHE_NAME }}
+  CACHIX_PUBLIC_KEY: ${{ vars.CACHIX_PUBLIC_KEY }}
+  BUILD_HOST: aracha-ovh
+
+jobs:
+  build:
+    environment: cachix
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Clean up runner
+        run: ./scripts/ci/cleanup-runner.sh
+
+      - name: Install Nix
+        run: ./scripts/ci/install-nix.sh
+
+      - name: Build Cachix CLI
+        id: cachix
+        shell: bash
+        run: |
+          set -euo pipefail
+          path=$(nix build --no-link --print-out-paths \
+            --inputs-from path:. nixpkgs#cachix)
+          echo "path=$path" >>"$GITHUB_OUTPUT"
+
+      - name: Build closures
+        shell: bash
+        run: |
+          set -euo pipefail
+          target_list=$(
+            nix shell path:.#opentofu path:.#jq -c \
+              ./scripts/ci/nixos-build-targets.sh "$BUILD_HOST"
+          )
+          mapfile -t targets <<<"$target_list"
+
+          nix build --no-link --print-out-paths "${targets[@]}" \
+            >"$RUNNER_TEMP/cache-roots"
+
+      - name: Push signed closures
+        shell: bash
+        env:
+          CACHIX_PATH: ${{ steps.cachix.outputs.path }}
+          CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          CACHIX_SIGNING_KEY: ${{ secrets.CACHIX_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          : "${CACHIX_CACHE_NAME:?Set the CACHIX_CACHE_NAME repository variable}"
+          : "${CACHIX_PUBLIC_KEY:?Set the CACHIX_PUBLIC_KEY repository variable}"
+          : "${CACHIX_AUTH_TOKEN:?Set the CACHIX_AUTH_TOKEN secret}"
+          : "${CACHIX_SIGNING_KEY:?Set the CACHIX_SIGNING_KEY secret}"
+          "$CACHIX_PATH/bin/cachix" push "$CACHIX_CACHE_NAME" \
+            <"$RUNNER_TEMP/cache-roots"

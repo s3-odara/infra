@@ -22,6 +22,8 @@ let
   '';
 in
 {
+  imports = [ ../cachix.nix ];
+
   boot.isContainer = true;
   # Incus guests are managed through incus exec and have no usable /dev/console.
   systemd.services.console-getty.enable = false;
