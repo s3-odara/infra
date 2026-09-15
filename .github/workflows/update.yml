@@ -34,7 +34,9 @@ jobs:
             task: update-sygnal
           - name: web-clients
             task: update-web-clients
+            draft: true
     env:
+      DRAFT_PR: ${{ matrix.draft || false }}
       UPDATE_NAME: ${{ matrix.name }}
       UPDATE_TASK: ${{ matrix.task }}
     steps:
@@ -105,7 +107,13 @@ jobs:
             git push origin "HEAD:refs/heads/$branch"
           fi
 
+          draft_args=()
+          if [[ $DRAFT_PR == true ]]; then
+            draft_args+=(--draft)
+          fi
+
           gh pr create \
+            "${draft_args[@]}" \
             --base main \
             --head "$branch" \
             --title "chore: update $UPDATE_NAME" \
