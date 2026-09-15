@@ -4,11 +4,6 @@ import {
 }
 
 import {
-  to = github_repository_ruleset.restrict_main
-  id = "infra:23322547"
-}
-
-import {
   to = github_repository_environment.cachix
   id = "infra:cachix"
 }
