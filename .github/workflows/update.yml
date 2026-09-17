@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  pull-requests: read
 
 env:
   CACHIX_CACHE_NAME: ${{ vars.CACHIX_CACHE_NAME }}
@@ -26,12 +26,14 @@ jobs:
             task: update-flake
           - name: eturnal
             task: update-eturnal
-          - name: matrix-bot
-            task: update-matrix-bot
+          - name: rust
+            task: update-rust
           - name: providers
             task: update-providers
           - name: sygnal
             task: update-sygnal
+          - name: go
+            task: update-go
           - name: web-clients
             task: update-web-clients
             draft: true
@@ -72,28 +74,46 @@ jobs:
 
       - name: Update
         if: steps.existing-pr.outputs.skip != 'true'
-        run: nix shell --inputs-from path:. nixpkgs#just -c just "$UPDATE_TASK"
-
-      - name: Check updated repository
-        if: steps.existing-pr.outputs.skip != 'true'
-        run: nix shell --inputs-from path:. nixpkgs#just -c just check
-
-      - name: Create pull request
-        if: steps.existing-pr.outputs.skip != 'true'
-        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+        run: nix shell --inputs-from path:. nixpkgs#just -c just "$UPDATE_TASK"
+
+      - name: Detect changes
+        if: steps.existing-pr.outputs.skip != 'true'
+        id: changes
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "changed=false" >>"$GITHUB_OUTPUT"
+            echo "$UPDATE_NAME is already up to date."
+          else
+            echo "changed=true" >>"$GITHUB_OUTPUT"
+          fi
+
+      - name: Create update App token
+        if: steps.changes.outputs.changed == 'true'
+        id: update-app-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ vars.UPDATE_APP_ID }}
+          private-key: ${{ secrets.UPDATE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: infra
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Create pull request
+        if: steps.changes.outputs.changed == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.update-app-token.outputs.token }}
         run: |
           set -euo pipefail
 
-          if git diff --quiet; then
-            echo "$UPDATE_NAME is already up to date."
-            exit 0
-          fi
-
+          : "${GH_TOKEN:?The dedicated update App must be configured before publishing}"
           branch="automation/update-$UPDATE_NAME"
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git config user.name infra-update[bot]
+          git config user.email infra-update[bot]@users.noreply.github.com
           git switch -c "$branch"
           git add -u
           git commit -m "chore: update $UPDATE_NAME"

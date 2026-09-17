@@ -20,7 +20,9 @@ let
   src = fetchFromGitHub {
     owner = "processone";
     repo = "eturnal";
-    rev = pins.version;
+    # Upstream does not sign this release tag; the updater trusts the official
+    # processone repository, resolves the tag once, and pins that commit.
+    rev = pins.commit;
     hash = pins.srcHash;
   };
 in

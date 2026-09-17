@@ -17,6 +17,7 @@ env:
 
 jobs:
   check:
+    name: check
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -35,3 +36,41 @@ jobs:
 
       - name: Check
         run: nix shell --inputs-from path:. nixpkgs#just -c just check
+
+  build-closures:
+    name: build closures
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      BUILD_HOST: aracha-ovh
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Clean up runner
+        run: ./scripts/ci/cleanup-runner.sh
+
+      - name: Install Nix
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./scripts/ci/install-nix.sh
+
+      - name: Build host and guest closures
+        shell: bash
+        run: |
+          set -euo pipefail
+          target_list=$(nix shell path:.#opentofu path:.#jq -c \
+            ./scripts/ci/nixos-build-targets.sh "$BUILD_HOST")
+          mapfile -t targets <<<"$target_list"
+          nix build --no-link --max-jobs 2 --cores 2 "${targets[@]}"
+
+      - name: Show web client transformations
+        shell: bash
+        run: |
+          set -euo pipefail
+          diffs=$(nix build --no-link --print-out-paths \
+            path:.#nixosConfigurations.nginx.config.system.build.webClientDiffs)
+          find -L "$diffs" -type f -name '*.diff' -print -exec cat {} \;

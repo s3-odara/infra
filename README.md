@@ -17,14 +17,16 @@ Incusホストのリポジトリrootで実行する。
 
 ```bash
 just check
-just deploy-guests
+just apply-tofu
+# 必要なsecretを準備してから
+just upgrade-guests
 ```
 
 `just check`はNix、ホストごとのOpenTofu構成、シェル構文を静的に検証する。
 
-`just deploy-guests`はOpenTofuが表示する実環境との差分を確認して承認した後、暗号文を各ゲストへ送り、NixOS構成を適用する。
+`just apply-tofu`でOpenTofuが表示する実環境との差分を確認して適用し、secret準備後に`just upgrade-guests`でGitHub mainの同一snapshotから暗号文とNixOS構成を適用する。
 
-個別の処理も実行できる。
+個別のguestやhostも更新できる。
 
 ```bash
 just apply-tofu

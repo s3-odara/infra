@@ -11,12 +11,12 @@ let
 
   opentracing = python3Packages.buildPythonPackage rec {
     pname = "opentracing";
-    version = "2.4.0";
+    version = pins.python.opentracing.version;
     format = "setuptools";
 
     src = python3Packages.fetchPypi {
       inherit pname version;
-      hash = "sha256-oXMRfm71gNVYdHNNH6fstvNlUWC4uJdKKh6Y5eychA0=";
+      hash = pins.python.opentracing.hash;
     };
 
     dependencies = [ python3Packages.six ];
@@ -25,12 +25,12 @@ let
 
   jaeger-client = python3Packages.buildPythonPackage rec {
     pname = "jaeger-client";
-    version = "4.8.0";
+    version = pins.python."jaeger-client".version;
     format = "setuptools";
 
     src = python3Packages.fetchPypi {
       inherit pname version;
-      hash = "sha256-MVeDbtq44sIJvS1q5hET2zb37jmeZrHcu3Fdh6tJv+A=";
+      hash = pins.python."jaeger-client".hash;
     };
 
     dependencies = [
@@ -47,12 +47,12 @@ let
   # HttpDelayedRequest does not provide.
   pywebpush = python3Packages.buildPythonPackage rec {
     pname = "pywebpush";
-    version = "2.0.0";
+    version = pins.python.pywebpush.version;
     pyproject = true;
 
     src = python3Packages.fetchPypi {
       inherit pname version;
-      hash = "sha256-A8zD6XW2A3S3Y0xJVZVha+Ujvyx9oNl26E/amsjGMwE=";
+      hash = pins.python.pywebpush.hash;
     };
 
     build-system = [ python3Packages.setuptools ];
@@ -77,12 +77,12 @@ let
   # causing the Push Gateway to return 504.
   twisted = python3Packages.buildPythonPackage rec {
     pname = "twisted";
-    version = "24.7.0";
+    version = pins.python.twisted.version;
     pyproject = true;
 
     src = python3Packages.fetchPypi {
       inherit pname version;
-      hash = "sha256-WmAUfwRBh6En7H2pbRcNSbzOUMb9NvWU5g9Fh+/005Q=";
+      hash = pins.python.twisted.hash;
     };
 
     build-system = with python3Packages; [
@@ -115,7 +115,8 @@ python3Packages.buildPythonApplication rec {
   src = fetchFromGitHub {
     owner = "element-hq";
     repo = "sygnal";
-    rev = "v${version}";
+    # The updater resolves and verifies the signed tag once, then pins its commit.
+    rev = pins.commit;
     hash = pins.srcHash;
   };
 

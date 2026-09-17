@@ -24,6 +24,7 @@ resource "github_repository_ruleset" "main" {
   rules {
     deletion         = true
     non_fast_forward = true
+    update           = true
 
     pull_request {
       dismiss_stale_reviews_on_push   = true
@@ -37,6 +38,11 @@ resource "github_repository_ruleset" "main" {
 
       required_check {
         context        = "check"
+        integration_id = 15368
+      }
+
+      required_check {
+        context        = "build closures"
         integration_id = 15368
       }
     }
@@ -81,7 +87,13 @@ resource "github_actions_repository_permissions" "infra" {
 resource "github_workflow_repository_permissions" "infra" {
   repository                       = local.repository
   default_workflow_permissions     = "read"
-  can_approve_pull_request_reviews = true
+  can_approve_pull_request_reviews = false
+}
+
+resource "github_actions_variable" "update_app_id" {
+  repository    = local.repository
+  variable_name = "UPDATE_APP_ID"
+  value         = "4973323"
 }
 
 resource "github_actions_variable" "cachix_cache_name" {
