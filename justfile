@@ -118,8 +118,6 @@ apply-github *tofu_args:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    : "${UPDATE_GITHUB_APP_ID:?Set UPDATE_GITHUB_APP_ID after registering the dedicated update App}"
-    export TF_VAR_update_github_app_id=$UPDATE_GITHUB_APP_ID
     encrypted_key="{{ repo_root }}/secrets/github-apps/infra-tofu.private-key.sops.json"
     nix shell "path:{{ repo_root }}#sops" "path:{{ repo_root }}#opentofu" -c \
       bash -euc '

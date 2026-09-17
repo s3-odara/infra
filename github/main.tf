@@ -93,7 +93,7 @@ resource "github_workflow_repository_permissions" "infra" {
 resource "github_actions_variable" "update_app_id" {
   repository    = local.repository
   variable_name = "UPDATE_APP_ID"
-  value         = var.update_github_app_id
+  value         = "4973323"
 }
 
 resource "github_actions_variable" "cachix_cache_name" {
