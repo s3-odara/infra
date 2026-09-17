@@ -20,6 +20,7 @@ host=$1
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 repo_root=$(cd -- "$script_dir/.." && pwd -P)
 flake="path:$repo_root"
+guest_ciphertext_script=$(base64 -w 0 "$script_dir/install-guest-ciphertext.sh")
 
 temporary=$(mktemp -d)
 ssh_options=(
@@ -28,6 +29,7 @@ ssh_options=(
   -o "ControlPath=$temporary/ssh"
 )
 ssh_remote() {
+  # shellcheck disable=SC2029 # callers intentionally provide audited remote commands
   ssh "${ssh_options[@]}" "$@"
 }
 cleanup() {
@@ -39,18 +41,11 @@ trap cleanup EXIT
 configuration=$(ssh_remote -T "$host" hostname -s)
 [[ $configuration =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]] ||
   fail "remote returned an invalid hostname: $configuration"
-var_file="$repo_root/tofu/hosts/$configuration.tfvars"
-[[ -f $var_file ]] || fail "host variables not found: $var_file"
-
 guest_list=$(
-  nix shell "$flake#opentofu" "$flake#jq" -c sh -eu -c '
-    tofu -chdir="$1" init -backend=false -lockfile=readonly >/dev/null
-    printf "%s\n" "jsonencode(keys(var.guests))" |
-      tofu -chdir="$1" console -var-file="hosts/$2.tfvars" |
-      jq -er '\''fromjson[]'\''
-  ' sh "$repo_root/tofu" "$configuration"
+  nix shell "$flake#opentofu" "$flake#jq" -c \
+    "$script_dir/guest-list.sh" "$configuration"
 )
-[[ -n $guest_list ]] || fail "no guests found in ${var_file#"$repo_root/"}"
+[[ -n $guest_list ]] || fail "no guests configured for $configuration"
 mapfile -t guests <<<"$guest_list"
 
 declare -A outputs
@@ -98,18 +93,8 @@ for guest in "${guests[@]}"; do
 
   echo "$guest: synchronizing encrypted secrets..."
   if ! ssh_remote -T "$host" \
-    "incus exec -T '$guest' -- sh -eu -c '
-      directory=/var/lib/sops-nix
-      install -d -o root -g root -m 0700 \$directory
-      temporary=\$(mktemp \$directory/.secrets.sops.yaml.XXXXXX)
-      trap \"rm -f -- \$temporary\" EXIT
-      cat >\$temporary
-      test -s \$temporary
-      chown root:root \$temporary
-      chmod 0600 \$temporary
-      mv -f \$temporary \$directory/secrets.sops.yaml
-      trap - EXIT
-    '" <"$secret"; then
+    "script=\$(printf %s '$guest_ciphertext_script' | base64 -d); incus exec -T '$guest' -- sh -c \"\$script\"" \
+    <"$secret"; then
     fail "failed to install encrypted secrets in $guest"
   fi
 done

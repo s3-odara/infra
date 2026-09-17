@@ -5,9 +5,9 @@ usage() {
   cat <<'EOF'
 Usage: update-flake.sh
 
-Update all flake inputs, regenerate tracked files derived from those inputs,
-and evaluate the flake outputs. This changes flake.lock and may change
-host-specific generated files, but does not build or deploy a NixOS system.
+Update all flake inputs and regenerate tracked files derived from those inputs.
+This changes flake.lock and may change host-specific generated files, but does
+not run the PR validation checks or deploy a NixOS system.
 
 Run this script as a normal user from any directory. Tracked changes must be
 committed or stashed first; unrelated untracked files are allowed.

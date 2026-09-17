@@ -1,4 +1,11 @@
 {
   "version": "0.17.0",
-  "srcHash": "sha256-3edws4rGMBRy5fMbV1pjz3e7WaSvaTcn2RkJbGTz3P4="
+  "commit": "53c25a82f85739eb58f2c95b9483f61ac8deedc4",
+  "srcHash": "sha256-3edws4rGMBRy5fMbV1pjz3e7WaSvaTcn2RkJbGTz3P4=",
+  "python": {
+    "opentracing": { "version": "2.4.0", "hash": "sha256-oXMRfm71gNVYdHNNH6fstvNlUWC4uJdKKh6Y5eychA0=" },
+    "jaeger-client": { "version": "4.8.0", "hash": "sha256-MVeDbtq44sIJvS1q5hET2zb37jmeZrHcu3Fdh6tJv+A=" },
+    "pywebpush": { "version": "2.0.0", "hash": "sha256-A8zD6XW2A3S3Y0xJVZVha+Ujvyx9oNl26E/amsjGMwE=" },
+    "twisted": { "version": "24.7.0", "hash": "sha256-WmAUfwRBh6En7H2pbRcNSbzOUMb9NvWU5g9Fh+/005Q=" }
+  }
 }

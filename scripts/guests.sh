@@ -2,7 +2,6 @@
 set -euo pipefail
 
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
-repo_root=$(cd -- "$script_dir/.." && pwd -P)
 host=$(uname -n)
 host=${host%%.*}
 
@@ -14,7 +13,6 @@ fail() {
 wait_for_guest() {
   local guest=$1
   local _
-
   for _ in {1..60}; do
     incus exec "$guest" -- true >/dev/null 2>&1 && return
     sleep 2
@@ -24,56 +22,42 @@ wait_for_guest() {
 
 copy_secrets() {
   local guest=$1
-  local source="$repo_root/secrets/guests/$host/$guest/secrets.sops.yaml"
-  local guest_script
-
-  [[ -f $source ]] || return 0
-  guest_script=$(
-    cat <<'EOF'
-set -eu
-directory=/var/lib/sops-nix
-destination="$directory/secrets.sops.yaml"
-install -d -o root -g root -m 0700 "$directory"
-temporary=$(mktemp "$directory/.secrets.sops.yaml.XXXXXX")
-trap 'rm -f "$temporary"' EXIT
-cat >"$temporary"
-test -s "$temporary"
-chown root:root "$temporary"
-chmod 0600 "$temporary"
-mv -f "$temporary" "$destination"
-trap - EXIT
-EOF
-  )
-  incus exec "$guest" -- sh -c "$guest_script" <"$source" ||
-    fail "failed to copy encrypted secrets into $guest"
+  local ciphertext="$main_source/secrets/guests/$host/$guest/secrets.sops.yaml"
+  [[ -e $ciphertext ]] || return 0
+  [[ -f $ciphertext ]] || fail "encrypted secrets path is not a file for $guest"
+  incus exec "$guest" -- sh -c "$(<"$script_dir/install-guest-ciphertext.sh")" \
+    <"$ciphertext" || fail "failed to copy encrypted secrets into $guest"
 }
 
-update_guest() {
-  local guest=$1
+if (($# == 0)); then
+  if ! guest_list=$(incus list --format csv --columns n); then
+    fail "could not enumerate Incus guests"
+  fi
+  [[ -n $guest_list ]] || fail "no guests found"
+  mapfile -t guests <<<"$guest_list"
+else
+  guests=("$@")
+fi
+((${#guests[@]} > 0)) || fail "no guests found"
 
+metadata=$(nix flake metadata --refresh --no-update-lock-file --json \
+  github:s3-odara/infra/main)
+main_commit=$(jq -er '.locked.rev | select(type == "string")' <<<"$metadata")
+main_source=$(jq -er '.path | select(type == "string")' <<<"$metadata")
+[[ $main_commit =~ ^[0-9a-f]{40}$ ]] || fail "could not resolve GitHub main commit"
+[[ $main_source == /nix/store/* && -d $main_source ]] ||
+  fail "GitHub main snapshot path is invalid"
+echo "Using GitHub main commit $main_commit from $main_source for every guest"
+
+for guest in "${guests[@]}"; do
+  [[ $guest =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]] || fail "invalid guest name: $guest"
+  incus info "$guest" >/dev/null || fail "guest not found: $guest"
   echo "Waiting for $guest..."
   wait_for_guest "$guest"
   copy_secrets "$guest"
-
-  if incus exec "$guest" -- \
-    systemctl is-enabled --quiet nixos-upgrade.timer; then
-    echo "Updating $guest..."
-    incus exec "$guest" -- systemctl start --wait nixos-upgrade.service
-  else
-    echo "Bootstrapping $guest..."
-    incus exec "$guest" -- nixos-rebuild switch \
-      --refresh \
-      --option experimental-features "nix-command flakes" \
-      --flake "github:s3-odara/infra#$guest"
-  fi
+  echo "Updating $guest..."
+  incus exec "$guest" -- nixos-rebuild switch \
+    --option experimental-features "nix-command flakes" \
+    --flake "github:s3-odara/infra/$main_commit#$guest"
   echo "Updated $guest"
-}
-
-(($# > 0)) || mapfile -t guests < <(incus list --format csv --columns n)
-(($# == 0)) || guests=("$@")
-((${#guests[@]} > 0)) || fail "no guests found"
-
-for guest in "${guests[@]}"; do
-  incus info "$guest" >/dev/null || fail "guest not found: $guest"
-  update_guest "$guest"
 done

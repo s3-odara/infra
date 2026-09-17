@@ -32,7 +32,7 @@ let
   pushClientConfig = builtins.fromJSON (builtins.readFile ../../packages/sygnal/client-config.json);
   oidcAccountCss = ./tuwunel-oidc.css;
   cspInline = ./csp-inline;
-  webClientPatches = ./web-client-patches;
+  webClientHtml = pkgs.callPackage ../../packages/web-client-html/package.nix { };
   matrixLandingRoot = pkgs.linkFarm "matrix-landing-root" [
     {
       name = "index.html";
@@ -63,7 +63,10 @@ let
   cinnyCsp = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' 'wasm-unsafe-eval'; script-src-attr 'none'; style-src 'self' ${cinnyStyleHashes}; style-src-elem 'self' ${cinnyStyleHashes}; style-src-attr 'none'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self'";
   cinnyCallCsp = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' 'wasm-unsafe-eval'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self'";
   elementCsp = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' 'wasm-unsafe-eval'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self' blob:";
-  elementCallCsp = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self' 'wasm-unsafe-eval' 'sha256-pQY0fuQAnnVQH5nQfjo80rzGkQzeN3JeAtAJ+1KcD4k==' 'sha256-3042zLa3JXvrJe/2n8P/XpIKwqBdNTu7fwbLZUNrzZQ=='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${guestMatrixHost}; media-src 'self' blob: https://${guestMatrixHost}; connect-src 'self' https://${guestMatrixHost} wss://${guestMatrixHost} https://${rtcHost} wss://${rtcHost}";
+  # The generated hashes are inserted between these two fragments so they are
+  # unambiguously script-src sources rather than part of the following directive.
+  elementCallCspBeforeHashes = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self' 'wasm-unsafe-eval'";
+  elementCallCspAfterHashes = "; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${guestMatrixHost}; media-src 'self' blob: https://${guestMatrixHost}; connect-src 'self' https://${guestMatrixHost} wss://${guestMatrixHost} https://${rtcHost} wss://${rtcHost}";
 
   clientSecurityHeaders =
     {
@@ -97,10 +100,13 @@ let
     enforcedCsp = elementCsp;
     xFrameOptions = "SAMEORIGIN";
   };
-  elementCallSecurityHeaders = clientSecurityHeaders {
-    enforcedCsp = elementCallCsp;
-    xFrameOptions = "DENY";
-  };
+  elementCallSecurityHeaders = ''
+    include ${elementCallCspInclude};
+    add_header Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=(), usb=()" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+  '';
   http3PrimaryConfig = ''
     listen 0.0.0.0:443 quic reuseport;
     http3 on;
@@ -221,20 +227,20 @@ let
 
   sable-unwrapped = pkgs.callPackage ../../packages/sable/package.nix { };
   sable =
-    pkgs.runCommand "sable-${sable-unwrapped.version}-odarah" { nativeBuildInputs = [ pkgs.patch ]; }
+    pkgs.runCommand "sable-${sable-unwrapped.version}-odarah"
+      {
+        nativeBuildInputs = [ webClientHtml ];
+        outputs = [
+          "out"
+          "webDiff"
+        ];
+      }
       ''
         cp -R ${sable-unwrapped} "$out"
         chmod -R u+w "$out"
-        printf '%s  %s\n' \
-          b8444f59e9e451143a69b6aedd5b5d265629325975f298c1f56c40fa7d5159a1 "$out/index.html" \
-          f2f8bfd1271beea279fed195e088fe86d7b26aaad51afc6237d5bf43e302feac "$out/public/element-call/index.html" \
-          | ${pkgs.coreutils}/bin/sha256sum -c - || {
-            echo "Sable ${sable-unwrapped.version} upstream HTML changed." >&2
-            echo "Refresh guests/nginx/web-client-patches/sable-<version>.patch and these SHA-256 constants after reviewing the upstream HTML diff." >&2
-            exit 1
-          }
+        mkdir -p "$webDiff"
+        web-client-html process sable "$out" ${cspInline} "$webDiff"
         ${pkgs.findutils}/bin/find "$out" -type f \( -name '*.gz' -o -name '*.br' \) -delete
-        patch --batch --fuzz=0 --no-backup-if-mismatch -d "$out" -p1 < ${webClientPatches}/sable-1.21.0.patch
         mkdir -p "$out/csp-inline"
         install -m 0644 ${cspInline}/*.js "$out/csp-inline/"
         cat > "$out/config.json" <<'JSON'
@@ -260,21 +266,21 @@ let
 
   cinny =
     pkgs.runCommand "cinny-${pkgs.cinny-unwrapped.version}-odarah"
-      { nativeBuildInputs = [ pkgs.patch ]; }
+      {
+        nativeBuildInputs = [ webClientHtml ];
+        outputs = [
+          "out"
+          "webDiff"
+        ];
+      }
       ''
         cp -R ${pkgs.cinny-unwrapped} "$out"
         chmod -R u+w "$out"
-        printf '%s  %s\n' \
-          868c87dcdf4e6a3699cfa9cd11d214c67f1e64a72448c4093ccfbb252096595c "$out/index.html" \
-          2cdc1873b65680203103b172a6a0c5ee004b6b0bc97d26195f453fe2ff0dff5a "$out/assets/index-jjv-vqqs.js" \
-          22e81071d91cce22ab9445a9145afb177fe5da118b7d90d445ef557b8b9d7434 "$out/public/element-call/index.html" \
-          | ${pkgs.coreutils}/bin/sha256sum -c - || {
-            echo "Cinny ${pkgs.cinny-unwrapped.version} upstream web artifact changed." >&2
-            echo "Refresh guests/nginx/web-client-patches/cinny-<version>.patch and these SHA-256 constants after reviewing the upstream diff." >&2
-            exit 1
-          }
+        mkdir -p "$webDiff"
+        web-client-html process cinny "$out" ${cspInline} "$webDiff"
         ${pkgs.findutils}/bin/find "$out" -type f \( -name '*.gz' -o -name '*.br' \) -delete
-        patch --batch --fuzz=0 --no-backup-if-mismatch -d "$out" -p1 < ${webClientPatches}/cinny-4.12.6.patch
+        # Keep the separate gate for Cinny's runtime-injected drag style.
+        printf '%s  %s\n' 2cdc1873b65680203103b172a6a0c5ee004b6b0bc97d26195f453fe2ff0dff5a "$out/assets/index-jjv-vqqs.js" | ${pkgs.coreutils}/bin/sha256sum -c -
         substituteInPlace "$out/assets/index-jjv-vqqs.js" \
           --replace-fail \
             'document.head.appendChild(e),(t=e.sheet)===null||t===void 0||t.insertRule("* { pointer-events: none !important; }")' \
@@ -333,23 +339,28 @@ let
       --replace-fail '</head>' '<link rel="stylesheet" href="/guest-only.css"></head>'
     ${precompressStaticAssets} "$out"
   '';
+  elementCallCspInclude = pkgs.runCommand "element-call-generated-csp.conf" { } ''
+    hashes="$(${webClientHtml}/bin/web-client-html hashes ${elementCall}/index.html)"
+    cat >"$out" <<EOF
+    add_header Content-Security-Policy "${elementCallCspBeforeHashes} $hashes${elementCallCspAfterHashes}" always;
+    EOF
+  '';
   element =
     pkgs.runCommand "element-web-${pkgs.element-web-unwrapped.version}-odarah"
-      { nativeBuildInputs = [ pkgs.patch ]; }
+      {
+        nativeBuildInputs = [ webClientHtml ];
+        outputs = [
+          "out"
+          "webDiff"
+        ];
+      }
       ''
         mkdir -p "$out"
         cp -R ${pkgs.element-web-unwrapped}/. "$out/"
         chmod -R u+w "$out"
-        printf '%s  %s\n' \
-          8861ff1b0cac31f4ba21fdf6c61745bfc3dcce52b7cb70fd7c328eea5b7d37e9 "$out/index.html" \
-          e5a082d79cb2b2c4971776a1a9c8850976cebb8251f7b914053fcae25624528f "$out/widgets/element-call/index.html" \
-          | ${pkgs.coreutils}/bin/sha256sum -c - || {
-            echo "Element ${pkgs.element-web-unwrapped.version} upstream HTML changed." >&2
-            echo "Refresh guests/nginx/web-client-patches/element-<version>.patch and these SHA-256 constants after reviewing the upstream HTML diff." >&2
-            exit 1
-          }
+        mkdir -p "$webDiff"
+        web-client-html process element "$out" ${cspInline} "$webDiff"
         ${pkgs.findutils}/bin/find "$out" -type f \( -name '*.gz' -o -name '*.br' \) -delete
-        patch --batch --fuzz=0 --no-backup-if-mismatch -d "$out" -p1 < ${webClientPatches}/element-1.12.26.patch
         mkdir -p "$out/csp-inline"
         install -m 0644 ${cspInline}/*.js "$out/csp-inline/"
         cp ${elementConfigFile} "$out/config.json"
@@ -357,6 +368,23 @@ let
       '';
 in
 {
+  # CI builds and prints these outputs so reviewers can inspect every strict
+  # before/after HTML transformation without adding them to the served roots.
+  system.build.webClientDiffs = pkgs.linkFarm "web-client-html-diffs" [
+    {
+      name = "sable";
+      path = sable.webDiff;
+    }
+    {
+      name = "cinny";
+      path = cinny.webDiff;
+    }
+    {
+      name = "element";
+      path = element.webDiff;
+    }
+  ];
+
   networking.hostName = configurationName;
   networking.useDHCP = true;
   networking.firewall.enable = false;
