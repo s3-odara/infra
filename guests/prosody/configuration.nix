@@ -55,6 +55,7 @@ in
           "register_apps"
           "password_policy"
           "cloud_notify_encrypted"
+          "unified_push"
         ];
       }).overrideAttrs
         (old: {
@@ -127,6 +128,9 @@ in
           password_hash = "SHA-256"
           default_iteration_count = 600000
           admins = { "admin@xmpp.odarah.org" }
+          unified_push_acl = {
+            "xmpp.odarah.org";
+          }
           contact_info = {
             admin = { "xmpp:odara@xmpp.odarah.org" };
             abuse = { "xmpp:odara@xmpp.odarah.org" };
@@ -201,6 +205,7 @@ in
       "http_hsts"
       "net_multiplex"
       "turn_external"
+      "unified_push"
     ];
 
     extraConfig = ''
