@@ -100,9 +100,16 @@ in
   };
 
   systemd.sockets.systemd-journal-remote = {
-    after = [ "incus.service" ];
+    # Incus creates the bridge asynchronously; wait for the device before
+    # binding the socket and stop it if the bridge disappears.
+    after = [
+      "incus.service"
+      "sys-subsystem-net-devices-incusbr0.device"
+    ];
     requires = [ "incus.service" ];
+    bindsTo = [ "sys-subsystem-net-devices-incusbr0.device" ];
     partOf = [ "incus.service" ];
+    wantedBy = [ "sys-subsystem-net-devices-incusbr0.device" ];
     socketConfig.BindToDevice = "incusbr0";
   };
   networking.firewall.interfaces.incusbr0.allowedTCPPorts = [ 19532 ];
