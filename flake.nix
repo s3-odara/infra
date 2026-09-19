@@ -3,7 +3,6 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    tuwunel.url = "github:matrix-construct/tuwunel/v1.9.1";
 
     disko = {
       url = "github:nix-community/disko";
@@ -27,29 +26,12 @@
       disko,
       nixos-images,
       sops-nix,
-      tuwunel,
       ...
     }:
     let
       checkSygnalPins =
         nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/check-sygnal-pins/package.nix
           { };
-      # Tuwunel 1.9.1's in-process thumbnail tests retain cyclic service
-      # references and exhaust builder resources; its other database-backed
-      # tests already isolate their services in child processes.
-      tuwunelPackage = tuwunel.packages.x86_64-linux.default.overrideAttrs (old: {
-        postPatch = (old.postPatch or "") + ''
-          substituteInPlace src/service/media/thumbnail/tests.rs \
-            --replace-fail 'async fn duplicate_waiters_do_not_fetch_before_admission' '#[ignore = "leaks service resources in the Nix builder"]
-          async fn duplicate_waiters_do_not_fetch_before_admission' \
-            --replace-fail 'async fn cancelled_active_caller_holds_admission_until_worker_exits' '#[ignore = "leaks service resources in the Nix builder"]
-          async fn cancelled_active_caller_holds_admission_until_worker_exits' \
-            --replace-fail 'async fn completed_worker_keeps_admission_while_caller_owns_source' '#[ignore = "leaks service resources in the Nix builder"]
-          async fn completed_worker_keeps_admission_while_caller_owns_source' \
-            --replace-fail 'fn cancelled_queued_worker_releases_admission_without_starting' '#[ignore = "leaks service resources in the Nix builder"]
-          fn cancelled_queued_worker_releases_admission_without_starting'
-        '';
-      });
     in
     {
       formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.nixfmt;
@@ -157,7 +139,6 @@
             ./modules/guest
             ./modules/guest/secrets.nix
             ./guests/tuwunel/configuration.nix
-            { services.matrix-tuwunel.package = tuwunelPackage; }
           ];
         };
 
@@ -167,7 +148,6 @@
           modules = [
             ./modules/guest
             ./guests/tuwunel-guest/configuration.nix
-            { services.matrix-tuwunel.package = tuwunelPackage; }
           ];
         };
 
