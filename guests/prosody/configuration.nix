@@ -41,6 +41,9 @@ in
         { min = "info"; to = "*syslog"; };
       }
     '';
+    # TODO: Once Prosody 14 is adopted, switch from csi_battery_saver to
+    # the built-in csi_simple, remove csi_battery_saver from this package
+    # and extraModules, and enable csi_grace_period instead.
     package =
       (pkgs.prosody.override {
         withCommunityModules = [
@@ -55,6 +58,9 @@ in
           "register_apps"
           "password_policy"
           "cloud_notify_encrypted"
+          "csi_battery_saver"
+          "csi_muc_priorities"
+          "track_muc_joins"
           "unified_push"
         ];
       }).overrideAttrs
@@ -198,12 +204,15 @@ in
 
     extraModules = [
       "account_activity"
-      "csi_simple"
+      "csi_battery_saver"
+      "cloud_notify_encrypted"
+      "csi_muc_priorities"
       "invites"
       "invites_adhoc"
       "invites_register"
       "http_hsts"
       "net_multiplex"
+      "track_muc_joins"
       "turn_external"
       "unified_push"
     ];
