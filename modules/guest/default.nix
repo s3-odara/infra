@@ -24,6 +24,9 @@ in
 {
   imports = [ ../cachix.nix ];
 
+  # Nix may need Git to fetch git-based sources while evaluating a remote flake.
+  environment.systemPackages = [ pkgs.gitMinimal ];
+
   boot.isContainer = true;
   # Incus guests are managed through incus exec and have no usable /dev/console.
   systemd.services.console-getty.enable = false;
