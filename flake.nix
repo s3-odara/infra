@@ -34,14 +34,6 @@
       checkSygnalPins =
         nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/check-sygnal-pins/package.nix
           { };
-      # sops-nix still calls the Go 1.25 builder, which was removed from
-      # current nixpkgs after Go 1.25 reached end of life.
-      sopsInstallSecrets =
-        nixpkgs.legacyPackages.x86_64-linux.callPackage "${sops-nix}/pkgs/sops-install-secrets"
-          {
-            buildGo125Module = nixpkgs.legacyPackages.x86_64-linux.buildGo126Module;
-            vendorHash = "sha256-SXOd+0yh0DQr3uLVQBdw07J9j5HNuFJSOajDul1B1qo=";
-          };
       # Tuwunel 1.9.1's in-process thumbnail tests retain cyclic service
       # references and exhaust builder resources; its other database-backed
       # tests already isolate their services in child processes.
@@ -129,7 +121,6 @@
           specialArgs.configurationName = "prosody";
           modules = [
             sops-nix.nixosModules.sops
-            { sops.package = sopsInstallSecrets; }
             ./modules/guest
             ./modules/guest/secrets.nix
             ./guests/prosody/configuration.nix
@@ -141,7 +132,6 @@
           specialArgs.configurationName = "knot";
           modules = [
             sops-nix.nixosModules.sops
-            { sops.package = sopsInstallSecrets; }
             ./modules/guest
             ./modules/guest/secrets.nix
             ./guests/knot/configuration.nix
@@ -153,7 +143,6 @@
           specialArgs.configurationName = "nginx";
           modules = [
             sops-nix.nixosModules.sops
-            { sops.package = sopsInstallSecrets; }
             ./modules/guest
             ./modules/guest/secrets.nix
             ./guests/nginx/configuration.nix
@@ -165,7 +154,6 @@
           specialArgs.configurationName = "tuwunel";
           modules = [
             sops-nix.nixosModules.sops
-            { sops.package = sopsInstallSecrets; }
             ./modules/guest
             ./modules/guest/secrets.nix
             ./guests/tuwunel/configuration.nix
@@ -188,7 +176,6 @@
           specialArgs.configurationName = "sygnal";
           modules = [
             sops-nix.nixosModules.sops
-            { sops.package = sopsInstallSecrets; }
             ./modules/guest
             ./modules/guest/secrets.nix
             ./guests/sygnal/configuration.nix
@@ -200,7 +187,6 @@
           specialArgs.configurationName = "rtc";
           modules = [
             sops-nix.nixosModules.sops
-            { sops.package = sopsInstallSecrets; }
             ./modules/guest
             ./modules/guest/secrets.nix
             ./guests/rtc/configuration.nix
@@ -212,7 +198,6 @@
           specialArgs.configurationName = "wireguard";
           modules = [
             sops-nix.nixosModules.sops
-            { sops.package = sopsInstallSecrets; }
             ./modules/guest
             ./modules/guest/secrets.nix
             ./guests/wireguard/configuration.nix
