@@ -1,6 +1,6 @@
 {
-  "version": "1.12.2",
-  "commit": "e560d7cd3f73d2598ab471b5863800ffdf26fbbf",
-  "srcHash": "sha256-DEIYlryzkGVOTqel41STWGo7KCw3BEjEpVUboftbLHw=",
-  "depsHash": "sha256-vc/gM2eKSDfr1XfsNRREA1Mo16wuZyGZXstnEmBKg6E="
+  "version": "1.12.3",
+  "commit": "2d7c9567a5ce7f05bc054605db99043ce46f44c2",
+  "srcHash": "sha256-UPwcg2MRESj/wCuEQgZAooG83bvlkCQp7JRt9C7/3No=",
+  "depsHash": "sha256-hDDjV3uOef8gXRsoJv+VSfSn3ogY+dNUVahZjiUEXjo="
 }
