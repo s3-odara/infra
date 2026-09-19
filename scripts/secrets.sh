@@ -39,8 +39,8 @@ ensure_tools() {
   local -a arguments=("$command" "$subject")
   [[ -z $target ]] || arguments=(--target "$target" "${arguments[@]}")
   exec nix shell \
-    "path:$repo_root#sops" \
-    "path:$repo_root#age" \
+    "git+file://$repo_root#sops" \
+    "git+file://$repo_root#age" \
     -c env INFRA_SECRETS_TOOLS=1 "$script_dir/secrets.sh" "${arguments[@]}"
 }
 

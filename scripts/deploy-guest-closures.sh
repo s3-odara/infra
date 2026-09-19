@@ -19,7 +19,7 @@ host=$1
 [[ $host != -* ]] || fail "host must not start with a hyphen"
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 repo_root=$(cd -- "$script_dir/.." && pwd -P)
-flake="path:$repo_root"
+flake="git+file://$repo_root"
 guest_ciphertext_script=$(base64 -w 0 "$script_dir/install-guest-ciphertext.sh")
 
 temporary=$(mktemp -d)

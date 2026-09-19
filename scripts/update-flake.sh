@@ -54,7 +54,7 @@ for config_file in "${kernel_configs[@]}"; do
   configuration=$(basename "$(dirname "$config_file")")
   log "Regenerating $config_file"
   generated=$(nix build --no-link --print-out-paths \
-    "path:$repo_root#nixosConfigurations.$configuration.config.system.build.kernelConfig")
+    "git+file://$repo_root#nixosConfigurations.$configuration.config.system.build.kernelConfig")
   install -m 0644 "$generated" "$config_file"
 done
 

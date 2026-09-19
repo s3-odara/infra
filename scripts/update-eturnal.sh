@@ -58,7 +58,7 @@ mv -- "$temporary" "$pins_file"
 
 printf '\n==> Calculating the Rebar3 dependency hash\n'
 set +e
-build_output=$(nix build --no-link "path:$repo_root#eturnal" 2>&1)
+build_output=$(nix build --no-link "git+file://$repo_root#eturnal" 2>&1)
 build_status=$?
 set -e
 ((build_status != 0)) || fail "placeholder dependency hash was unexpectedly accepted"

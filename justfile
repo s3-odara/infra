@@ -68,12 +68,12 @@ help topic="":
 check: _check-nix _check-tofu _check-cloudflare _check-github _check-shell
 
 _check-nix:
-    nix flake check "path:{{ repo_root }}"
-    nix eval --json "path:{{ repo_root }}#nixosConfigurations" --apply 'configs: builtins.mapAttrs (_: cfg: cfg.config.system.build.toplevel.drvPath) configs' >/dev/null
+    nix flake check "git+file://{{ repo_root }}"
+    nix eval --json "git+file://{{ repo_root }}#nixosConfigurations" --apply 'configs: builtins.mapAttrs (_: cfg: cfg.config.system.build.toplevel.drvPath) configs' >/dev/null
     git ls-files -z -- '*.nix' | xargs -0 -r nix fmt -- --check
 
 _check-tofu:
-    nix shell "path:{{ repo_root }}#opentofu" -c sh -eu -c '\
+    nix shell "git+file://{{ repo_root }}#opentofu" -c sh -eu -c '\
       tofu=$(command -v tofu); \
       "$tofu" -chdir=tofu fmt -check -recursive; \
       "$tofu" -chdir=tofu init -backend=false -lockfile=readonly; \
@@ -83,14 +83,14 @@ _check-tofu:
       done'
 
 _check-cloudflare:
-    nix shell "path:{{ repo_root }}#opentofu" -c sh -eu -c '\
+    nix shell "git+file://{{ repo_root }}#opentofu" -c sh -eu -c '\
       tofu=$(command -v tofu); \
       "$tofu" -chdir=cloudflare fmt -check -recursive; \
       "$tofu" -chdir=cloudflare init -backend=false -lockfile=readonly; \
       "$tofu" -chdir=cloudflare validate'
 
 _check-github:
-    nix shell "path:{{ repo_root }}#opentofu" -c sh -eu -c '\
+    nix shell "git+file://{{ repo_root }}#opentofu" -c sh -eu -c '\
       tofu=$(command -v tofu); \
       "$tofu" -chdir=github fmt -check -recursive; \
       "$tofu" -chdir=github init -backend=false -lockfile=readonly; \
@@ -98,7 +98,7 @@ _check-github:
 
 _check-shell:
     find scripts modules -type f -name '*.sh' -print0 | xargs -0 -r bash -n
-    find scripts modules -type f -name '*.sh' -print0 | xargs -0 -r nix shell "path:{{ repo_root }}#shfmt" -c shfmt -d -i 2
+    find scripts modules -type f -name '*.sh' -print0 | xargs -0 -r nix shell "git+file://{{ repo_root }}#shfmt" -c shfmt -d -i 2
 
 deploy-guest-closures host:
     ./scripts/deploy-guest-closures.sh "$@"
@@ -111,15 +111,15 @@ apply-cloudflare:
     #!/usr/bin/env bash
     set -euo pipefail
     : "${CLOUDFLARE_API_TOKEN:?Set CLOUDFLARE_API_TOKEN on the administrator workstation}"
-    nix shell "path:{{ repo_root }}#opentofu" -c tofu -chdir=cloudflare init
-    nix shell "path:{{ repo_root }}#opentofu" -c tofu -chdir=cloudflare apply
+    nix shell "git+file://{{ repo_root }}#opentofu" -c tofu -chdir=cloudflare init
+    nix shell "git+file://{{ repo_root }}#opentofu" -c tofu -chdir=cloudflare apply
 
 apply-github *tofu_args:
     #!/usr/bin/env bash
     set -euo pipefail
 
     encrypted_key="{{ repo_root }}/secrets/github-apps/infra-tofu.private-key.sops.json"
-    nix shell "path:{{ repo_root }}#sops" "path:{{ repo_root }}#opentofu" -c \
+    nix shell "git+file://{{ repo_root }}#sops" "git+file://{{ repo_root }}#opentofu" -c \
       bash -euc '
         export TF_VAR_github_app_pem_file="$(
           sops decrypt --input-type json --output-type binary "$1"
@@ -131,10 +131,10 @@ apply-github *tofu_args:
       ' bash "$encrypted_key" "$@"
 
 upgrade-guests *guests:
-    nix shell "path:{{ repo_root }}#jq" -c ./scripts/guests.sh "$@"
+    nix shell "git+file://{{ repo_root }}#jq" -c ./scripts/guests.sh "$@"
 
 upgrade-host:
-    #!/usr/bin/env -S nix shell "path:{{ repo_root }}#jq" -c bash
+    #!/usr/bin/env -S nix shell "git+file://{{ repo_root }}#jq" -c bash
     set -euo pipefail
 
     metadata=$(nix flake metadata --refresh --no-update-lock-file --json \
@@ -168,14 +168,14 @@ install-host configuration target:
 
 # eturnal本体と固定したErlang依存を更新する
 update-eturnal:
-    nix shell "path:{{ repo_root }}#gh" "path:{{ repo_root }}#jq" -c ./scripts/update-eturnal.sh
+    nix shell "git+file://{{ repo_root }}#gh" "git+file://{{ repo_root }}#jq" -c ./scripts/update-eturnal.sh
 
 # Rust依存をCargo.toml/Cargo.lockともに更新する
 update-rust:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    nix shell --inputs-from "path:{{ repo_root }}" nixpkgs#cargo nixpkgs#cargo-edit -c bash -euc '
+    nix shell --inputs-from "git+file://{{ repo_root }}" nixpkgs#cargo nixpkgs#cargo-edit -c bash -euc '
       for package in matrix-bot check-sygnal-pins; do
         cargo upgrade --manifest-path "packages/$package/Cargo.toml" --incompatible allow
         cargo update --manifest-path "packages/$package/Cargo.toml"
@@ -187,7 +187,7 @@ update-providers:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    nix shell "path:{{ repo_root }}#opentofu" -c sh -euc '
+    nix shell "git+file://{{ repo_root }}#opentofu" -c sh -euc '
       tofu -chdir=tofu init -backend=false -upgrade
       tofu -chdir=cloudflare init -backend=false -upgrade
       tofu -chdir=github init -backend=false -upgrade
@@ -196,10 +196,10 @@ update-providers:
 # Sygnalの署名付きreleaseとupstream lock由来のpinを照合・更新する
 update-sygnal:
     nix shell \
-      "path:{{ repo_root }}#gh" \
-      "path:{{ repo_root }}#gnupg" \
-      "path:{{ repo_root }}#jq" \
-      "path:{{ repo_root }}#check-sygnal-pins" \
+      "git+file://{{ repo_root }}#gh" \
+      "git+file://{{ repo_root }}#gnupg" \
+      "git+file://{{ repo_root }}#jq" \
+      "git+file://{{ repo_root }}#check-sygnal-pins" \
       -c ./scripts/update-sygnal.sh
 
 # Go依存を更新する（現在の対象はweb-client-html）。Go本体はupdate-flakeで更新する
@@ -207,8 +207,8 @@ update-go:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    nix shell --inputs-from "path:{{ repo_root }}" \
-      "path:{{ repo_root }}#web-client-html.go" nixpkgs#nix-update -c bash -euc '
+    nix shell --inputs-from "git+file://{{ repo_root }}" \
+      "git+file://{{ repo_root }}#web-client-html.go" nixpkgs#nix-update -c bash -euc '
         export GOTOOLCHAIN=local
         go -C packages/web-client-html get -u ./...
         go -C packages/web-client-html mod tidy
@@ -218,10 +218,10 @@ update-go:
 # Sable OCI attestationを検証し、index digestとamd64取得hashを更新する
 update-web-clients:
     nix shell \
-      "path:{{ repo_root }}#gh" \
-      "path:{{ repo_root }}#jq" \
-      "path:{{ repo_root }}#nix-prefetch-docker" \
-      "path:{{ repo_root }}#skopeo" \
+      "git+file://{{ repo_root }}#gh" \
+      "git+file://{{ repo_root }}#jq" \
+      "git+file://{{ repo_root }}#nix-prefetch-docker" \
+      "git+file://{{ repo_root }}#skopeo" \
       -c ./scripts/update-web-clients.sh
 
 # flake.lockとkernel configを更新する
