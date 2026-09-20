@@ -263,7 +263,7 @@ in
     };
   };
 
-  systemd.timers."acme-renew-xmpp.odarah.org".timerConfig.AccuracySec = lib.mkForce "15min";
+  systemd.timers."acme-renew-xmpp.odarah.org".timerConfig.AccuracySec = lib.mkForce "1s";
 
   systemd.services."acme-order-renew-xmpp.odarah.org" = {
     serviceConfig = {
@@ -348,10 +348,11 @@ in
         exit "$status"
       '';
       timerConfig = {
-        OnCalendar = "*-*-* 04:00:00 Asia/Tokyo";
-        RandomizedDelaySec = "15m";
-        FixedRandomDelay = true;
+        OnCalendar = "*-*-* 03:15:00 Asia/Tokyo";
         Persistent = true;
+        RandomizedDelaySec = "3m";
+        FixedRandomDelay = true;
+        AccuracySec = "1s";
       };
     };
   };
@@ -363,6 +364,7 @@ in
   };
   systemd.services."restic-backups-prosody-short".unitConfig.OnFailure =
     "backup-failure-notify@%n.service";
+  systemd.services."restic-backups-prosody-short".serviceConfig.TimeoutStartSec = "10m";
   systemd.services.prosody-monthly-backup = {
     description = "Create an encrypted monthly Prosody backup";
     wants = [ "network-online.target" ];
@@ -414,10 +416,11 @@ in
   systemd.timers.prosody-monthly-backup = {
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "*-*-01 05:00:00 Asia/Tokyo";
-      RandomizedDelaySec = "15m";
-      FixedRandomDelay = true;
+      OnCalendar = "*-*-01 02:30:00 Asia/Tokyo";
       Persistent = true;
+      RandomizedDelaySec = "3m";
+      FixedRandomDelay = true;
+      AccuracySec = "1s";
     };
   };
 

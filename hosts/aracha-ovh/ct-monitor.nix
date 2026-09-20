@@ -104,9 +104,10 @@ in
     wantedBy = [ "timers.target" ];
     timerConfig = {
       OnCalendar = "*:0/15";
-      Persistent = true;
-      RandomizedDelaySec = "2m";
+      Persistent = false;
+      RandomizedDelaySec = "15m";
       FixedRandomDelay = true;
+      AccuracySec = "1s";
     };
   };
 }

@@ -126,6 +126,7 @@ in
     unitConfig.OnFailure = "backup-failure-notify@%n.service";
     serviceConfig = {
       Type = "oneshot";
+      TimeoutStartSec = "10m";
       ExecStart = "${pkgs.systemd}/bin/systemctl kill --kill-whom=main --signal=SIGUSR2 tuwunel.service";
     };
   };
@@ -133,10 +134,11 @@ in
   systemd.timers.tuwunel-online-backup = {
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "*-*-* 05:30:00 Asia/Tokyo";
-      RandomizedDelaySec = "15m";
+      OnCalendar = "*-*-* 03:00:00 Asia/Tokyo";
+      Persistent = true;
+      RandomizedDelaySec = "3m";
       FixedRandomDelay = true;
-      Persistent = false;
+      AccuracySec = "1s";
     };
   };
 
@@ -208,12 +210,15 @@ in
       ${pkgs.systemd}/bin/systemctl start matrix-bot.service
     '';
     timerConfig = {
-      OnCalendar = "*-*-* 04:30:00 Asia/Tokyo";
-      RandomizedDelaySec = "15m";
+      OnCalendar = "*-*-* 03:45:00 Asia/Tokyo";
+      Persistent = true;
+      RandomizedDelaySec = "3m";
       FixedRandomDelay = true;
-      Persistent = false;
+      AccuracySec = "1s";
     };
   };
+
+  systemd.services."restic-backups-tuwunel".serviceConfig.TimeoutStartSec = "10m";
 
   systemd.services."backup-failure-notify@".serviceConfig = {
     Type = "oneshot";
@@ -265,10 +270,11 @@ in
   systemd.timers.tuwunel-monthly-backup = {
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "*-*-01 06:30:00 Asia/Tokyo";
-      RandomizedDelaySec = "15m";
-      FixedRandomDelay = true;
+      OnCalendar = "*-*-01 02:15:00 Asia/Tokyo";
       Persistent = true;
+      RandomizedDelaySec = "3m";
+      FixedRandomDelay = true;
+      AccuracySec = "1s";
     };
   };
 

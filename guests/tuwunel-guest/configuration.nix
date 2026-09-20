@@ -77,9 +77,11 @@
     description = "Daily cached remote media pruning for Tuwunel";
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "daily";
-      Persistent = true;
-      RandomizedDelaySec = "1h";
+      OnCalendar = "*-*-* 05:30:00 Asia/Tokyo";
+      Persistent = false;
+      RandomizedDelaySec = "3m";
+      FixedRandomDelay = true;
+      AccuracySec = "1s";
     };
   };
 

@@ -243,10 +243,11 @@ in
           +kaspdb
       '';
       timerConfig = {
-        OnCalendar = "*-*-* 04:15:00 Asia/Tokyo";
-        RandomizedDelaySec = "15m";
-        FixedRandomDelay = true;
+        OnCalendar = "*-*-* 03:30:00 Asia/Tokyo";
         Persistent = true;
+        RandomizedDelaySec = "3m";
+        FixedRandomDelay = true;
+        AccuracySec = "1s";
       };
     };
   };
@@ -267,6 +268,7 @@ in
       wants = [ "knot.service" ];
       after = [ "knot.service" ];
       unitConfig.OnFailure = "backup-failure-notify@%n.service";
+      serviceConfig.TimeoutStartSec = "10m";
     };
 
     knot-monthly-backup = {
@@ -336,10 +338,11 @@ in
   systemd.timers.knot-monthly-backup = {
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "*-*-01 05:15:00 Asia/Tokyo";
-      RandomizedDelaySec = "15m";
-      FixedRandomDelay = true;
+      OnCalendar = "*-*-01 02:45:00 Asia/Tokyo";
       Persistent = true;
+      RandomizedDelaySec = "3m";
+      FixedRandomDelay = true;
+      AccuracySec = "1s";
     };
   };
 
@@ -347,8 +350,10 @@ in
     wantedBy = [ "timers.target" ];
     timerConfig = {
       OnCalendar = "*-*-* 00/6:00:00";
-      RandomizedDelaySec = "15m";
       Persistent = true;
+      RandomizedDelaySec = "1h";
+      FixedRandomDelay = true;
+      AccuracySec = "1s";
     };
   };
 

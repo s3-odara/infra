@@ -36,14 +36,16 @@ in
   '';
 
   system.autoUpgrade = {
-    enable = false;
+    enable = true;
+    dates = "*-*-* 04:15:00 Asia/Tokyo";
     flake = "github:s3-odara/infra#${configurationName}";
     upgrade = false;
     allowReboot = false;
-    randomizedDelaySec = "1h";
+    randomizedDelaySec = "15m";
     fixedRandomDelay = true;
     persistent = false;
   };
+  systemd.timers.nixos-upgrade.timerConfig.AccuracySec = "1s";
 
   nix.settings.experimental-features = [
     "nix-command"
@@ -52,13 +54,26 @@ in
 
   nix.gc = {
     automatic = true;
-    dates = "*-*-* 06:00:00 Asia/Tokyo";
-    randomizedDelaySec = "30m";
-    options = "--delete-older-than 7d";
+    dates = "*-*-* 04:45:00 Asia/Tokyo";
+    randomizedDelaySec = "15m";
+    persistent = false;
+    options = "--delete-older-than 3d";
   };
 
-  # Keep each guest's daily GC at a stable offset within the delay window.
-  systemd.timers.nix-gc.timerConfig.FixedRandomDelay = true;
+  # Keep each guest's GC at a stable offset within the delay window.
+  systemd.timers.nix-gc.timerConfig = {
+    FixedRandomDelay = true;
+    AccuracySec = "1s";
+  };
+
+  # Container root filesystems are Btrfs subvolumes trimmed by the host.
+  services.fstrim.enable = false;
+  systemd.timers.logrotate.timerConfig = {
+    Persistent = false;
+    RandomizedDelaySec = "1h";
+    FixedRandomDelay = true;
+    AccuracySec = "1s";
+  };
 
   services.journald = {
     settings.Journal = {

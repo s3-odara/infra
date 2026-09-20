@@ -164,10 +164,23 @@ in
   networking.firewall.interfaces.uplink0.allowedTCPPorts = [ 22 ];
 
   system.autoUpgrade = {
-    enable = false;
+    enable = true;
+    dates = "*-*-* 04:00:00 Asia/Tokyo";
     flake = "github:s3-odara/infra#${configurationName}";
     upgrade = false;
     allowReboot = true;
+    randomizedDelaySec = "3m";
+    fixedRandomDelay = true;
+    persistent = true;
+  };
+  systemd.timers.nixos-upgrade.timerConfig.AccuracySec = "1s";
+
+  services.fstrim.enable = false;
+  systemd.timers.logrotate.timerConfig = {
+    Persistent = false;
+    RandomizedDelaySec = "1h";
+    FixedRandomDelay = true;
+    AccuracySec = "1s";
   };
 
   # The host kernels use CONFIG_MODULES=n.
@@ -187,8 +200,11 @@ in
     description = "Daily remote guest journal retention";
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "daily";
-      Persistent = true;
+      OnCalendar = "*-*-* 05:15:00 Asia/Tokyo";
+      Persistent = false;
+      RandomizedDelaySec = "3m";
+      FixedRandomDelay = true;
+      AccuracySec = "1s";
     };
   };
 
@@ -211,8 +227,9 @@ in
     timerConfig = {
       OnCalendar = "*-*-* 06:30:00 Asia/Tokyo";
       Persistent = true;
-      RandomizedDelaySec = "30m";
+      RandomizedDelaySec = "1h";
       FixedRandomDelay = true;
+      AccuracySec = "1s";
     };
   };
 
@@ -238,7 +255,10 @@ in
     wantedBy = [ "timers.target" ];
     timerConfig = {
       OnCalendar = "*:0/15";
-      Persistent = true;
+      Persistent = false;
+      RandomizedDelaySec = "15m";
+      FixedRandomDelay = true;
+      AccuracySec = "1s";
     };
   };
 }

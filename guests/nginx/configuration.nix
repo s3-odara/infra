@@ -413,7 +413,7 @@ in
     };
   };
 
-  systemd.timers."acme-renew-${matrixHost}".timerConfig.AccuracySec = lib.mkForce "15min";
+  systemd.timers."acme-renew-${matrixHost}".timerConfig.AccuracySec = lib.mkForce "1s";
   systemd.services."acme-order-renew-${matrixHost}" = {
     serviceConfig = {
       Restart = "on-failure";
@@ -1152,8 +1152,10 @@ in
     wantedBy = [ "timers.target" ];
     timerConfig = {
       OnCalendar = "hourly";
-      Persistent = true;
-      AccuracySec = "1min";
+      Persistent = false;
+      RandomizedDelaySec = "1h";
+      FixedRandomDelay = true;
+      AccuracySec = "1s";
     };
   };
 

@@ -141,7 +141,7 @@ in
     };
   };
 
-  systemd.timers."acme-renew-${turnHost}".timerConfig.AccuracySec = lib.mkForce "15min";
+  systemd.timers."acme-renew-${turnHost}".timerConfig.AccuracySec = lib.mkForce "1s";
   systemd.services."acme-order-renew-${turnHost}" = {
     serviceConfig = {
       Restart = "on-failure";
