@@ -67,12 +67,6 @@ let
     pythonImportsCheck = [ "pywebpush" ];
   };
 
-  # This profiler timing test is flaky under the parallel test runner: the
-  # profile chunk can be empty even though the span has its profiler ID.
-  sentry-sdk = python3Packages.sentry-sdk.overridePythonAttrs (old: {
-    disabledTests = (old.disabledTests or [ ]) ++ [ "test_segment_span_has_profiler_id" ];
-  });
-
   # Twisted 26 stalls Sygnal's _AgentBase-based Apple Web Push requests,
   # causing the Push Gateway to return 504.
   twisted = python3Packages.buildPythonPackage rec {
