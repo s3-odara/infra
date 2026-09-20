@@ -14,6 +14,15 @@
 - 撤去条件: Prosody 14へ更新したとき。`csi_simple`へ切り替え、`csi_battery_saver`をpackageと`extraModules`から削除し、`csi_grace_period`を有効化する。
 - 導入コミット: `bc1342a` (`feat(prosody): save battery`)
 
+### TuwunelがMSC4174を実装するまでSygnalを運用する
+
+- 実装: `guests/sygnal/configuration.nix`, `packages/sygnal/`, `flake.nix`の`sygnal` package、nginxのPush Gateway proxy
+- 理由: 現在のTuwunelだけではMSC4174によるWeb Push配信を完結できない。
+- 対応: 独立したSygnal guestをPush Gatewayとして運用し、Tuwunelから通知を転送する。
+- 撤去条件: TuwunelのMSC4174実装issue `matrix-construct/tuwunel#223`が完成し、Sygnalなしで利用中clientへのWeb Push配信を確認できたとき。
+- 撤去対象: Sygnal guest・package・secret・ACL・DNS・nginx proxy・監視と、以下に記載するSygnal固有の依存／署名鍵workaround。
+- 導入コミット: `ab2940c` (`feat(sable): self-host web push with Sygnal for Sable PWA`)
+
 ### SygnalのPython依存をローカル定義・固定する
 
 - 実装: `packages/sygnal/package.nix:8-102`, `packages/sygnal/pins.json`
