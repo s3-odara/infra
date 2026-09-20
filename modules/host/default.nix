@@ -171,7 +171,7 @@ in
     allowReboot = true;
     randomizedDelaySec = "3m";
     fixedRandomDelay = true;
-    persistent = true;
+    persistent = false;
   };
   systemd.timers.nixos-upgrade.timerConfig.AccuracySec = "1s";
 
