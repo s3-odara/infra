@@ -62,22 +62,13 @@
 
 ## NixOS・build toolへの適応
 
-### `CONFIG_MODULES=n`のhost kernelをNixOSで使う
+### `linuxManualConfig`へ`CONFIG_MODULES=n`を明示する
 
-- 実装:
-  - `hosts/{aracha-ovh,mecha-vultr,tencha-conoha}/kernel.nix:20-28`
-  - `hosts/{aracha-ovh,mecha-vultr,tencha-conoha}/configuration.nix:21-27`
-  - `modules/host/default.nix:186-187`
-- 理由: loadable module supportを無効にしても、NixOSのinitrd構築とsystemdはbuilt-in module metadataを要求する。また、NixOSとIncusの既定設定にはmoduleをloadする前提がある。
-- 対応:
-  - `modules.builtin`と`modules.builtin.modinfo`をinstallし、空の`modules.order`を作って`depmod`する。
-  - `boot.initrd.allowMissingModules = true`にする。
-  - container専用hostでは不要な`vhost_vsock`要求を無効化する。
-  - modprobe設定の生成を無効化する。
-- 撤去条件: `CONFIG_MODULES=n`のkernelをこれらの補助設定なしでNixOSが扱えるようになったとき、またはloadable moduleを再度有効化したとき。
-- 導入コミット:
-  - `f5feabc` (`add ovhcloud`) — metadata生成、initrdとIncus向け設定
-  - `b94b9dc` (`fix(host): disable modprobe setup for module disabled kernels`) — modprobe設定の無効化
+- 実装: `hosts/{aracha-ovh,mecha-vultr,tencha-conoha}/kernel.nix`
+- 理由: `linuxManualConfig`の自動解析は`y/m`だけを読み、`.config`の`# CONFIG_MODULES is not set`をmetadataへ反映しない。明示しないとNixOSがmodule closureを作り、initrd buildに失敗する。
+- 対応: 自動解析した`CONFIG_*`へ`CONFIG_MODULES = "n"`を加えて`config`引数に渡す。旧対応の`modules.builtin*`生成と`boot.initrd.allowMissingModules`は削除した。
+- 撤去条件: `linuxManualConfig`が`n`も自動解析するようになったとき。
+- 関連するnixpkgsの変更: `8314e36` (`nixos/boot/kernel: allow kernel without MODULES support`)
 
 ### Clang 21で利用できないkmalloc hardeningを代替する
 

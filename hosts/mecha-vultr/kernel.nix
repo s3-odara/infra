@@ -3,30 +3,26 @@
 let
   kernelBase = pkgs.linuxPackages_latest.kernel;
 
-  hostKernel =
-    (pkgs.linuxManualConfig {
-      inherit (kernelBase)
-        version
-        src
-        modDirVersion
-        kernelPatches
-        ;
+  manualKernel = pkgs.linuxManualConfig {
+    inherit (kernelBase)
+      version
+      src
+      modDirVersion
+      kernelPatches
+      ;
 
-      configfile = ./kernel.config;
-      features = kernelBase.features;
-      stdenv = pkgs.llvmPackages.stdenv;
-    }).overrideAttrs
-      (oldAttrs: {
-        # NixOS uses the built-in module metadata when constructing the initrd,
-        # even when loadable module support is disabled.
-        postInstall = (oldAttrs.postInstall or "") + ''
-          moduleMetadata="$out/lib/modules/${kernelBase.modDirVersion}"
-          mkdir -p "$moduleMetadata"
-          install -m 0644 modules.builtin modules.builtin.modinfo "$moduleMetadata/"
-          install -m 0644 /dev/null "$moduleMetadata/modules.order"
-          depmod -b "$out" ${kernelBase.modDirVersion}
-        '';
-      });
+    configfile = ./kernel.config;
+    features = kernelBase.features;
+    stdenv = pkgs.llvmPackages.stdenv;
+  };
+
+  # linuxManualConfig infers only y/m values from configfile. Declare the
+  # explicit n value so NixOS does not construct a loadable-module closure.
+  hostKernel = manualKernel.override {
+    config = pkgs.lib.filterAttrs (name: _: pkgs.lib.hasPrefix "CONFIG_" name) manualKernel.config // {
+      CONFIG_MODULES = "n";
+    };
+  };
 
   # Host hardware and the root filesystem boot path.
   requiredPlatformBuiltins = [

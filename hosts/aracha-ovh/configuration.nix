@@ -20,7 +20,6 @@
 
   # Required storage, network, and WireGuard drivers are built into the kernel.
   boot.initrd.includeDefaultModules = false;
-  boot.initrd.allowMissingModules = true;
   # Incus requests this for VM support, which this container-only host omits.
   boot.kernelModules.vhost_vsock = lib.mkForce false;
   boot.initrd.systemd.tpm2.enable = false;
