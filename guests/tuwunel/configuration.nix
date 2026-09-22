@@ -62,15 +62,12 @@ in
       oidc_require_device_scope = false;
       oidc_rc_per_second = 1;
       oidc_rc_burst_count = 20;
-      oidc_registration_allowed_redirect_hosts = [
-        "sable.matrix.odarah.org"
-        "element.matrix.odarah.org"
-        "element.io"
-        "io.element.android"
-      ];
+      oidc_registration_allowed_redirect_hosts = [ ];
+      oidc_require_client_approval = true;
       refresh_token_ttl = 90 * 24 * 60 * 60;
       refresh_token_idle_only = true;
       refresh_token_hard_logout = false;
+      login_token_ttl = 5 * 60 * 1000;
       allow_encryption = true;
       encryption_enabled_by_default_for_room_type = "invite";
       grant_admin_to_first_user = false;
