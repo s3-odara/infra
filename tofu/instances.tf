@@ -44,11 +44,10 @@ resource "incus_instance" "guest" {
     name = "eth0"
     type = "nic"
 
-    # Incus 7.3でもIPv4 filteringを有効にするとDHCP OFFERを受信できないため、修正されるまでMAC filteringとACLを使う。
     properties = {
       network                                = incus_network.incusbr0.name
       "ipv4.address"                         = each.value.ipv4
-      "security.mac_filtering"               = "true"
+      "security.ipv4_filtering"              = "true"
       "security.acls"                        = incus_network_acl.guest[each.key].name
       "security.acls.default.ingress.action" = "reject"
       "security.acls.default.egress.action"  = "allow"
