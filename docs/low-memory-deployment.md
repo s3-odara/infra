@@ -32,11 +32,9 @@
 )
 ```
 
-最初のSSH接続はbinary archiveをTTYなしで送る。転送完了時にtmux passthrough経由のOSC 9でfootのdesktop notificationを送り、Enter入力を待つ。それから2番目の接続でdoas認証、import、profile更新、activationを行う。待機中は2番目のSSH接続をまだ開始していないため、認証待ちのtimeoutは発生しない。tmuxでは`allow-passthrough`を有効にしておく。
+archiveは`/home/me/.nixos-system.nar`へmode `0600`で置かれるので、doasが失敗したら同じ`out`を指定して2番目の`ssh -t`だけ再実行できる。importに失敗した場合は手動で削除する。
 
-archiveは`/home/me/.nixos-system.nar`へmode `0600`で置く。2番目のSSH接続またはdoas認証に失敗してもarchiveは残るため、転送部分を再実行せず、同じ`out`を指定して2番目の`ssh -t`だけを再実行できる。importに失敗した場合は手動で削除する。
-
-この方法は`me`をNix daemonの`trusted-users`へ追加しない。`trusted-users`はパスワードレスroot相当の権限を持つので。
+この方法では`me`をNix daemonの`trusted-users`へ追加しない。`trusted-users`はパスワードレスroot相当の権限を持つので、それに追加するくらいなら毎回rootとして認証する。
 
 ## Incusゲスト
 
@@ -50,38 +48,7 @@ just deploy-guest-closures me@aracha-ovh
 
 SSH先の短いhostnameに対応する`tofu/hosts/HOST.tfvars`からguest一覧を取得する。全closureとSOPS暗号文を転送し、各guestをactivationする。
 
-単一ゲストを手動で転送する場合は次の手順を使う。
-
-```bash
-(
-  set -euo pipefail
-  HOST='me@example-host'
-  GUEST='example-guest'
-
-  out=$(
-    nix build --no-link --print-out-paths \
-      ".#nixosConfigurations.${GUEST}.config.system.build.toplevel"
-  )
-
-  nix-store --export $(nix-store --query --requisites "$out") |
-    ssh -T "$HOST" \
-      "incus exec -T \"$GUEST\" -- nix-store --import >/dev/null"
-
-  printf '\033Ptmux;\033\033]9;closureの転送が完了しました。\033\033\\\033\\' >/dev/tty
-  printf 'guestのactivationを開始するにはEnterを押してください: ' >/dev/tty
-  IFS= read -r _ </dev/tty
-
-  ssh -t "$HOST" \
-    "incus exec -T \"$GUEST\" -- \
-       nix-env --profile /nix/var/nix/profiles/system --set \"$out\" && \
-     incus exec -T \"$GUEST\" -- \
-       \"$out/bin/switch-to-configuration\" switch"
-)
-```
-
-`GUEST`にはIncus instance名とflake attributeの両方で使う名前を入れる。Incus `exec`はゲスト内でrootとして実行される。
-
-## ビルドだけ確認する
+## ビルドを確認する。
 
 ```bash
 nix flake check --no-build
