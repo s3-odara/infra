@@ -1,11 +1,3 @@
-### IncusのIPv4 filteringを使わない
-
-- 実装: `tofu/instances.tf:47-54`
-- 理由: Incus 7.3でもIPv4 filteringを有効にするとDHCP OFFERを受信できない。
-- 対応: `security.ipv4_filtering`の代わりにMAC filteringとnetwork ACLを使う。
-- 撤去条件: 使用中のIncusでIPv4 filteringとDHCPの組み合わせが修正され、実環境で確認できたとき。
-- 導入コミット: `f9f34f3` (`fix: 多分incusのバグ？`)
-
 ### Prosody 14まで`csi_battery_saver`を使う
 
 - 実装: `guests/prosody/configuration.nix:44-64,204-208`
@@ -231,9 +223,10 @@
 
 ## 撤去済み
 
-次のworkaroundはrevert済みであり、現行構成には含まれない。
+次のworkaroundは現行構成から撤去済み。
 
 - Tuwunel 1.9.1のdirect buildとthumbnail test無効化 — `2840052` (`Revert Tuwunel direct-build workarounds`)
 - sops-nixをGo 1.26でbuildするoverride — `aeae177` (`Revert "feat: workaround, use Go 1.26 builder for sops-nix"`)
 - Sygnalのsentry-sdk test無効化 — `c320b3a` (`Revert "fix: workaround, disable sentry-sdk test"`)
 - Sygnalのpy-vapid test無効化 — `b3b27f8` (`Revert "fix: workaround, provide pytest and skip tests for py-vapid"`)
+- Incus IPv4 filteringを使わない — `a7f87df` (`fix(incus): re-enable ipv4 filtering`)
