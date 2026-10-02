@@ -70,6 +70,8 @@
   };
 
   virtualisation.incus.enable = true;
+  # Prefer the current stable release over the NixOS module's LTS default.
+  virtualisation.incus.package = pkgs.incus;
   services.chrony.enableRTCTrimming = false;
   networking.nftables.enable = true;
   networking.nftables.flushRuleset = false;
