@@ -306,7 +306,7 @@ impl CallService {
             "kick": 50,
             "redact": 50,
             "state_default": 100,
-            "users": { BOT_USER: 100, INVITER: 50 },
+            "users": { INVITER: 50 },
             "users_default": 0
         }))?;
         let mut request = CreateRoomRequest::new();
