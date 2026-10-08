@@ -36,6 +36,13 @@
 - 撤去条件: upstreamが利用中のバージョンを許容するか、制約を書き換えずに依存を解決できたとき。
 - 導入コミット: `ab2940c` (`feat(sable): self-host web push with Sygnal for Sable PWA`)
 
+### Sygnal closure内のAnyIOテストを一時的に無効化する
+
+- 実装: `packages/sygnal/package.nix`の`python312Packages.overrideScope`
+- 理由: `python3.12-anyio-4.14.2`でテストが失敗し、Sygnalを含むNixOS closureをbuildできない。`test_tls_connectable`は`server_hostname can only be specified in client mode`で複数backendにて失敗し、`test_fileio`にもunraisable exceptionのエラーが出る。
+- 対応: Sygnal用Python package scopeに限ってAnyIOの`doCheck = false`を指定してAnyIOのテストをスキップする。
+- 撤去条件: nixpkgs / AnyIOの更新で該当テストが通り、Sygnalを含むclosureのbuildを確認できたとき。
+
 ### Sygnalの期限切れ署名鍵証明書を限定的に許容する
 
 - 実装: `scripts/update-sygnal.sh:50-61`

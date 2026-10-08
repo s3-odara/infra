@@ -6,7 +6,14 @@
 
 let
   # Follow upstream's Python runtime; pin only incompatible locked dependencies locally.
-  python3Packages = python312Packages;
+  # Temporary workaround for failing AnyIO TLS/pathlib tests in nixpkgs; remove once fixed upstream.
+  python3Packages = python312Packages.overrideScope (
+    _: prev: {
+      anyio = prev.anyio.overridePythonAttrs (_: {
+        doCheck = false;
+      });
+    }
+  );
   pins = builtins.fromJSON (builtins.readFile ./pins.json);
 
   opentracing = python3Packages.buildPythonPackage rec {
