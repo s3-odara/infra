@@ -200,6 +200,9 @@ let
     pname = "mecha-vultr-kernel-config";
     outputs = [ "out" ];
     installFlags = [ ];
+    # The inherited kernel hook writes under $dev/lib/modules, but this
+    # config-only derivation has no dev output ($dev would resolve empty).
+    preUnpack = "";
 
     configurePhase = ''
       runHook preConfigure

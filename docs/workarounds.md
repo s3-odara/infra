@@ -61,6 +61,14 @@
 
 ## NixOS・build toolへの適応
 
+### update-flake時のkernel config生成で`preUnpack`を無効化する
+
+- 実装: `hosts/{aracha-ovh,mecha-vultr,tencha-conoha}/kernel.nix`の`generatedKernelConfig`
+- 理由: nixpkgsのkernel derivationが持つ`preUnpack`は`$dev/lib/modules/<version>`を作成する。config生成用derivationは`outputs = [ "out" ]`で`dev` outputがないため、`$dev`が空になり`/lib/modules/<version>`を作ろうとして失敗する。
+- 対応: config生成用derivationでは継承した`preUnpack` hookを空にする。
+- 検証: nixpkgs `55bfb4d`・kernel 7.2.10で、overrideなしではActionsと同じderivation (`2xbqlyykk64icixcn73pnrnn8slrj7mn`) が同じ`/lib/modules` permission errorで失敗し、`preUnpack = ""`を指定するとkernel configのbuildに成功した。
+- 撤去条件: config生成derivationに`dev` outputを追加するか、nixpkgs側のhookがconfig-only derivationでも安全になるよう変更され、overrideなしでbuildできると確認できたとき。
+
 ### `linuxManualConfig`へ`CONFIG_MODULES=n`を明示する
 
 - 実装: `hosts/{aracha-ovh,mecha-vultr,tencha-conoha}/kernel.nix`
