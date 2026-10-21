@@ -38,7 +38,7 @@ in
     enable = true;
     log = ''
       {
-        { min = "info"; to = "*syslog"; };
+        { levels = { min = "info" }; to = "syslog"; };
       }
     '';
     # TODO: Once Prosody 14 is adopted, switch from csi_battery_saver to
