@@ -190,6 +190,7 @@ let
     "MODULES"
     "MODULE_SIG"
     "PROC_KCORE"
+    "SYSCALL_USER_DISPATCH"
     "USERFAULTFD"
     "X86_X32_ABI"
   ];
