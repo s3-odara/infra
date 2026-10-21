@@ -175,6 +175,18 @@ in
   };
   systemd.timers.nixos-upgrade.timerConfig.AccuracySec = "1s";
 
+  nix.gc = {
+    automatic = true;
+    dates = "*-*-* 04:45:00 Asia/Tokyo";
+    randomizedDelaySec = "15m";
+    persistent = false;
+    options = "--delete-older-than 3d";
+  };
+  systemd.timers.nix-gc.timerConfig = {
+    FixedRandomDelay = true;
+    AccuracySec = "1s";
+  };
+
   services.fstrim.enable = false;
   systemd.timers.logrotate.timerConfig = {
     Persistent = false;
