@@ -65,7 +65,7 @@ jobs:
           target_list=$(nix shell path:.#opentofu path:.#jq -c \
             ./scripts/ci/nixos-build-targets.sh "$BUILD_HOST")
           mapfile -t targets <<<"$target_list"
-          nix build --no-link --max-jobs 2 --cores 2 "${targets[@]}"
+          nix build --no-link --max-jobs 1 --cores 4 "${targets[@]}"
 
       - name: Show web client transformations
         shell: bash

@@ -53,7 +53,7 @@ jobs:
           )
           mapfile -t targets <<<"$target_list"
 
-          nix build --no-link --print-out-paths "${targets[@]}" \
+          nix build --no-link --max-jobs 1 --cores 4 --print-out-paths "${targets[@]}" \
             >"$RUNNER_TEMP/cache-roots"
 
       - name: Push signed closures
