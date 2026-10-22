@@ -102,6 +102,20 @@
 - 撤去条件: secretを公開せずbuild時に完全な設定検証ができるようになったとき。
 - 導入コミット: `58372fb` (`feat: use DNSSEC and migrate dns server to Knot`)
 
+### nixos-imagesのremoved initrd optionをsmallで回避する
+
+- 実装: `flake.nix`の`kexecInstaller`と`modules/nixos-images/restore-remote-access.nix`
+- 理由: nixpkgsでscripted initrdが削除され、`boot.initrd.systemd.enable`がremoved optionになったが、現在の`nixos-images`の`nix/restore-remote-access.nix`はこのoptionを定義している。
+- 対応: `nixos-images`のkexec installer moduleから元のremote-access moduleだけを無効化し、同じ`restore-state-from-initrd` serviceをローカルmoduleから再定義する。removed optionは指定しない。nixpkgsはpinせず、`nixos-unstable-small`に追従する。
+- 撤去条件: upstream `nixos-images`が新しいnixpkgsと互換なremote-access moduleを提供し、kexec installerの評価・buildが通ることを確認できたとき。
+
+### kexec installerでは不要なZFS supportを無効にする
+
+- 実装: `flake.nix`の`kexecInstaller`
+- 理由: `nixos-images.nixosModules.noninteractive`が`nix/zfs-minimal.nix`をimportし、ZFSをinstallerのpackage closureへ追加する。nixpkgsの`zfs-user-2.4.4` buildはbash completionを出力先ではなく`/usr/share`へinstallしようとしてpermission deniedになる。現在のhostはすべてBtrfsを使い、installerでZFSは不要。
+- 対応: kexec installerに限りupstreamの`nix/zfs-minimal.nix`を無効化し、ZFS packageをclosureから外す。host構成のfilesystem supportは変更しない。
+- 撤去条件: nixpkgsのZFS package buildが修正され、またはZFS filesystemを使うhostを追加するとき。
+
 ## Incus・provider・networkへの適応
 
 ### Tuwunelからnginxへのhairpin NATを手動設定する

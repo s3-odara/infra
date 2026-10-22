@@ -32,6 +32,26 @@
       checkSygnalPins =
         nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/check-sygnal-pins/package.nix
           { };
+
+      kexecInstaller =
+        (nixpkgs.lib.nixosSystem {
+          system = "x86_64-linux";
+          modules = [
+            nixos-images.nixosModules.kexec-installer
+            {
+              disabledModules = [
+                (nixos-images.outPath + "/nix/restore-remote-access.nix")
+                (nixos-images.outPath + "/nix/zfs-minimal.nix")
+              ];
+              imports = [
+                nixos-images.nixosModules.noninteractive
+                ./modules/nixos-images/restore-remote-access.nix
+              ];
+              boot.supportedFilesystems.zfs = false;
+              system.kexec-installer.name = "nixos-kexec-installer-noninteractive";
+            }
+          ];
+        }).config.system.build.kexecInstallerTarball;
     in
     {
       formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.nixfmt;
@@ -48,7 +68,7 @@
         matrix-bot = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/matrix-bot/package.nix { };
         mkpasswd = nixpkgs.legacyPackages.x86_64-linux.mkpasswd;
         nix-prefetch-docker = nixpkgs.legacyPackages.x86_64-linux.nix-prefetch-docker;
-        kexec-installer = nixos-images.packages.x86_64-linux.kexec-installer-nixos-unstable-noninteractive;
+        kexec-installer = kexecInstaller;
         nixos-anywhere = nixpkgs.legacyPackages.x86_64-linux.nixos-anywhere;
         opentofu = nixpkgs.legacyPackages.x86_64-linux.opentofu;
         sable = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/sable/package.nix { };
