@@ -82,6 +82,27 @@ in
 {
   imports = [ ../cachix.nix ];
 
+  # CONFIG_MODULES=n leaves an empty /lib/modules directory in buildEnv. Avoid
+  # passing that directory's `.` entry to depmod in aggregateModules.
+  nixpkgs.overlays = [
+    (final: prev: {
+      aggregateModules =
+        modules:
+        (prev.aggregateModules modules).overrideAttrs (old: {
+          postBuild = ''
+            shopt -s nullglob
+            modulePaths=("$out/lib/modules/"*)
+            shopt -u nullglob
+            if [ "''${#modulePaths[@]}" -eq 0 ]; then
+              echo "No modules found."
+              exit 0
+            fi
+          ''
+          + old.postBuild;
+        });
+    })
+  ];
+
   services.journald = {
     settings.Journal = {
       SystemMaxUse = "200M";
