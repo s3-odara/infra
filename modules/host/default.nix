@@ -86,7 +86,8 @@ in
   # passing that directory's `.` entry to depmod in aggregateModules.
   nixpkgs.overlays = [
     (final: prev: {
-      aggregateModules = modules:
+      aggregateModules =
+        modules:
         (prev.aggregateModules modules).overrideAttrs (old: {
           postBuild = ''
             shopt -s nullglob
@@ -96,7 +97,8 @@ in
               echo "No modules found."
               exit 0
             fi
-          '' + old.postBuild;
+          ''
+          + old.postBuild;
         });
     })
   ];
