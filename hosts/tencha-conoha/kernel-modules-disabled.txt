@@ -86,13 +86,11 @@ CONFIG_PKCS8_PRIVATE_KEY_PARSER
 
 NixOS configuration adjustment
 ------------------------------
-Removed boot.initrd.availableKernelModules entries for virtio_pci and virtio_blk,
-and boot.kernelModules entry for wireguard, because these drivers are now built in.
-Set boot.initrd.allowMissingModules=true because NixOS otherwise requires module
-files for supported filesystems even when all required support is built in.
-The kernel package installs lib/modules/<version>/modules.{order,builtin,builtin.modinfo}
-and runs depmod because NixOS and systemd use the resulting indexes to recognize
-built-in functionality even when loadable module support is disabled.
-Incus' generic vhost_vsock module request is disabled because this host does not
-run Incus VMs. Host-specific assertions verify required built-ins and verify that
-MODULES and MODULE_SIG remain disabled.
+Boot drivers virtio_pci, virtio_blk, and wireguard are built in; vhost_vsock is
+unused and disabled. The initial allowMissingModules/index workaround was removed
+after nixpkgs added CONFIG_MODULES=n support (see docs/workarounds.md).
+
+With nixpkgs 3a32588/Linux 7.3, CONFIG_MODULES=n provides no module output or
+indexes. aggregateModules creates an empty /lib/modules, so the host overlay
+skips depmod. Required drivers must remain built in; modprobe config is disabled.
+Assertions enforce built-ins and keep MODULES/MODULE_SIG disabled.

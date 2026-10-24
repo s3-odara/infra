@@ -3,26 +3,22 @@
 - 実装: `guests/prosody/configuration.nix:44-64,204-208`
 - 理由: 現在のProsodyでは、移行先にする予定の組み込み`csi_simple`をまだ使わない。
 - 対応: Community Moduleの`csi_battery_saver`、`csi_muc_priorities`、`track_muc_joins`をpackageと`extraModules`へ追加する。
-- 撤去条件: Prosody 14へ更新したとき。`csi_simple`へ切り替え、`csi_battery_saver`をpackageと`extraModules`から削除し、`csi_grace_period`を有効化する。
+- 撤去条件: Prosody 14で`csi_simple`へ移行し、battery saverを削除できたとき。
 - 導入コミット: `bc1342a` (`feat(prosody): save battery`)
 
 ### TuwunelがMSC4174を実装するまでSygnalを運用する
 
-- 実装: `guests/sygnal/configuration.nix`, `packages/sygnal/`, `flake.nix`の`sygnal` package、nginxのPush Gateway proxy
+- 実装: `guests/sygnal/`, `packages/sygnal/`, `flake.nix`, nginx proxy
 - 理由: 現在のTuwunelだけではMSC4174によるWeb Push配信を完結できない。
 - 対応: 独立したSygnal guestをPush Gatewayとして運用し、Tuwunelから通知を転送する。
-- 撤去条件: TuwunelのMSC4174実装issue `matrix-construct/tuwunel#223`が完成し、Sygnalなしで利用中clientへのWeb Push配信を確認できたとき。
-- 撤去対象: Sygnal guest・package・secret・ACL・DNS・nginx proxy・監視と、以下に記載するSygnal固有の依存／署名鍵workaround。
+- 撤去条件: TuwunelがMSC4174を実装し、SygnalなしでWeb Pushできたとき。
 - 導入コミット: `ab2940c` (`feat(sable): self-host web push with Sygnal for Sable PWA`)
 
 ### SygnalのPython依存をローカル定義・固定する
 
 - 実装: `packages/sygnal/package.nix:8-102`, `packages/sygnal/pins.json`
-- 理由:
-  - `opentracing 2.4.0`と`jaeger-client 4.8.0`は、現在lockしているnixpkgsの`python312Packages`にないためローカルでパッケージ化する。
-  - `pywebpush 2.0.0`を使う。2.3はSygnalの`HttpDelayedRequest`に存在しない`response.headers`へアクセスする。
-  - `Twisted 24.7.0`を使う。Twisted 26ではSygnalの`_AgentBase`を使うApple Web Pushがstallし、Push Gatewayが504を返す。
-- 撤去条件: nixpkgsへのpackage追加、またはSygnal・依存package側の互換性問題の解消後に、個別定義なしでbuildとpush配信を確認できたとき。
+- 理由: nixpkgsに`opentracing`と`jaeger-client`がなく、`pywebpush 2.3`とTwisted 26はSygnalのWeb Pushを壊す。
+- 撤去条件: nixpkgsまたはupstreamで依存関係が解決し、Sygnalの配信を確認できたとき。
 - 導入コミット:
   - `ab2940c` (`feat(sable): self-host web push with Sygnal for Sable PWA`) — `opentracing`、`jaeger-client`のローカル定義
   - `357aa01` (`fix(sygnal): pin pywebpush to upstream lock version`) — `pywebpush`
@@ -39,17 +35,17 @@
 ### Sygnalの期限切れ署名鍵証明書を限定的に許容する
 
 - 実装: `scripts/update-sygnal.sh:50-61`
-- 理由: Sygnal v0.17.0の署名に使われたsubkeyは現在期限切れで、更新済みcertificateも見つかっていない。
-- 対応: pinned keyの`EXPKEYSIG`と`KEYEXPIRED` noticeを許容する。期限切れ署名`EXPSIG`、失効鍵`REVKEYSIG`、primary fingerprint不一致は引き続き拒否する。
-- 撤去条件: upstreamから検証可能な更新済みcertificateまたは新しい有効な署名が提供されたとき。
+- 理由: Sygnal v0.17.0の署名subkeyが期限切れで、更新証明書がない。
+- 対応: pinned keyの期限切れnoticeだけ許容し、期限切れ署名・失効鍵・fingerprint不一致は拒否する。
+- 撤去条件: upstreamが有効な署名または更新証明書を提供したとき。
 - 導入コミット: `ea694dc` (`refactor: update scripts`)
 
 ### Tuwunelのremote mediaを7日で削除する
 
 - 実装: `guests/tuwunel/configuration.nix:87-91`
-- 理由: 必要なmedia管理機能が不足しているため、無制限な蓄積を避ける。
-- 対応: signal処理でdatabase backupに加えて`media delete-range 7d --older-than`を実行する。
-- 撤去・再検討条件: Tuwunel issue 334、367、474などの関連機能が実装されたとき。
+- 理由: 不要なremote mediaの蓄積を防ぐ。
+- 対応: signal処理でbackup時に`media delete-range 7d --older-than`を実行する。
+- 撤去条件: Tuwunelに同等のmedia管理機能が実装されたとき。
 - 導入コミット: `3003cc4` (`feat(tuwunel): prune remote media`)
 
 ## NixOS・build toolへの適応
@@ -57,33 +53,41 @@
 ### update-flake時のkernel config生成で`preUnpack`を無効化する
 
 - 実装: `hosts/{aracha-ovh,mecha-vultr,tencha-conoha}/kernel.nix`の`generatedKernelConfig`
-- 理由: nixpkgsのkernel derivationが持つ`preUnpack`は`$dev/lib/modules/<version>`を作成する。config生成用derivationは`outputs = [ "out" ]`で`dev` outputがないため、`$dev`が空になり`/lib/modules/<version>`を作ろうとして失敗する。
+- 理由: kernelの`preUnpack`が`$dev/lib/modules`を作るが、config生成用derivationには`dev` outputがない。
 - 対応: config生成用derivationでは継承した`preUnpack` hookを空にする。
-- 検証: nixpkgs `55bfb4d`・kernel 7.2.10で、overrideなしではActionsと同じderivation (`2xbqlyykk64icixcn73pnrnn8slrj7mn`) が同じ`/lib/modules` permission errorで失敗し、`preUnpack = ""`を指定するとkernel configのbuildに成功した。
-- 撤去条件: config生成derivationに`dev` outputを追加するか、nixpkgs側のhookがconfig-only derivationでも安全になるよう変更され、overrideなしでbuildできると確認できたとき。
+- 撤去条件: nixpkgsのhookがconfig-only derivationでも安全になったとき。
+- 導入コミット: `a68578c` (`fix(kernel): skip inherited preUnpack for config generation`)
 
 ### `linuxManualConfig`へ`CONFIG_MODULES=n`を明示する
 
 - 実装: `hosts/{aracha-ovh,mecha-vultr,tencha-conoha}/kernel.nix`
-- 理由: `linuxManualConfig`の自動解析は`y/m`だけを読み、`.config`の`# CONFIG_MODULES is not set`をmetadataへ反映しない。明示しないとNixOSがmodule closureを作り、initrd buildに失敗する。
-- 対応: 自動解析した`CONFIG_*`へ`CONFIG_MODULES = "n"`を加えて`config`引数に渡す。旧対応の`modules.builtin*`生成と`boot.initrd.allowMissingModules`は削除した。
+- 理由: `linuxManualConfig`が`CONFIG_MODULES=n`を解析せず、NixOSがmodule closureを作る。
+- 対応: `config`へ`CONFIG_MODULES = "n"`を明示する。
 - 撤去条件: `linuxManualConfig`が`n`も自動解析するようになったとき。
-- 関連するnixpkgsの変更: `8314e36` (`nixos/boot/kernel: allow kernel without MODULES support`)
+- 導入コミット: `8cdf376` (`refactor(kernel): expose CONFIG_MODULES=n to NixOS`)
+
+### `CONFIG_MODULES=n`の空のmodule treeをaggregateModulesで扱う
+
+- 実装: `modules/host/default.nix`
+- 理由: nixpkgs `3a32588`が空の`/lib/modules`を作り、`depmod`へ`.`を渡して失敗する。
+- 対応: module treeが空ならhost overlayで`depmod`をスキップする。
+- 撤去条件: upstreamが空のmodule treeを扱えるようになったとき。
+- 導入コミット: `d6fd809` (`fix: handle empty kernel module tree with CONFIG_MODULES=n`)
 
 ### Clang 21で利用できないkmalloc hardeningを代替する
 
 - 実装: `hosts/{aracha-ovh,mecha-vultr,tencha-conoha}/kernel.nix:150-151`および各`kernel.config`
-- 理由: NixOS kernelのbuildに使うClang 21では、Linux 7.2で追加された`KMALLOC_PARTITION_TYPED`を利用できない。
-- 対応: assertionとkernel configで`KMALLOC_PARTITION_RANDOM`を要求する。
+- 理由: Clang 21はLinux 7.2の`KMALLOC_PARTITION_TYPED`に未対応。
+- 対応: kernel configとassertionで`KMALLOC_PARTITION_RANDOM`を要求する。
 - 撤去条件: 使用toolchainが`KMALLOC_PARTITION_TYPED`をサポートしたとき。
 - 導入コミット: `c2184d1` (`update-flake and kernel`)
 
 ### Incus guestの再起動先を現在のNixOS generationへ更新する
 
 - 実装: `modules/guest/default.nix:33-36`
-- 理由: `boot.isContainer`だけでは、構成切り替え後の`/sbin/init`が現在generationへ更新されず、再起動時に古いgenerationへ戻る。
-- 対応: `lxc-container.nix`のうちinit symlink更新だけを`system.build.installBootLoader`として実装する。
-- 撤去条件: NixOSのcontainer切り替え処理がIncus guestでも現在generationのinitを更新するようになったとき。
+- 理由: Incus guestでは切り替え後も`/sbin/init`が古いgenerationを指す。
+- 対応: `system.build.installBootLoader`でinit symlinkを更新する。
+- 撤去条件: NixOSがIncus guestのinit symlinkも更新するようになったとき。
 - 導入コミット: `ace68a2` (`fix(guest): update LXC init so rebootsuse the current generation`)
 
 ### eturnal wrapperを`postFixup`で作る
@@ -91,39 +95,41 @@
 - 実装: `packages/eturnal/package.nix:55-74`
 - 理由: `rebar3Relx`が`postInstall`を上書きする。
 - 対応: runtime `PATH`と`RUNTIME_DIRECTORY`を設定するwrapperを`postFixup`で作る。
-- 撤去条件: `rebar3Relx`で`postInstall`を安全に追加できるようになるか、wrapperが不要になったとき。
+- 撤去条件: `postInstall`を追加できるか、wrapperが不要になったとき。
 - 導入コミット: `3bd3224` (`feat(rtc): replace coturn with eturnal`)
 
 ### SOPSで生成するKnot設定を起動時に検証する
 
 - 実装: `guests/knot/configuration.nix:256-259`
-- 理由: `keyFiles`がruntime SOPS templateを含むため、Nix build sandbox内では完全な設定を検証できない。
-- 対応: `ExecStartPre`で`knotc ... conf-check`を実行する。
-- 撤去条件: secretを公開せずbuild時に完全な設定検証ができるようになったとき。
+- 理由: runtime SOPS secretsがあり、build sandboxでは設定を完全に検証できない。
+- 対応: 起動前に`knotc conf-check`を実行する。
+- 撤去条件: secretsを公開せずbuild時に検証できるようになったとき。
 - 導入コミット: `58372fb` (`feat: use DNSSEC and migrate dns server to Knot`)
 
 ### nixos-imagesのremoved initrd optionをsmallで回避する
 
 - 実装: `flake.nix`の`kexecInstaller`と`modules/nixos-images/restore-remote-access.nix`
-- 理由: nixpkgsでscripted initrdが削除され、`boot.initrd.systemd.enable`がremoved optionになったが、現在の`nixos-images`の`nix/restore-remote-access.nix`はこのoptionを定義している。
-- 対応: `nixos-images`のkexec installer moduleから元のremote-access moduleだけを無効化し、同じ`restore-state-from-initrd` serviceをローカルmoduleから再定義する。removed optionは指定しない。nixpkgsはpinせず、`nixos-unstable-small`に追従する。
-- 撤去条件: upstream `nixos-images`が新しいnixpkgsと互換なremote-access moduleを提供し、kexec installerの評価・buildが通ることを確認できたとき。
+- 理由: nixpkgsで削除された`boot.initrd.systemd.enable`を、`nixos-images`がまだ設定する。
+- 対応: upstream moduleを無効化し、remote-access serviceをローカル定義する。nixpkgsはpinしない。
+- 撤去条件: upstream moduleが現行nixpkgsで評価・buildできるようになったとき。
+- 導入コミット: `58e3735` (`fix: keep kexec installer working with unstable-small`)
 
 ### kexec installerでは不要なZFS supportを無効にする
 
 - 実装: `flake.nix`の`kexecInstaller`
-- 理由: `nixos-images.nixosModules.noninteractive`が`nix/zfs-minimal.nix`をimportし、ZFSをinstallerのpackage closureへ追加する。nixpkgsの`zfs-user-2.4.4` buildはbash completionを出力先ではなく`/usr/share`へinstallしようとしてpermission deniedになる。現在のhostはすべてBtrfsを使い、installerでZFSは不要。
-- 対応: kexec installerに限りupstreamの`nix/zfs-minimal.nix`を無効化し、ZFS packageをclosureから外す。host構成のfilesystem supportは変更しない。
-- 撤去条件: nixpkgsのZFS package buildが修正され、またはZFS filesystemを使うhostを追加するとき。
+- 理由: installerに不要なZFS packageが入り、nixpkgsの`zfs-user-2.4.4` buildがpermission errorになる。
+- 対応: installerのみZFS moduleを無効化する。hostのfilesystem設定は変更しない。
+- 撤去条件: nixpkgsのZFS buildが直るか、ZFS hostを追加するとき。
+- 導入コミット: `58e3735` (`fix: keep kexec installer working with unstable-small`)
 
 ## Incus・provider・networkへの適応
 
 ### Tuwunelからnginxへのhairpin NATを手動設定する
 
 - 実装: `hosts/aracha-ovh/configuration.nix:86-103`
-- 理由: Incusはbridge-originated trafficをpublic address向けforwardへDNATせず、DNATだけでは戻り経路も非対称になる。TuwunelではSSRF防止のためpublic Matrix/Push URLを維持する必要がある。
-- 対応: 対象Tuwunel guestからnginxへのHTTPS通信だけをDNATし、同じflowだけmasqueradeする。共有HTTPS forward全体はSNATせず、外部client IPを維持する。
-- 撤去条件: Incus側でhairpin NATが提供されるか、public URLを経由しない安全な構成へ変更したとき。
+- 理由: Incusはbridge trafficをpublic forwardへDNATせず、TuwunelはSSRF対策上public URLsを使う。
+- 対応: TuwunelからnginxへのHTTPSだけDNAT/masqueradeし、外部client IPは維持する。
+- 撤去条件: Incusがhairpin NATを提供するか、public URL不要の構成に変えたとき。
 - 導入コミット:
   - `59058fc` (`fix: add scoped hairpin NAT for Sygnal`)
   - `d1e107c` (`fix: DNAT Tuwunel push hairpin traffic`)
@@ -132,17 +138,17 @@
 ### Incus providerのACL表現差を吸収する
 
 - 実装: `tofu/acls.tf:7-35`
-- 理由: providerは空のrule setを`null`として読み戻す。また、bridge ACLのegressではnftablesの`reject`を利用できない。
-- 対応: 空ACLは最初から`null`にし、egress拒否には`drop`を使う。
-- 撤去条件: providerの空配列round-tripとbridge ACLの`reject`が利用可能になったとき。
+- 理由: providerが空rule setを`null`に戻し、bridge ACLでは`reject`を使えない。
+- 対応: 空ACLを`null`にし、egress拒否は`drop`にする。
+- 撤去条件: providerが空配列を保持し、bridge ACLで`reject`を使えるとき。
 - 導入コミット: `9f7cace` (`fix(tofu): handle bridge ACL rule behavior`)
 
 ### Incus bridge生成後にjournal receiverを起動する
 
 - 実装: `modules/host/default.nix:102-114`
-- 理由: Incusは`incusbr0`を非同期に作るため、`incus.service`の起動順だけでは`BindToDevice=incusbr0`が失敗することがある。
-- 対応: journal receiver socketを`incusbr0.device`へ依存させ、bridge消失時も停止する。
-- 撤去条件: Incus serviceがbridgeの利用可能化まで同期するか、receiverがbridgeへbindしない構成になったとき。
+- 理由: Incusが`incusbr0`を非同期作成し、journal receiverのbindが失敗することがある。
+- 対応: socketを`incusbr0.device`へ依存させ、bridge消失時も停止する。
+- 撤去条件: Incusがbridge起動を同期するか、receiverがbind不要になったとき。
 - 導入コミット: `076ac1b` (`fix: start journal receiver after Incus bridge`)
 
 ### 月次R2 backupでbucket確認を省略する
@@ -151,9 +157,9 @@
   - `guests/knot/configuration.nix:309-316`
   - `guests/prosody/configuration.nix:395-405`
   - `guests/tuwunel/configuration.nix:253-262`
-- 理由: archive用credentialで不要なbucket作成・存在確認を行わせず、既存bucketへのobject uploadだけを行う。
+- 理由: archive credentialでbucket作成・確認をさせず、既存bucketへuploadする。
 - 対応: `RCLONE_CONFIG_R2_NO_CHECK_BUCKET=true`と`--config /dev/null`を指定して`rclone rcat`を実行する。
-- 撤去条件: rclone/R2の確認処理が権限と運用方針に適合するようになったとき。
+- 撤去条件: rclone/R2の確認処理が権限方針に合うようになったとき。
 - 導入コミット: `d15383e` (`fix: skip R2 bucket creation checks in monthly backups`)
 
 ## Prosodyへのdownstream workaround
