@@ -70,6 +70,14 @@
 - 撤去条件: `linuxManualConfig`が`n`も自動解析するようになったとき。
 - 関連するnixpkgsの変更: `8314e36` (`nixos/boot/kernel: allow kernel without MODULES support`)
 
+### `CONFIG_MODULES=n`の空のmodule treeをaggregateModulesで扱う
+
+- 実装: `modules/host/default.nix`
+- 理由: lock中のnixpkgs `3a32588`で`aggregateModules`に`/lib/modules`が追加され、loadable module outputのないLinux 7.3でも空ディレクトリが作られる。upstream hookがこれをkernel version `.`と解釈し、`depmod`が`Bad version passed .`で失敗する。
+- 対応: hostの`aggregateModules` overlayで、module treeが空なら`depmod`前に終了する。`CONFIG_MODULES=n`やkernel config自体は変更しない。
+- 関係: 上記の`CONFIG_MODULES=n` workaroundと補完関係にある。現在のLinux 7.3ではkernelの`modules` outputもbuilt-in module indexもこのtreeに含まれないため、必要なdriverは引き続きkernel built-inであること。`boot.modprobeConfig.enable = false`も維持する。
+- 撤去条件: upstream `aggregateModules`が空のmodule treeを正常に扱うようになり、hostのsystem buildが通ることを確認できたとき。
+
 ### Clang 21で利用できないkmalloc hardeningを代替する
 
 - 実装: `hosts/{aracha-ovh,mecha-vultr,tencha-conoha}/kernel.nix:150-151`および各`kernel.config`
