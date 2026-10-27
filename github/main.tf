@@ -8,12 +8,6 @@ resource "github_repository_ruleset" "main" {
   target      = "branch"
   enforcement = "active"
 
-  bypass_actors {
-    actor_id    = 76041920
-    actor_type  = "User"
-    bypass_mode = "always"
-  }
-
   conditions {
     ref_name {
       include = ["~DEFAULT_BRANCH"]
@@ -24,7 +18,6 @@ resource "github_repository_ruleset" "main" {
   rules {
     deletion         = true
     non_fast_forward = true
-    update           = true
 
     pull_request {
       dismiss_stale_reviews_on_push   = true
@@ -46,6 +39,32 @@ resource "github_repository_ruleset" "main" {
         integration_id = 15368
       }
     }
+  }
+}
+
+# Keep automated PR authors from updating main, even after approval. The
+# maintainer can bypass this update restriction only when merging a PR.
+resource "github_repository_ruleset" "main_updates" {
+  name        = "main updates"
+  repository  = local.repository
+  target      = "branch"
+  enforcement = "active"
+
+  bypass_actors {
+    actor_id    = 76041920
+    actor_type  = "User"
+    bypass_mode = "pull_request"
+  }
+
+  conditions {
+    ref_name {
+      include = ["~DEFAULT_BRANCH"]
+      exclude = []
+    }
+  }
+
+  rules {
+    update = true
   }
 }
 
