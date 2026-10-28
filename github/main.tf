@@ -42,29 +42,17 @@ resource "github_repository_ruleset" "main" {
   }
 }
 
-# Keep automated PR authors from updating main, even after approval. The
-# maintainer can bypass this update restriction only when merging a PR.
-resource "github_repository_ruleset" "main_updates" {
-  name        = "main updates"
-  repository  = local.repository
-  target      = "branch"
-  enforcement = "active"
+# Only the maintainer may update main. This is an actor restriction, not a
+# ruleset bypass, so approved PRs can be merged normally by the maintainer.
+resource "github_branch_protection_v3" "main_push_allowlist" {
+  repository     = local.repository
+  branch         = "main"
+  enforce_admins = true
 
-  bypass_actors {
-    actor_id    = 76041920
-    actor_type  = "User"
-    bypass_mode = "pull_request"
-  }
-
-  conditions {
-    ref_name {
-      include = ["~DEFAULT_BRANCH"]
-      exclude = []
-    }
-  }
-
-  rules {
-    update = true
+  restrictions {
+    users = ["s3-odara"]
+    teams = []
+    apps  = []
   }
 }
 
