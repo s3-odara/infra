@@ -809,6 +809,11 @@ in
             return 200 '{"contacts":[{"role":"m.role.admin","matrix_id":"@odara:matrix.odarah.org","email_address":"hostmaster@s3-odara.net"}]}';
           '';
 
+          "= /.well-known/openid-configuration" = {
+            proxyPass = "http://${tuwunelAddress}:8008";
+            extraConfig = matrixProxyConfig;
+          };
+
           "= /_tuwunel/oidc/account.css".extraConfig = ''
             alias ${oidcAccountCss};
             default_type text/css;
