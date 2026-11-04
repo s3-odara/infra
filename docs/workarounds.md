@@ -247,7 +247,7 @@
 - `guests/prosody/invites/patches/`のinvite page向けCSP、cache、Referrer-Policy追加
 - Prosody HTTP logからquery stringを除くpatch
 - ProsodyのOpenBSD client表示、独自invite HTML
-- web clientのinline script外部化と一般的なCSP hardening
+- web clientのinline scriptのCSP hash生成と一般的なCSP hardening
 
 ## 撤去済み
 

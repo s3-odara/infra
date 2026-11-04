@@ -4,19 +4,17 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 )
-
-// Nix sets an absolute path at build time; local builds use PATH.
-var diffCommand = "diff"
 
 var elementMetaCSP = regexp.MustCompile(`(?s)\n    <meta http-equiv="Content-Security-Policy" content=".*?\n    ">`)
 
@@ -56,119 +54,90 @@ func inlineScripts(source string) ([]string, error) {
 	return scripts, nil
 }
 
-func transform(client, relative, source, snippetDir string) (string, error) {
-	var snippets []string
-	if relative != "index.html" {
-		snippets = []string{"global-equals.js", "promise-with-resolvers.js"}
-	} else {
-		switch client {
-		case "sable":
-			snippets = []string{"global-or.js", "sable-preload.js"}
-		case "cinny":
-			snippets = []string{"global-or.js"}
-		case "element":
-			if count := len(elementMetaCSP.FindAllStringIndex(source, -1)); count != 1 {
-				return "", fmt.Errorf("expected exactly one upstream meta CSP, found %d", count)
+// Keep Element's HTML unchanged except for its deployment-specific meta CSP.
+// The HTTP policy is supplied by Nginx.
+func removeMetaCSP(path string) error {
+	source, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	if !utf8.Valid(source) {
+		return fmt.Errorf("%s: expected UTF-8 HTML", path)
+	}
+	if count := len(elementMetaCSP.FindAllIndex(source, -1)); count != 1 {
+		return fmt.Errorf("%s: expected exactly one upstream meta CSP, found %d", path, count)
+	}
+	return os.WriteFile(path, elementMetaCSP.ReplaceAll(source, nil), 0644)
+}
+
+// Hash a single document or every HTML file in a tree without rewriting scripts.
+func scriptHashes(path string) ([]string, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+	files := []string{path}
+	if info.IsDir() {
+		files = nil
+		if err := filepath.WalkDir(path, func(name string, entry fs.DirEntry, err error) error {
+			if err != nil {
+				return err
 			}
-			source = elementMetaCSP.ReplaceAllString(source, "")
+			if !entry.IsDir() && filepath.Ext(name) == ".html" {
+				if !entry.Type().IsRegular() {
+					return fmt.Errorf("%s: expected a regular HTML file", name)
+				}
+				files = append(files, name)
+			}
+			return nil
+		}); err != nil {
+			return nil, err
+		}
+		if len(files) == 0 {
+			return nil, fmt.Errorf("%s: no HTML files found", path)
 		}
 	}
-	for _, name := range snippets {
-		body, err := os.ReadFile(filepath.Join(snippetDir, name))
+
+	unique := make(map[string]bool)
+	for _, file := range files {
+		data, err := os.ReadFile(file)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		old := "<script>" + string(body) + "</script>"
-		if count := strings.Count(source, old); count != 1 {
-			return "", fmt.Errorf("expected %s snippet exactly once, found %d", name, count)
+		scripts, err := inlineScripts(string(data))
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", file, err)
 		}
-		source = strings.Replace(source, old, `<script src="/csp-inline/`+name+`"></script>`, 1)
-	}
-	scripts, err := inlineScripts(source)
-	if err != nil {
-		return "", err
-	}
-	if len(scripts) != 0 {
-		return "", fmt.Errorf("%d unexternalized inline script(s) remain", len(scripts))
-	}
-	return source, nil
-}
-
-func processFile(client, root, snippetDir, diffDir, relative string) error {
-	path := filepath.Join(root, relative)
-	before, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	after, err := transform(client, relative, string(before), snippetDir)
-	if err != nil {
-		return err
-	}
-	// Feed the transformed text directly to diff; no intermediate HTML files.
-	cmd := exec.Command(diffCommand, "-u", "--label", "before/"+relative, "--label", "after/"+relative, path, "-")
-	cmd.Stdin = strings.NewReader(after)
-	cmd.Stderr = os.Stderr
-	diff, err := cmd.Output()
-	if err != nil {
-		// Exit 1 is an ordinary difference; all other failures must propagate.
-		if exit, ok := err.(*exec.ExitError); !ok || exit.ExitCode() != 1 {
-			return fmt.Errorf("diff: %w", err)
+		for _, body := range scripts {
+			digest := sha256.Sum256([]byte(body))
+			unique["'sha256-"+base64.StdEncoding.EncodeToString(digest[:])+"'"] = true
 		}
 	}
-	diffName := client + "-" + strings.ReplaceAll(relative, "/", "-") + ".diff"
-	if err := os.WriteFile(filepath.Join(diffDir, diffName), diff, 0644); err != nil {
-		return err
+	hashes := make([]string, 0, len(unique))
+	for hash := range unique {
+		hashes = append(hashes, hash)
 	}
-	return os.WriteFile(path, []byte(after), 0644)
-}
-
-func process(client, root, snippetDir, diffDir string) error {
-	var callHTML string
-	switch client {
-	case "sable", "cinny":
-		callHTML = "public/element-call/index.html"
-	case "element":
-		callHTML = "widgets/element-call/index.html"
-	default:
-		return fmt.Errorf("unknown web client: %s", client)
-	}
-	if err := os.MkdirAll(diffDir, 0755); err != nil {
-		return err
-	}
-	for _, relative := range []string{"index.html", callHTML} {
-		if err := processFile(client, root, snippetDir, diffDir, relative); err != nil {
-			return fmt.Errorf("%s:%s: %w", client, relative, err)
-		}
-	}
-	return nil
+	slices.Sort(hashes)
+	return hashes, nil
 }
 
 func hashes(path string) error {
-	data, err := os.ReadFile(path)
+	hashes, err := scriptHashes(path)
 	if err != nil {
 		return err
-	}
-	scripts, err := inlineScripts(string(data))
-	if err != nil {
-		return fmt.Errorf("%s: %w", path, err)
-	}
-	hashes := make([]string, 0, len(scripts))
-	for _, body := range scripts {
-		digest := sha256.Sum256([]byte(body))
-		hashes = append(hashes, "'sha256-"+base64.StdEncoding.EncodeToString(digest[:])+"'")
 	}
 	_, err = fmt.Fprintln(os.Stdout, strings.Join(hashes, " "))
 	return err
 }
 
 func run(args []string) error {
-	if len(args) == 5 && args[0] == "process" {
-		return process(args[1], args[2], args[3], args[4])
+	if len(args) == 2 && args[0] == "remove-meta-csp" {
+		return removeMetaCSP(args[1])
 	}
 	if len(args) == 2 && args[0] == "hashes" {
 		return hashes(args[1])
 	}
-	return fmt.Errorf("usage: web-client-html process CLIENT ROOT SNIPPETS DIFF_DIR\n       web-client-html hashes FILE")
+	return fmt.Errorf("usage: web-client-html remove-meta-csp FILE\n       web-client-html hashes FILE_OR_DIRECTORY")
 }
 
 func main() {

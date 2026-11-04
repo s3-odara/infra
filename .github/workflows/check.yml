@@ -67,10 +67,10 @@ jobs:
           mapfile -t targets <<<"$target_list"
           nix build --no-link --max-jobs 1 --cores 4 "${targets[@]}"
 
-      - name: Show web client transformations
+      - name: Show web client configuration and CSP
         shell: bash
         run: |
           set -euo pipefail
           diffs=$(nix build --no-link --print-out-paths \
             path:.#nixosConfigurations.nginx.config.system.build.webClientDiffs)
-          find -L "$diffs" -type f -name '*.diff' -print -exec cat {} \;
+          find -L "$diffs" -type f \( -name '*.diff' -o -name '*csp.conf' \) -print -exec cat {} \;
