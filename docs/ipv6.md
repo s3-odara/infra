@@ -1,6 +1,6 @@
 # IPv6実装方針
 
-現在は全ホストとIncus bridgeでIPv6を無効にしている。guestへIPv6を提供できないhostで有効にする運用上の利点がないため、`routed-prefix`または`l2-bridge`を採用するときだけ有効にする。
+IPv6は、guestへ提供できる`routed-prefix`または`l2-bridge`を採用するときだけ有効にする。
 
 ## 設計規則
 
@@ -121,9 +121,16 @@ IPv4の`public_ports`はhost addressからguest IPv4へのforwardとmanaged NIC�
 
 `private_ports`の`source = "network"`をIPv6へ対応させる場合は、IPv4とIPv6のnetwork prefixからACL ruleをそれぞれ生成する。明示したCIDRは、そのaddress familyだけに適用する。
 
-ICMPv6を一括で拒否してはならない。Neighbor Discovery、Router Advertisement、Packet Too Big、Destination Unreachable、Time Exceededに必要な通信を通す。ACLを絞る前に、Incus NICへACLを適用した状態でRA、DHCPv6、NDP、Path MTU Discoveryを確認する。
-
 複数uplink、policy routing、VRFは共通modeへ含めない。対象hostのNixOS構成へ明示する。Incus側の構造まで変わる場合は、`routed-prefix`または`l2-bridge`として表現できるときだけOpenTofuへ追加する。
+
+## 有効化時のhardening
+
+[RFC 9099](https://www.rfc-editor.org/rfc/rfc9099.html)を基に、kernelと既存firewallの処理を確認し、不足する制限を追加する。拡張ヘッダーは一律拒否せず、用途に応じて種別ごとの扱いを決める（[RFC 7045 §2.1](https://www.rfc-editor.org/rfc/rfc7045.html#section-2.1)）。
+
+- 拡張ヘッダー列の順序・重複・不正な長さによるACL回避と、Hop-by-Hop OptionsによるCPU負荷を制限する（RFC 9099 §2.2）。
+- Routing Header Type 0（RH0）を遮断する。他のRouting Headerまで一括拒否しない（[RFC 5095 §4.2](https://www.rfc-editor.org/rfc/rfc5095.html#section-4.2)）。
+- 先頭フラグメントに上位層ヘッダーまで含むヘッダー列全体がないパケットを拒否する（[RFC 7112](https://www.rfc-editor.org/rfc/rfc7112.html)）。
+- ICMPv6を一括拒否せず、NDP、必要なRA・MLD、エラー通知を残す。特にPacket Too Bigを通し、Path MTU Discoveryを維持する（[RFC 4890](https://www.rfc-editor.org/rfc/rfc4890.html)）。
 
 ## 実装手順
 
@@ -141,7 +148,7 @@ providerの資料または管理画面でprefixの提供方法も確認する。
 3. tfvarsへ接続方式が必要とするprefix、guest address、uplink名、parent bridge名を追加する。
 4. OpenTofuへ必要なnetwork、NIC、ACLと入力検証を追加する。
 5. guestがRAまたはDHCPv6を受け、期待したaddressとdefault routeを持つことを確認する。
-6. 外向き通信、外部からの公開port、ICMPv6、Path MTU Discoveryを確認する。
+6. 外向き通信、外部からの公開port、ICMPv6、Path MTU DiscoveryをIncus ACL適用下で確認する。
 7. 固定addressではDNSのAAAA recordを変更する。動的addressではDDNSの更新を確認する。
 
 WireGuard service自体をIPv6で公開する変更と、VPN clientへIPv6を配る変更は分ける。後者にはVPN内のaddress設計、forwarding、filteringが別に必要になる。
