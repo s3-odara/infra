@@ -23,3 +23,6 @@ target/
 
 # Local agent tooling working directory
 .agents/
+
+# Collected logs and runtime information (may contain sensitive data)
+/log-collections/

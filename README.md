@@ -41,5 +41,6 @@ just help
 - [IPv6実装方針](docs/ipv6.md)
 - [初回導入](docs/installation.md)
 - [運用と復旧](docs/operations.md)
+- [ログ・稼働情報の収集対象](docs/log-collection.md)
 - [シークレット管理](docs/secrets.md)
 - [低メモリ環境へのデプロイ](docs/low-memory-deployment.md)
