@@ -60,6 +60,8 @@ let
         "fcm.googleapis.com"
         "updates.push.services.mozilla.com"
         "*.notify.windows.com"
+        # Prosody hosts the UnifiedPush gateway on our public HTTPS endpoint.
+        "xmpp.odarah.org"
       ];
       max_connections = 20;
       inflight_request_limit = 64;
