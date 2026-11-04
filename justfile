@@ -17,6 +17,7 @@ help topic="":
 
     Commands:
       check                   Validate the configuration statically
+      collect-logs            Collect logs and runtime information from a host
       install-host            Install a NixOS host
       deploy-guest-closures   Build and remotely activate aracha-ovh guests
       manage-secrets          Manage host and guest secrets
@@ -37,6 +38,7 @@ help topic="":
 
     Examples:
       just install-host mecha-vultr root@HOST
+      just collect-logs aracha-ovh
       just apply-tofu
       just upgrade-guests
       just apply-github
@@ -102,6 +104,10 @@ _check-shell:
 
 deploy-guest-closures host:
     ./scripts/deploy-guest-closures.sh "$@"
+
+# Run from the management terminal; only privileged collection prompts for doas.
+collect-logs host local_parent="log-collections":
+    bash "{{ repo_root }}/scripts/collect-logs.sh" "$@"
 
 apply-tofu:
     doas /run/current-system/sw/bin/tofu -chdir=tofu init
