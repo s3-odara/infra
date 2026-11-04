@@ -24,6 +24,9 @@ in
 {
   imports = [ ../cachix.nix ];
 
+  # The Incus network does not provide IPv6 connectivity to guests.
+  networking.enableIPv6 = false;
+
   # Nix may need Git to fetch git-based sources while evaluating a remote flake.
   environment.systemPackages = [ pkgs.gitMinimal ];
 

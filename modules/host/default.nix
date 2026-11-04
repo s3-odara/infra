@@ -184,6 +184,18 @@ in
 
   networking.firewall.interfaces.uplink0.allowedTCPPorts = [ 22 ];
 
+  # Current workloads do not require IPv4 options. Drop them on all interfaces
+  # at the host's prerouting hook before conntrack, including forwarded traffic.
+  networking.nftables.tables."ipv4-options-guard" = {
+    family = "inet";
+    content = ''
+      chain pre {
+        type filter hook prerouting priority -310; policy accept;
+        ip hdrlength gt 5 counter drop
+      }
+    '';
+  };
+
   system.autoUpgrade = {
     enable = true;
     dates = "*-*-* 04:00:00 Asia/Tokyo";
