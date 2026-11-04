@@ -8,6 +8,7 @@
 
 let
   privateAddress = "10.77.3.16";
+  nonPublicIPv4 = import ../../modules/guest/non-public-ipv4.nix;
   pushClientConfig = builtins.fromJSON (builtins.readFile ../../packages/sygnal/client-config.json);
   sygnal = pkgs.callPackage ../../packages/sygnal/package.nix { };
   yaml = pkgs.formats.yaml { };
@@ -82,6 +83,42 @@ in
   networking.useDHCP = true;
   networking.firewall.enable = false;
 
+  networking.nftables = {
+    enable = true;
+    flushRuleset = false;
+    tables.sygnal-egress = {
+      family = "inet";
+      content = ''
+        set non_public_ipv4 {
+          type ipv4_addr; flags interval;
+          elements = { ${lib.concatStringsSep ", " nonPublicIPv4} }
+        }
+
+        chain output {
+          type filter hook output priority filter; policy accept;
+          meta skuid "sygnal" jump sygnal_egress
+        }
+
+        chain sygnal_egress {
+          ct direction reply counter accept
+          # ExecStartPost probes the service through its private listen address.
+          ip daddr ${privateAddress} tcp dport 5000 counter accept
+          ip daddr 10.77.3.1 udp dport 53 counter accept
+          ip daddr 10.77.3.1 tcp dport 53 counter accept
+          ip daddr @non_public_ipv4 counter reject with icmpx type admin-prohibited
+          # Push providers use changing public addresses. Keep the application
+          # hostname allowlist, and permit only IPv4 HTTPS at the network layer.
+          meta nfproto ipv4 tcp dport 443 counter accept
+          counter reject with icmpx type admin-prohibited
+        }
+      '';
+    };
+    preCheckRuleset = ''
+      substituteInPlace ruleset.conf \
+        --replace-fail 'meta skuid "sygnal"' 'meta skuid 65534'
+    '';
+  };
+
   users.groups.sygnal = { };
   users.users.sygnal = {
     isSystemUser = true;
@@ -92,9 +129,11 @@ in
   systemd.services.sygnal = {
     description = "Matrix Sygnal Web Push gateway";
     wantedBy = [ "multi-user.target" ];
+    bindsTo = [ "nftables.service" ];
     wants = [ "network-online.target" ];
     after = [
       "network-online.target"
+      "nftables.service"
       "sops-nix.service"
     ];
     serviceConfig = {

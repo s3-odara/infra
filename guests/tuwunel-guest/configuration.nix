@@ -1,5 +1,8 @@
 { configurationName, pkgs, ... }:
 
+let
+  oneshotHardening = import ../../modules/guest/oneshot-hardening.nix;
+in
 {
   networking.hostName = configurationName;
   networking.useDHCP = true;
@@ -67,8 +70,10 @@
     description = "Prune cached remote media from Tuwunel";
     after = [ "tuwunel.service" ];
     requires = [ "tuwunel.service" ];
-    serviceConfig = {
+    serviceConfig = oneshotHardening.base // {
       Type = "oneshot";
+      PrivateNetwork = true;
+      RestrictAddressFamilies = [ "AF_UNIX" ];
       ExecStart = "${pkgs.systemd}/bin/systemctl kill --kill-whom=main --signal=SIGUSR2 tuwunel.service";
     };
   };

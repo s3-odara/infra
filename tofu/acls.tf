@@ -26,11 +26,12 @@ resource "incus_network_acl" "guest" {
   ) : null
 
   # Bridge ACL egress cannot use nftables reject.
-  egress = length(each.value.denied_egress) > 0 ? [
-    for destination in each.value.denied_egress : {
+  # Guests have no reason to contact IPv4 link-local/metadata endpoints.
+  egress = [
+    for destination in distinct(concat(["169.254.0.0/16"], each.value.denied_egress)) : {
       action      = "drop"
       destination = destination
       state       = "enabled"
     }
-  ] : null
+  ]
 }

@@ -8,6 +8,7 @@
 }:
 
 let
+  oneshotHardening = import ../../modules/guest/oneshot-hardening.nix;
   odarahHost = "odarah.org";
   matrixHost = "matrix.odarah.org";
   cinnyHost = "cinny.matrix.odarah.org";
@@ -503,6 +504,42 @@ in
     };
 
     unitConfig.StartLimitIntervalSec = 0;
+  };
+
+  networking.nftables = {
+    enable = true;
+    flushRuleset = false;
+    tables.nginx-egress = {
+      family = "inet";
+      content = ''
+        chain output {
+          type filter hook output priority filter; policy accept;
+          meta skuid "${config.services.nginx.user}" jump nginx_egress
+        }
+
+        chain nginx_egress {
+          # Preserve responses to HTTP, WebSocket, TCP stream and QUIC clients,
+          # without allowing arbitrary established outbound connections.
+          ct direction reply counter accept
+          ip daddr 127.0.0.1 tcp dport { 8443, 9443, 9444, 9445, 9446 } counter accept
+          ip daddr ${prosodyAddress} tcp dport { 80, 443 } counter accept
+          ip daddr { ${tuwunelAddress}, ${guestTuwunelAddress} } tcp dport 8008 counter accept
+          ip daddr ${rtcAddress} tcp dport { 80, 5349, 7880, 8081 } counter accept
+          ip daddr ${sygnalAddress} tcp dport 5000 counter accept
+          counter reject with icmpx type admin-prohibited
+        }
+      '';
+    };
+    # Rewrite only the build-check copy, not the installed username rule.
+    preCheckRuleset = ''
+      substituteInPlace ruleset.conf \
+        --replace-fail 'meta skuid "${config.services.nginx.user}"' 'meta skuid 65534'
+    '';
+  };
+
+  systemd.services.nginx = {
+    bindsTo = [ "nftables.service" ];
+    after = [ "nftables.service" ];
   };
 
   services.nginx = {
@@ -1208,9 +1245,15 @@ in
 
   systemd.services.guest-registration-blocklist = {
     description = "Update the guest registration IP blocklist";
-    serviceConfig = {
+    serviceConfig = oneshotHardening.base // {
       Type = "oneshot";
       ExecStart = guestRegistrationBlocklist;
+      PrivateNetwork = true;
+      RestrictAddressFamilies = [ "AF_UNIX" ];
+      ReadWritePaths = [ "/run/guest-registration-blocklist" ];
+      SupplementaryGroups = [ config.services.nginx.group ];
+      MemoryMax = "256M";
+      TasksMax = 64;
     };
   };
 
