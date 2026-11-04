@@ -7,6 +7,7 @@ resource "github_repository_ruleset" "main" {
   repository  = local.repository
   target      = "branch"
   enforcement = "active"
+  depends_on  = [github_repository_ruleset.main_pr_gate]
 
   conditions {
     ref_name {
@@ -18,12 +19,6 @@ resource "github_repository_ruleset" "main" {
   rules {
     deletion         = true
     non_fast_forward = true
-
-    pull_request {
-      dismiss_stale_reviews_on_push   = true
-      require_code_owner_review       = true
-      required_approving_review_count = 1
-    }
 
     required_status_checks {
       strict_required_status_checks_policy = false
@@ -42,10 +37,10 @@ resource "github_repository_ruleset" "main" {
   }
 }
 
-# Keep automated PR authors from updating main, even after approval. The
-# maintainer can bypass this update restriction only when merging a PR.
-resource "github_repository_ruleset" "main_updates" {
-  name        = "main updates"
+# The maintainer can bypass PR and update restrictions at any time, including
+# for direct pushes. Checks and history protections remain non-bypassable.
+resource "github_repository_ruleset" "main_pr_gate" {
+  name        = "main PR gate"
   repository  = local.repository
   target      = "branch"
   enforcement = "active"
@@ -53,7 +48,7 @@ resource "github_repository_ruleset" "main_updates" {
   bypass_actors {
     actor_id    = 76041920
     actor_type  = "User"
-    bypass_mode = "pull_request"
+    bypass_mode = "always"
   }
 
   conditions {
@@ -65,6 +60,12 @@ resource "github_repository_ruleset" "main_updates" {
 
   rules {
     update = true
+
+    pull_request {
+      dismiss_stale_reviews_on_push   = true
+      require_code_owner_review       = true
+      required_approving_review_count = 1
+    }
   }
 }
 
