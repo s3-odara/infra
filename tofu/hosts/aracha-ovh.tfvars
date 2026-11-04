@@ -20,6 +20,11 @@ guests = {
       },
     ]
     private_ports = []
+    # Authoritative DNS needs no new connections to other bridge guests.
+    denied_egress = [
+      "10.77.3.0",
+      "10.77.3.2-10.77.3.255",
+    ]
   }
 
   prosody = {

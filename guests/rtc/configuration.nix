@@ -97,6 +97,9 @@ in
       RestartSec = "5s";
       UMask = "0077";
 
+      CapabilityBoundingSet = "";
+      LockPersonality = true;
+      MemoryDenyWriteExecute = true;
       NoNewPrivileges = true;
       PrivateDevices = true;
       PrivateMounts = true;
@@ -108,6 +111,7 @@ in
       ProtectKernelLogs = true;
       ProtectKernelModules = true;
       ProtectKernelTunables = true;
+      ProtectProc = "invisible";
       ProtectSystem = "strict";
       RestrictAddressFamilies = [
         "AF_INET"

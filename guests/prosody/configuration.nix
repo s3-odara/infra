@@ -7,6 +7,7 @@
 }:
 
 let
+  oneshotHardening = import ../../modules/guest/oneshot-hardening.nix;
   acmeDnsEnvironment = pkgs.writeText "acme-rfc2136.env" ''
     DNSUPDATE_NAMESERVER=10.77.3.11:53
     DNSUPDATE_TSIG_KEY=prosody.
@@ -357,23 +358,26 @@ in
     };
   };
 
-  systemd.services."backup-failure-notify@".serviceConfig = {
+  systemd.services."backup-failure-notify@".serviceConfig = oneshotHardening.notification // {
     Type = "oneshot";
     LoadCredential = [ "ntfy-topic:${config.sops.secrets.ntfy_topic.path}" ];
     ExecStart = backupFailureNotifier;
   };
   systemd.services."restic-backups-prosody-short".unitConfig.OnFailure =
     "backup-failure-notify@%n.service";
-  systemd.services."restic-backups-prosody-short".serviceConfig.TimeoutStartSec = "10m";
+  systemd.services."restic-backups-prosody-short".serviceConfig = oneshotHardening.backup // {
+    # Both backup jobs retain the existing mkdir-based lock directly in /run.
+    ReadWritePaths = [ "/run" ];
+  };
   systemd.services.prosody-monthly-backup = {
     description = "Create an encrypted monthly Prosody backup";
     wants = [ "network-online.target" ];
     after = [ "network-online.target" ];
     unitConfig.OnFailure = "backup-failure-notify@%n.service";
-    serviceConfig = {
+    serviceConfig = oneshotHardening.backup // {
       Type = "oneshot";
-      TimeoutStartSec = "10m";
       EnvironmentFile = config.sops.templates."restic-r2.env".path;
+      ReadWritePaths = [ "/run" ];
     };
     preStart = ''
       while ! mkdir /run/prosody-backup.lock 2>/dev/null; do
@@ -435,7 +439,29 @@ in
     serviceConfig = {
       EnvironmentFile = config.sops.templates."prosody.env".path;
       RuntimeDirectoryMode = "0700";
+      StateDirectoryMode = "0700";
       UMask = "0077";
+
+      CapabilityBoundingSet = [ "CAP_NET_BIND_SERVICE" ];
+      LockPersonality = true;
+      NoNewPrivileges = true;
+      ProtectClock = true;
+      ProtectKernelLogs = true;
+      ProtectProc = "invisible";
+      ProtectSystem = "strict";
+      RemoveIPC = true;
+      RestrictAddressFamilies = [
+        "AF_UNIX"
+        "AF_INET"
+        "AF_INET6"
+        # Preserve local interface discovery via getifaddrs().
+        "AF_NETLINK"
+      ];
+      SystemCallArchitectures = "native";
+      SystemCallFilter = [
+        "@system-service"
+        "~@privileged"
+      ];
     };
   };
 

@@ -6,6 +6,7 @@
 }:
 
 let
+  oneshotHardening = import ../../modules/guest/oneshot-hardening.nix;
   forwardZone = ./zones/odarah.org.zone;
   reverseZone = ./zones/173.184.235.15.in-addr.arpa.zone;
   acmeZone = ./zones/_acme-challenge.odarah.org.zone;
@@ -258,7 +259,7 @@ in
     # start.
     knot.serviceConfig.ExecStartPre = "${pkgs.knot-dns}/bin/knotc --config=/etc/knot/knot.conf conf-check";
 
-    "backup-failure-notify@".serviceConfig = {
+    "backup-failure-notify@".serviceConfig = oneshotHardening.notification // {
       Type = "oneshot";
       LoadCredential = [ "ntfy-topic:${config.sops.secrets.ntfy_topic.path}" ];
       ExecStart = backupFailureNotifier;
@@ -268,7 +269,8 @@ in
       wants = [ "knot.service" ];
       after = [ "knot.service" ];
       unitConfig.OnFailure = "backup-failure-notify@%n.service";
-      serviceConfig.TimeoutStartSec = "10m";
+      # zone-backup writes in knotd, not in this read-only client namespace.
+      serviceConfig = oneshotHardening.backup;
     };
 
     knot-monthly-backup = {
@@ -282,9 +284,9 @@ in
         "knot.service"
       ];
       unitConfig.OnFailure = "backup-failure-notify@%n.service";
-      serviceConfig = {
+      # knotd performs zone-backup with its own writable StateDirectory.
+      serviceConfig = oneshotHardening.backup // {
         Type = "oneshot";
-        TimeoutStartSec = "10m";
         EnvironmentFile = config.sops.templates."restic-r2.env".path;
       };
       preStart = ''
@@ -322,13 +324,19 @@ in
       wants = [ "knot.service" ];
       after = [ "knot.service" ];
       unitConfig.OnFailure = "knot-dnssec-failure-notify.service";
-      serviceConfig = {
+      serviceConfig = oneshotHardening.base // {
         Type = "oneshot";
+        User = "knot";
+        Group = "knot";
+        PrivateNetwork = true;
+        RestrictAddressFamilies = [ "AF_UNIX" ];
+        MemoryMax = "256M";
+        TasksMax = 64;
         ExecStart = dnssecHealthCheck;
       };
     };
 
-    knot-dnssec-failure-notify.serviceConfig = {
+    knot-dnssec-failure-notify.serviceConfig = oneshotHardening.notification // {
       Type = "oneshot";
       LoadCredential = [ "ntfy-topic:${config.sops.secrets.ntfy_topic.path}" ];
       ExecStart = dnssecFailureNotifier;

@@ -1,16 +1,61 @@
 {
   config,
   configurationName,
-  pkgs,
+  lib,
   ...
 }:
 
+let
+  nonPublicIPv4 = import ../../modules/guest/non-public-ipv4.nix;
+in
 {
   boot.kernel.sysctl."net.ipv4.ip_forward" = 1;
 
   networking.hostName = configurationName;
   networking.useDHCP = true;
   networking.firewall.enable = false;
+
+  networking.nftables = {
+    enable = true;
+    flushRuleset = false;
+    tables.wireguard-exit = {
+      family = "inet";
+      content = ''
+        set non_public_ipv4 {
+          type ipv4_addr; flags interval;
+          elements = { ${lib.concatStringsSep ", " nonPublicIPv4} }
+        }
+
+        chain input {
+          type filter hook input priority filter; policy accept;
+          # Peers use this guest only as an Internet exit, not as a LAN host
+          # or DNS resolver. The encrypted WireGuard UDP listener is on eth0.
+          iifname "wg0" counter drop
+        }
+
+        chain forward {
+          type filter hook forward priority filter; policy drop;
+          # This guest configuration is shared by mecha-vultr and tencha-conoha.
+          # Allow only DNS on their bridge gateways before blocking private IPs.
+          iifname "wg0" oifname "eth0" ip daddr { 10.77.1.1, 10.77.2.1 } meta l4proto { tcp, udp } th dport 53 ct state { new, established } counter accept
+          iifname "wg0" ip daddr @non_public_ipv4 counter drop
+          iifname "wg0" oifname "eth0" meta nfproto ipv4 ct state { new, established, related } counter accept
+          iifname "eth0" oifname "wg0" ct state { established, related } ct direction reply counter accept
+          counter drop
+        }
+
+        chain postrouting {
+          type nat hook postrouting priority srcnat; policy accept;
+          iifname "wg0" oifname "eth0" meta nfproto ipv4 masquerade
+        }
+      '';
+    };
+  };
+
+  systemd.services.wg-quick-wg0 = {
+    bindsTo = [ "nftables.service" ];
+    after = [ "nftables.service" ];
+  };
 
   sops.secrets = {
     wg0_private_key.restartUnits = [ "wg-quick-wg0.service" ];
@@ -22,18 +67,6 @@
     mtu = 1420;
     listenPort = 443;
     privateKeyFile = config.sops.secrets.wg0_private_key.path;
-
-    postUp = ''
-      ${pkgs.iptables}/bin/iptables -A FORWARD -i wg0 -j ACCEPT
-      ${pkgs.iptables}/bin/iptables -A FORWARD -o wg0 -j ACCEPT
-      ${pkgs.iptables}/bin/iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-    '';
-
-    postDown = ''
-      ${pkgs.iptables}/bin/iptables -D FORWARD -i wg0 -j ACCEPT
-      ${pkgs.iptables}/bin/iptables -D FORWARD -o wg0 -j ACCEPT
-      ${pkgs.iptables}/bin/iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
-    '';
 
     peers = [
       {

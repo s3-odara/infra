@@ -7,6 +7,7 @@
 }:
 
 let
+  oneshotHardening = import ../../modules/guest/oneshot-hardening.nix;
   matrixBot = pkgs.callPackage ../../packages/matrix-bot/package.nix { };
   registrationToken = "/var/lib/tuwunel/registration-token";
   backupDirectory = "/var/lib/tuwunel-backups";
@@ -28,6 +29,28 @@ in
   networking.hostName = configurationName;
   networking.useDHCP = true;
   networking.firewall.enable = false;
+
+  networking.nftables = {
+    enable = true;
+    flushRuleset = false;
+    tables.matrix-bot-egress = {
+      family = "inet";
+      content = ''
+        chain output {
+          type filter hook output priority filter; policy accept;
+
+          meta skuid "matrix-bot" ip daddr { 127.0.0.1, 10.77.3.17 } tcp dport 8008 counter accept
+          meta skuid "matrix-bot" counter reject with icmpx type admin-prohibited
+        }
+      '';
+    };
+    # The build sandbox has no matrix-bot user. Only nft --check's copy is
+    # rewritten; the installed rules resolve the existing guest user by name.
+    preCheckRuleset = ''
+      substituteInPlace ruleset.conf \
+        --replace-fail 'meta skuid "matrix-bot"' 'meta skuid 65534'
+    '';
+  };
 
   environment.systemPackages = [
     pkgs.curl
@@ -121,10 +144,12 @@ in
     requires = [ "tuwunel.service" ];
     after = [ "tuwunel.service" ];
     unitConfig.OnFailure = "backup-failure-notify@%n.service";
-    serviceConfig = {
+    serviceConfig = oneshotHardening.base // {
       Type = "oneshot";
       TimeoutStartSec = "10m";
       ExecStart = "${pkgs.systemd}/bin/systemctl kill --kill-whom=main --signal=SIGUSR2 tuwunel.service";
+      PrivateNetwork = true;
+      RestrictAddressFamilies = [ "AF_UNIX" ];
     };
   };
 
@@ -215,9 +240,9 @@ in
     };
   };
 
-  systemd.services."restic-backups-tuwunel".serviceConfig.TimeoutStartSec = "10m";
+  systemd.services."restic-backups-tuwunel".serviceConfig = oneshotHardening.backup;
 
-  systemd.services."backup-failure-notify@".serviceConfig = {
+  systemd.services."backup-failure-notify@".serviceConfig = oneshotHardening.notification // {
     Type = "oneshot";
     LoadCredential = [ "ntfy-topic:${config.sops.secrets.ntfy_topic.path}" ];
     ExecStart = backupFailureNotifier;
@@ -228,9 +253,8 @@ in
     wants = [ "network-online.target" ];
     after = [ "network-online.target" ];
     unitConfig.OnFailure = "backup-failure-notify@%n.service";
-    serviceConfig = {
+    serviceConfig = oneshotHardening.backup // {
       Type = "oneshot";
-      TimeoutStartSec = "10m";
       EnvironmentFile = config.sops.templates."restic-r2.env".path;
     };
     preStart = ''
@@ -279,9 +303,13 @@ in
     description = "Encrypted Matrix access and call bot";
     wantedBy = [ "multi-user.target" ];
     requires = [ "tuwunel.service" ];
+    # Stop the bot before its egress rules are removed, and do not start it
+    # unless nftables has successfully installed them.
+    bindsTo = [ "nftables.service" ];
     wants = [ "network-online.target" ];
     after = [
       "network-online.target"
+      "nftables.service"
       "tuwunel.service"
     ];
     unitConfig.ConditionPathExists = config.sops.templates."matrix-bot.env".path;
@@ -297,17 +325,40 @@ in
       RestartSec = "30s";
       UMask = "0077";
 
-      IPAddressDeny = "any";
-      IPAddressAllow = [
-        "localhost"
-        # Guest tuwunel: the bot toggles registration via its Admin API.
-        "10.77.3.17"
-      ];
+      # IPAddressAllow/Deny require cgroup BPF, which the host kernel disables.
+      # The UID-scoped nftables rules above provide the egress restriction.
+      CapabilityBoundingSet = "";
+      LockPersonality = true;
+      MemoryDenyWriteExecute = true;
       NoNewPrivileges = true;
+      PrivateDevices = true;
+      PrivateIPC = true;
+      PrivateTmp = true;
+      ProcSubset = "pid";
+      ProtectClock = true;
+      ProtectControlGroups = true;
+      ProtectHome = true;
+      ProtectHostname = true;
+      ProtectKernelLogs = true;
+      ProtectKernelModules = true;
+      ProtectKernelTunables = true;
+      ProtectProc = "invisible";
       ProtectSystem = "strict";
+      RemoveIPC = true;
+      RestrictAddressFamilies = [
+        "AF_UNIX"
+        "AF_INET"
+        "AF_INET6"
+      ];
       RestrictNamespaces = true;
+      RestrictRealtime = true;
+      RestrictSUIDSGID = true;
       SystemCallArchitectures = "native";
-      SystemCallFilter = [ "@system-service" ];
+      SystemCallFilter = [
+        "@system-service"
+        "~@privileged"
+        "~@resources"
+      ];
     };
   };
 
