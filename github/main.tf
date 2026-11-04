@@ -7,6 +7,7 @@ resource "github_repository_ruleset" "main" {
   repository  = local.repository
   target      = "branch"
   enforcement = "active"
+  depends_on  = [github_repository_ruleset.main_pr_gate]
 
   conditions {
     ref_name {
@@ -18,12 +19,6 @@ resource "github_repository_ruleset" "main" {
   rules {
     deletion         = true
     non_fast_forward = true
-
-    pull_request {
-      dismiss_stale_reviews_on_push   = true
-      require_code_owner_review       = true
-      required_approving_review_count = 1
-    }
 
     required_status_checks {
       strict_required_status_checks_policy = false
@@ -42,17 +37,35 @@ resource "github_repository_ruleset" "main" {
   }
 }
 
-# Only the maintainer may update main. This is an actor restriction, not a
-# ruleset bypass, so approved PRs can be merged normally by the maintainer.
-resource "github_branch_protection_v3" "main_push_allowlist" {
-  repository     = local.repository
-  branch         = "main"
-  enforce_admins = true
+# The maintainer can bypass PR and update restrictions at any time, including
+# for direct pushes. Checks and history protections remain non-bypassable.
+resource "github_repository_ruleset" "main_pr_gate" {
+  name        = "main PR gate"
+  repository  = local.repository
+  target      = "branch"
+  enforcement = "active"
 
-  restrictions {
-    users = ["s3-odara"]
-    teams = []
-    apps  = []
+  bypass_actors {
+    actor_id    = 76041920
+    actor_type  = "User"
+    bypass_mode = "always"
+  }
+
+  conditions {
+    ref_name {
+      include = ["~DEFAULT_BRANCH"]
+      exclude = []
+    }
+  }
+
+  rules {
+    update = true
+
+    pull_request {
+      dismiss_stale_reviews_on_push   = true
+      require_code_owner_review       = true
+      required_approving_review_count = 1
+    }
   }
 }
 
