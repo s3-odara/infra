@@ -280,8 +280,8 @@ let
         web-client-html process cinny "$out" ${cspInline} "$webDiff"
         ${pkgs.findutils}/bin/find "$out" -type f \( -name '*.gz' -o -name '*.br' \) -delete
         # Keep the separate gate for Cinny's runtime-injected drag style.
-        printf '%s  %s\n' 6583760aecfb68c6913a09e22b99a12d6b0f98210c08bb68233469c8db46830f "$out/assets/index-C5tz01Kf.js" | ${pkgs.coreutils}/bin/sha256sum -c -
-        substituteInPlace "$out/assets/index-C5tz01Kf.js" \
+        printf '%s  %s\n' d4497d6d46286c071d9a30c6da218c598665444ab71f00a94f6983b06daf8dd4 "$out/assets/index-D1XH91ES.js" | ${pkgs.coreutils}/bin/sha256sum -c -
+        substituteInPlace "$out/assets/index-D1XH91ES.js" \
           --replace-fail \
             'document.head.appendChild(e),(t=e.sheet)===null||t===void 0||t.insertRule("* { pointer-events: none !important; }")' \
             'e.textContent="* { pointer-events: none !important; }",document.head.appendChild(e)'
