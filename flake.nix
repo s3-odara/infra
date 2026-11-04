@@ -4,6 +4,10 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable-small";
 
+    # Use upstream packaging and its own nixpkgs, not the system package set.
+    # Stable-release policy and approved exceptions: docs/operations.md.
+    sable-next.url = "git+https://git.sable.moe/SableClient/sable-next?rev=f8e4d5463e228de01f4bcbf349973e288bf505db&shallow=1";
+
     disko = {
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -25,6 +29,7 @@
       nixpkgs,
       disko,
       nixos-images,
+      sable-next,
       sops-nix,
       ...
     }:
@@ -67,14 +72,12 @@
         jq = nixpkgs.legacyPackages.x86_64-linux.jq;
         matrix-bot = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/matrix-bot/package.nix { };
         mkpasswd = nixpkgs.legacyPackages.x86_64-linux.mkpasswd;
-        nix-prefetch-docker = nixpkgs.legacyPackages.x86_64-linux.nix-prefetch-docker;
         kexec-installer = kexecInstaller;
         nixos-anywhere = nixpkgs.legacyPackages.x86_64-linux.nixos-anywhere;
         opentofu = nixpkgs.legacyPackages.x86_64-linux.opentofu;
-        sable = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/sable/package.nix { };
+        sable = sable-next.packages.x86_64-linux.sable-unwrapped;
         shfmt = nixpkgs.legacyPackages.x86_64-linux.shfmt;
         sygnal = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/sygnal/package.nix { };
-        skopeo = nixpkgs.legacyPackages.x86_64-linux.skopeo;
         sops = nixpkgs.legacyPackages.x86_64-linux.sops;
         web-client-html =
           nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/web-client-html/package.nix
@@ -142,7 +145,10 @@
 
         nginx = nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
-          specialArgs.configurationName = "nginx";
+          specialArgs = {
+            configurationName = "nginx";
+            sable-unwrapped = sable-next.packages.x86_64-linux.sable-unwrapped;
+          };
           modules = [
             sops-nix.nixosModules.sops
             ./modules/guest

@@ -1,4 +1,4 @@
-{ buildGoModule, diffutils }:
+{ buildGoModule }:
 
 buildGoModule {
   pname = "web-client-html";
@@ -6,6 +6,5 @@ buildGoModule {
   src = ./.;
   vendorHash = "sha256-8uuos45DdPiThNnT2u76GhABlcVoq3sc+yDlf9z9rDE=";
   env.CGO_ENABLED = "0";
-  ldflags = [ "-X main.diffCommand=${diffutils}/bin/diff" ];
   meta.mainProgram = "web-client-html";
 }

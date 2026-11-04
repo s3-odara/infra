@@ -15,6 +15,7 @@ just update-eturnal
 just update-matrix-bot
 just update-providers
 just update-sygnal
+just update-web-clients
 just update-flake
 ```
 
@@ -28,6 +29,7 @@ just update-flake
 - `update-matrix-bot`: Matrix botの`Cargo.toml`と`Cargo.lock`を更新して単体packageをbuildする。
 - `update-providers`: Incus・Cloudflare providerを最新版へ更新して`構成を検証する。
 - `update-sygnal`: Sygnalの最新releaseとsource hashへ更新し、単体packageをbuildする。更新時は上流のPythonバージョンと個別に定義しているパッケージの上流での固定バージョンを確認し、個別定義が互換性問題で依然必要かテストする。
+- `update-web-clients`: Sableの最新安定releaseへ上流flakeのrevisionとlockを更新し、設定・CSPを含む配信用サイトをbuildする。
 - `update-flake`: flake inputと生成済みkernel configを更新し、Nix構成を評価する
 
 ホストとゲストでは`system.autoUpgrade`も動く。ゲストの自動更新はSOPS暗号文を配送しない。暗号文を変更したら、Incusホスト上で`just upgrade-guests GUEST`を実行するか、管理端末から`just deploy-guest-closures USER@HOST`でclosureと暗号文をまとめて配送する。

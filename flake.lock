@@ -74,12 +74,46 @@
         "type": "github"
       }
     },
+    "nixpkgs_2": {
+      "locked": {
+        "lastModified": 1793540411,
+        "narHash": "sha256-us2GRWGXbOQpN1blyJGvmdx+g4bv9GoFYq5iiOHRiZ8=",
+        "rev": "0bb2eedc20e4739f29e8045034f2828ad7054f8f",
+        "type": "tarball",
+        "url": "https://releases.nixos.org/nixos/unstable/nixos-26.11pre1106360.0bb2eedc20e4/nixexprs.tar.zst?lastModified=1793540411&rev=0bb2eedc20e4739f29e8045034f2828ad7054f8f"
+      },
+      "original": {
+        "type": "tarball",
+        "url": "https://channels.nixos.org/nixos-unstable/nixexprs.tar.zst"
+      }
+    },
     "root": {
       "inputs": {
         "disko": "disko",
         "nixos-images": "nixos-images",
         "nixpkgs": "nixpkgs",
+        "sable-next": "sable-next",
         "sops-nix": "sops-nix"
+      }
+    },
+    "sable-next": {
+      "inputs": {
+        "nixpkgs": "nixpkgs_2"
+      },
+      "locked": {
+        "lastModified": 1793778753,
+        "narHash": "sha256-SMrhD5fvQ16egUq2Cj7A29V8+aakv1M79O+9SZJHqnM=",
+        "ref": "refs/heads/main",
+        "rev": "f8e4d5463e228de01f4bcbf349973e288bf505db",
+        "shallow": true,
+        "type": "git",
+        "url": "https://git.sable.moe/SableClient/sable-next"
+      },
+      "original": {
+        "rev": "f8e4d5463e228de01f4bcbf349973e288bf505db",
+        "shallow": true,
+        "type": "git",
+        "url": "https://git.sable.moe/SableClient/sable-next"
       }
     },
     "sops-nix": {

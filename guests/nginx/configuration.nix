@@ -3,6 +3,7 @@
   configurationName,
   lib,
   pkgs,
+  sable-unwrapped,
   ...
 }:
 
@@ -31,7 +32,6 @@ let
   sygnalAddress = "10.77.3.16";
   pushClientConfig = builtins.fromJSON (builtins.readFile ../../packages/sygnal/client-config.json);
   oidcAccountCss = ./tuwunel-oidc.css;
-  cspInline = ./csp-inline;
   webClientHtml = pkgs.callPackage ../../packages/web-client-html/package.nix { };
   matrixLandingRoot = pkgs.linkFarm "matrix-landing-root" [
     {
@@ -58,55 +58,77 @@ let
   # PDF.js only injects a font stylesheet when document.fonts is unavailable;
   # browsers supporting the CSP Level 3 directives below use its FontFace path.
   cinnyStyleHashes = "'sha256-I2px+fnpbN4E5+Djrj7aoTIyq9yyREkuVl19f4Sye9A=' 'sha256-gE6f9B7Di/6xvPsuFkoYXxNapPKVLAmRBvP73rpQ9+Y='";
-  sableMainCsp = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self' 'wasm-unsafe-eval'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self'";
-  sableCallCsp = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' 'wasm-unsafe-eval'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self'";
-  cinnyCsp = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' 'wasm-unsafe-eval'; script-src-attr 'none'; style-src 'self' ${cinnyStyleHashes}; style-src-elem 'self' ${cinnyStyleHashes}; style-src-attr 'none'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self'";
-  cinnyCallCsp = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' 'wasm-unsafe-eval'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self'";
-  elementCsp = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' 'wasm-unsafe-eval'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self' blob:";
-  # The generated hashes are inserted between these two fragments so they are
-  # unambiguously script-src sources rather than part of the following directive.
-  elementCallCspBeforeHashes = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self' 'wasm-unsafe-eval'";
-  elementCallCspAfterHashes = "; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${guestMatrixHost}; media-src 'self' blob: https://${guestMatrixHost}; connect-src 'self' https://${guestMatrixHost} wss://${guestMatrixHost} https://${rtcHost} wss://${rtcHost}";
+  sableCsp = {
+    beforeHashes = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self' 'wasm-unsafe-eval'";
+    afterHashes = "; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self'";
+  };
+  cinnyCsp = {
+    beforeHashes = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' 'wasm-unsafe-eval'";
+    afterHashes = "; script-src-attr 'none'; style-src 'self' ${cinnyStyleHashes}; style-src-elem 'self' ${cinnyStyleHashes}; style-src-attr 'none'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self'";
+  };
+  cinnyCallCsp = {
+    beforeHashes = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' 'wasm-unsafe-eval'";
+    afterHashes = "; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self'";
+  };
+  elementCsp = {
+    beforeHashes = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' 'wasm-unsafe-eval'";
+    afterHashes = "; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self' blob:";
+  };
+  elementCallCsp = {
+    beforeHashes = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self' 'wasm-unsafe-eval'";
+    afterHashes = "; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${guestMatrixHost}; media-src 'self' blob: https://${guestMatrixHost}; connect-src 'self' https://${guestMatrixHost} wss://${guestMatrixHost} https://${rtcHost} wss://${rtcHost}";
+  };
+
+  # Hash the served document(s), keeping hashes inside the script-src directive.
+  writeCsp =
+    {
+      html,
+      output,
+      policy,
+    }:
+    ''
+      hashes="$(web-client-html hashes ${html})"
+      cat >${output} <<EOF
+      add_header Content-Security-Policy "${policy.beforeHashes} $hashes${policy.afterHashes}" always;
+      EOF
+    '';
 
   clientSecurityHeaders =
     {
-      enforcedCsp,
+      cspInclude,
       xFrameOptions,
     }:
     ''
-      add_header Content-Security-Policy "${enforcedCsp}" always;
+      include ${cspInclude};
       add_header Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=(), usb=()" always;
       add_header Referrer-Policy "no-referrer" always;
       add_header X-Content-Type-Options "nosniff" always;
       add_header X-Frame-Options "${xFrameOptions}" always;
     '';
   sableSecurityHeaders = clientSecurityHeaders {
-    enforcedCsp = sableMainCsp;
+    cspInclude = "${sable.webDiff}/csp.conf";
     xFrameOptions = "DENY";
   };
-  sableCallSecurityHeaders = clientSecurityHeaders {
-    enforcedCsp = sableCallCsp;
-    xFrameOptions = "SAMEORIGIN";
-  };
   cinnySecurityHeaders = clientSecurityHeaders {
-    enforcedCsp = cinnyCsp;
+    cspInclude = "${cinny.webDiff}/csp.conf";
     xFrameOptions = "SAMEORIGIN";
   };
   cinnyCallSecurityHeaders = clientSecurityHeaders {
-    enforcedCsp = cinnyCallCsp;
+    cspInclude = "${cinny.webDiff}/call-csp.conf";
     xFrameOptions = "SAMEORIGIN";
   };
   elementSecurityHeaders = clientSecurityHeaders {
-    enforcedCsp = elementCsp;
+    cspInclude = "${element.webDiff}/csp.conf";
     xFrameOptions = "SAMEORIGIN";
   };
-  elementCallSecurityHeaders = ''
-    include ${elementCallCspInclude};
-    add_header Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=(), usb=()" always;
-    add_header Referrer-Policy "no-referrer" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-Frame-Options "DENY" always;
-  '';
+  elementEmbeddedCallSecurityHeaders = clientSecurityHeaders {
+    cspInclude = "${element.webDiff}/call-csp.conf";
+    xFrameOptions = "SAMEORIGIN";
+  };
+  elementCallSecurityHeaders = clientSecurityHeaders {
+    cspInclude = elementCallCspInclude;
+    xFrameOptions = "DENY";
+  };
   http3PrimaryConfig = ''
     listen 0.0.0.0:443 quic reuseport;
     http3 on;
@@ -225,11 +247,13 @@ let
       done
   '';
 
-  sable-unwrapped = pkgs.callPackage ../../packages/sable/package.nix { };
   sable =
     pkgs.runCommand "sable-${sable-unwrapped.version}-odarah"
       {
-        nativeBuildInputs = [ webClientHtml ];
+        nativeBuildInputs = [
+          webClientHtml
+          pkgs.diffutils
+        ];
         outputs = [
           "out"
           "webDiff"
@@ -239,17 +263,18 @@ let
         cp -R ${sable-unwrapped} "$out"
         chmod -R u+w "$out"
         mkdir -p "$webDiff"
-        web-client-html process sable "$out" ${cspInline} "$webDiff"
+        for file in index.html 404.html service-worker.js manifest.webmanifest; do
+          test -s "$out/$file"
+        done
+        test -d "$out/_app/immutable"
         ${pkgs.findutils}/bin/find "$out" -type f \( -name '*.gz' -o -name '*.br' \) -delete
-        mkdir -p "$out/csp-inline"
-        install -m 0644 ${cspInline}/*.js "$out/csp-inline/"
         cat > "$out/config.json" <<'JSON'
         {
-          "productName": "Sable",
+          "branding": { "appName": "Sable" },
           "defaultHomeserver": 0,
           "homeserverList": ["${matrixHost}"],
           "allowCustomHomeservers": false,
-          "elementCallUrl": null,
+          "calls": { "livekitServiceUrl": "https://${rtcHost}" },
           "disableAccountSwitcher": false,
           "hideUsernamePasswordFields": false,
           "pushNotificationDetails": {
@@ -257,17 +282,30 @@ let
             "vapidPublicKey": "${pushClientConfig.vapidPublicKey}",
             "webPushAppID": "${pushClientConfig.webPushAppID}"
           },
-          "featuredCommunities": { "openAsDefault": false, "spaces": [], "rooms": [], "servers": [] },
-          "hashRouter": { "enabled": false, "basename": "/" }
+          "featuredCommunities": { "servers": [] }
         }
         JSON
+        # Keep SvelteKit's bootstrap scripts intact, authorizing their exact
+        # contents across all generated HTML pages (including the fallback).
+        ${writeCsp {
+          html = ''"$out"'';
+          output = ''"$webDiff/csp.conf"'';
+          policy = sableCsp;
+        }}
+        diff -u --label upstream/config.json --label local/config.json \
+          ${sable-unwrapped}/config.json "$out/config.json" > "$webDiff/sable-config.diff" || test "$?" -eq 1
+        # Deployment headers are owned by Nginx, not the upstream Caddy/CF files.
+        rm "$out/csp.caddy" "$out/_headers"
         ${precompressStaticAssets} "$out"
       '';
 
   cinny =
     pkgs.runCommand "cinny-${pkgs.cinny-unwrapped.version}-odarah"
       {
-        nativeBuildInputs = [ webClientHtml ];
+        nativeBuildInputs = [
+          webClientHtml
+          pkgs.diffutils
+        ];
         outputs = [
           "out"
           "webDiff"
@@ -277,7 +315,16 @@ let
         cp -R ${pkgs.cinny-unwrapped} "$out"
         chmod -R u+w "$out"
         mkdir -p "$webDiff"
-        web-client-html process cinny "$out" ${cspInline} "$webDiff"
+        ${writeCsp {
+          html = ''"$out/index.html"'';
+          output = ''"$webDiff/csp.conf"'';
+          policy = cinnyCsp;
+        }}
+        ${writeCsp {
+          html = ''"$out/public/element-call/index.html"'';
+          output = ''"$webDiff/call-csp.conf"'';
+          policy = cinnyCallCsp;
+        }}
         ${pkgs.findutils}/bin/find "$out" -type f \( -name '*.gz' -o -name '*.br' \) -delete
         # Keep the separate gate for Cinny's runtime-injected drag style.
         printf '%s  %s\n' d4497d6d46286c071d9a30c6da218c598665444ab71f00a94f6983b06daf8dd4 "$out/assets/index-D1XH91ES.js" | ${pkgs.coreutils}/bin/sha256sum -c -
@@ -285,8 +332,6 @@ let
           --replace-fail \
             'document.head.appendChild(e),(t=e.sheet)===null||t===void 0||t.insertRule("* { pointer-events: none !important; }")' \
             'e.textContent="* { pointer-events: none !important; }",document.head.appendChild(e)'
-        mkdir -p "$out/csp-inline"
-        install -m 0644 ${cspInline}/*.js "$out/csp-inline/"
         cat > "$out/config.json" <<'JSON'
         {
           "defaultHomeserver": 0,
@@ -296,6 +341,8 @@ let
           "hashRouter": { "enabled": false, "basename": "/" }
         }
         JSON
+        diff -u --label upstream/config.json --label local/config.json \
+          ${pkgs.cinny-unwrapped}/config.json "$out/config.json" > "$webDiff/cinny-config.diff" || test "$?" -eq 1
         ${precompressStaticAssets} "$out"
       '';
 
@@ -339,16 +386,20 @@ let
       --replace-fail '</head>' '<link rel="stylesheet" href="/guest-only.css"></head>'
     ${precompressStaticAssets} "$out"
   '';
-  elementCallCspInclude = pkgs.runCommand "element-call-generated-csp.conf" { } ''
-    hashes="$(${webClientHtml}/bin/web-client-html hashes ${elementCall}/index.html)"
-    cat >"$out" <<EOF
-    add_header Content-Security-Policy "${elementCallCspBeforeHashes} $hashes${elementCallCspAfterHashes}" always;
-    EOF
-  '';
+  elementCallCspInclude =
+    pkgs.runCommand "element-call-generated-csp.conf" { nativeBuildInputs = [ webClientHtml ]; }
+      (writeCsp {
+        html = "${elementCall}/index.html";
+        output = ''"$out"'';
+        policy = elementCallCsp;
+      });
   element =
     pkgs.runCommand "element-web-${pkgs.element-web-unwrapped.version}-odarah"
       {
-        nativeBuildInputs = [ webClientHtml ];
+        nativeBuildInputs = [
+          webClientHtml
+          pkgs.diffutils
+        ];
         outputs = [
           "out"
           "webDiff"
@@ -359,17 +410,31 @@ let
         cp -R ${pkgs.element-web-unwrapped}/. "$out/"
         chmod -R u+w "$out"
         mkdir -p "$webDiff"
-        web-client-html process element "$out" ${cspInline} "$webDiff"
+        web-client-html remove-meta-csp "$out/index.html"
+        diff -u --label before/index.html --label after/index.html \
+          ${pkgs.element-web-unwrapped}/index.html "$out/index.html" > "$webDiff/element-index.html.diff" || test "$?" -eq 1
+        ${writeCsp {
+          html = ''"$out/index.html"'';
+          output = ''"$webDiff/csp.conf"'';
+          policy = elementCsp;
+        }}
+        ${writeCsp {
+          html = ''"$out/widgets/element-call/index.html"'';
+          output = ''"$webDiff/call-csp.conf"'';
+          policy = elementCsp;
+        }}
         ${pkgs.findutils}/bin/find "$out" -type f \( -name '*.gz' -o -name '*.br' \) -delete
-        mkdir -p "$out/csp-inline"
-        install -m 0644 ${cspInline}/*.js "$out/csp-inline/"
         cp ${elementConfigFile} "$out/config.json"
+        diff -u --label upstream/config.json --label local/config.json \
+          ${pkgs.element-web-unwrapped}/config.json "$out/config.json" > "$webDiff/element-config.diff" || test "$?" -eq 1
         ${precompressStaticAssets} "$out"
       '';
 in
 {
-  # CI builds and prints these outputs so reviewers can inspect every strict
-  # before/after HTML transformation without adding them to the served roots.
+  # Also expose the processed Sable site for focused update/build checks.
+  system.build.sable = sable;
+
+  # CI prints generated CSPs and config/HTML diffs without serving the reports.
   system.build.webClientDiffs = pkgs.linkFarm "web-client-html-diffs" [
     {
       name = "sable";
@@ -598,7 +663,6 @@ in
       }
       map $request_uri $cinny_cache_control {
         default "no-cache";
-        ~^/csp-inline/ "no-cache";
         ~^/assets/ "public, max-age=31536000, immutable";
         ~^/register/ "no-store";
       }
@@ -609,7 +673,6 @@ in
       }
       map $request_uri $element_cache_control {
         default "no-cache";
-        ~^/csp-inline/ "no-cache";
         ~^/config(?:\.[^/]+)?\.json$ "no-store";
         ~^/bundles/[0-9a-f]+/ "public, max-age=31536000, immutable";
         ~^/widgets/element-call/assets/ "public, max-age=31536000, immutable";
@@ -621,9 +684,8 @@ in
       }
       map $uri $sable_cache_control {
         default "no-cache";
-        ~^/csp-inline/ "no-cache";
         ~^/config\.json$ "no-store";
-        ~^/assets/.*-[A-Za-z0-9_-]+\.(?:css|js|json|map|png|jpe?g|svg|webp|avif|wasm|woff2?|ttf|otf)$ "public, max-age=31536000, immutable";
+        ~^/_app/immutable/ "public, max-age=31536000, immutable";
       }
       map $http_upgrade $connection_upgrade {
         default upgrade;
@@ -878,7 +940,6 @@ in
           "= /config.json".tryFiles = "$uri =404";
           "= /sw.js".tryFiles = "$uri =404";
           "= /index.html".tryFiles = "$uri =404";
-          "^~ /csp-inline/".tryFiles = "$uri =404";
           "^~ /assets/".tryFiles = "$uri =404";
           "^~ /register/".extraConfig = ''
             access_log off;
@@ -932,9 +993,16 @@ in
           "^~ /decoder-ring/".return = "404";
           "~ ^/config(?:\\.[^/]+)?\\.json$".tryFiles = "$uri =404";
           "= /index.html".tryFiles = "$uri =404";
-          "^~ /csp-inline/".tryFiles = "$uri =404";
           "^~ /bundles/".tryFiles = "$uri =404";
           "^~ /widgets/element-call/assets/".tryFiles = "$uri =404";
+          "^~ /widgets/element-call/".extraConfig = ''
+            try_files $uri $uri/ =404;
+            add_header_inherit off;
+            ${elementEmbeddedCallSecurityHeaders}
+            add_header Strict-Transport-Security "${hstsValue}" always;
+            add_header Cache-Control $element_cache_control always;
+            add_header Alt-Svc 'h3=":443"; ma=86400' always;
+          '';
           "/".extraConfig = ''
             try_files $uri $uri/ /index.html;
           '';
@@ -966,22 +1034,20 @@ in
         locations = {
           "= /config.json".tryFiles = "$uri =404";
           "= /index.html".tryFiles = "$uri =404";
-          "= /manifest.json".tryFiles = "$uri =404";
-          "= /sw.js".tryFiles = "$uri =404";
-          "^~ /csp-inline/".tryFiles = "$uri =404";
+          "= /404.html".tryFiles = "$uri =404";
+          "= /manifest.webmanifest".tryFiles = "$uri =404";
+          "= /service-worker.js".tryFiles = "$uri =404";
+          # Do not serve the SPA document to legacy workers/assets.
+          "= /sw.js".return = "410";
+          "= /manifest.json".return = "410";
           "^~ /assets/".tryFiles = "$uri =404";
-          "^~ /public/element-call/".extraConfig = ''
-            try_files $uri $uri/ =404;
-            # This location intentionally replaces Sable's main security policy.
-            # Keep that behavior while the global merge preserves HSTS elsewhere.
-            add_header_inherit off;
-            ${sableCallSecurityHeaders}
-            add_header Strict-Transport-Security "${hstsValue}" always;
-            add_header Cache-Control $sable_cache_control always;
-            add_header Alt-Svc 'h3=":443"; ma=86400' always;
-          '';
+          "^~ /public/element-call/".return = "410";
+          "^~ /_app/".tryFiles = "$uri =404";
+          "^~ /icons/".tryFiles = "$uri =404";
+          "^~ /deepfilternet3/".tryFiles = "$uri =404";
+          "^~ /sound/".tryFiles = "$uri =404";
           "/".extraConfig = ''
-            try_files $uri $uri/ /index.html;
+            try_files $uri $uri.html $uri/ /index.html;
           '';
         };
       };

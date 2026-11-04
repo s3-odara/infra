@@ -215,13 +215,11 @@ update-go:
         nix-update --flake --version=skip web-client-html
       '
 
-# Sable OCI attestationを検証し、index digestとamd64取得hashを更新する
+# Sableの安定releaseへ上流flakeを更新し、配信用サイトまでbuildする
 update-web-clients:
     nix shell \
-      "git+file://{{ repo_root }}#gh" \
+      "git+file://{{ repo_root }}#curl" \
       "git+file://{{ repo_root }}#jq" \
-      "git+file://{{ repo_root }}#nix-prefetch-docker" \
-      "git+file://{{ repo_root }}#skopeo" \
       -c ./scripts/update-web-clients.sh
 
 # flake.lockとkernel configを更新する
