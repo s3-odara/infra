@@ -71,8 +71,15 @@ impl SafeFields {
             Some("olm_session_wedged")
         } else if text.contains("missingsession") || text.contains("missing session") {
             Some("missing_olm_session")
-        } else if text.contains("missingroomkey") || text.contains("missingmegolmsession") {
+        } else if text.contains("missingroomkey")
+            || text.contains("missingmegolmsession")
+            || text.contains("can't find the room key")
+        {
             Some("missing_room_key")
+        } else if text.contains("no backup key was found") {
+            Some("backup_not_configured")
+        } else if text.contains("backup key wasn't uploaded") {
+            Some("backup_not_uploaded")
         } else if text.contains("senderidentitynottrusted")
             || text.contains("unverifiedsenderdevice")
         {
@@ -94,6 +101,8 @@ impl SafeFields {
             ("invalid_param", "M_INVALID_PARAM"),
             ("badjson", "M_BAD_JSON"),
             ("bad_json", "M_BAD_JSON"),
+            ("not_found", "M_NOT_FOUND"),
+            ("notfound", "M_NOT_FOUND"),
         ] {
             if text.contains(needle) {
                 self.matrix_code = Some(code);
@@ -210,6 +219,25 @@ mod tests {
             fields.to_string(),
             "category=unclassified http_status=None matrix_code=unknown"
         );
+    }
+
+    #[test]
+    fn sdk_display_messages_have_safe_crypto_categories() {
+        for (message, category) in [
+            (
+                "Can\'t find the room key to decrypt the event, withheld code: None",
+                "missing_room_key",
+            ),
+            (
+                "Trying to backup room keys but no backup key was found",
+                "backup_not_configured",
+            ),
+        ] {
+            let mut fields = SafeFields::default();
+            fields.inspect(&message);
+            assert_eq!(fields.category, Some(category));
+            assert!(!fields.to_string().contains(message));
+        }
     }
 
     #[test]
