@@ -3,6 +3,7 @@
   configurationName,
   lib,
   pkgs,
+  tuwunel-package,
   ...
 }:
 
@@ -66,6 +67,15 @@ in
 
   services.matrix-tuwunel = {
     enable = true;
+    package = tuwunel-package.override (previous: {
+      # Retain upstream default exclusions and omit these optional features.
+      disable_features = previous.disable_features ++ [
+        "console"
+        "bzip2_compression"
+        "lz4_compression"
+        "sentry_telemetry"
+      ];
+    });
     settings.global = {
       server_name = "matrix.odarah.org";
       address = [
