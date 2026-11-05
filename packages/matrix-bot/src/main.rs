@@ -207,8 +207,6 @@ async fn main() -> Result<()> {
         client.encryption().ed25519_key().await.is_some()
             && client.encryption().curve25519_key().await.is_some(),
     );
-    let diagnostics = diagnostics::Diagnostics::new(client.clone())?;
-
     let http = reqwest::Client::builder()
         .timeout(Duration::from_secs(15))
         .build()?;
@@ -239,6 +237,8 @@ async fn main() -> Result<()> {
         access_token,
         calls,
     };
+    let diagnostics =
+        diagnostics::Diagnostics::new(client.clone(), app.http.clone(), app.access_token.clone())?;
 
     // Reconcile only closes the gate, so restore it here for persisted calls.
     if let Err(error) = app.calls.restore_guest_registration().await {
