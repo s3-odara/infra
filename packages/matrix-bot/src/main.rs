@@ -1,5 +1,7 @@
 mod call;
+mod diagnostics;
 mod invite;
+mod logging;
 
 use std::{
     env,
@@ -11,7 +13,7 @@ use std::{
 use anyhow::{Context, Result, bail};
 use call::CallService;
 use matrix_sdk::{
-    Client, Room, RoomMemberships, SessionMeta,
+    Client, LoopCtrl, Room, RoomMemberships, SessionMeta,
     authentication::{SessionTokens, matrix::MatrixSession},
     config::SyncSettings,
     deserialized_responses::EncryptionInfo,
@@ -79,7 +81,7 @@ async fn handle_message(
     app: App,
 ) {
     if let Err(error) = try_handle_message(event, room, encryption_info, app).await {
-        eprintln!("message handling failed: {error:#}");
+        logging::error("message_handling_failed", &error);
     }
 }
 
@@ -92,22 +94,37 @@ async fn try_handle_message(
     let Some(original) = event.as_original() else {
         return Ok(());
     };
-    if original.sender.as_str() != INVITER
-        || encryption_info.is_none()
-        || !is_expected_dm(&room).await?
-    {
+    if original.sender.as_str() != INVITER {
+        return Ok(());
+    }
+    eprintln!(
+        "bot event=message_received encrypted={}",
+        encryption_info.is_some()
+    );
+    if encryption_info.is_none() {
+        eprintln!("bot event=message_ignored reason=not_encrypted");
+        return Ok(());
+    }
+    if !is_expected_dm(&room).await? {
+        eprintln!("bot event=message_ignored reason=unexpected_members");
         return Ok(());
     }
     let MessageType::Text(text) = &original.content.msgtype else {
+        eprintln!("bot event=message_ignored reason=not_text");
         return Ok(());
     };
 
-    let recognized = text.body == "invite"
-        || text.body.starts_with("call create ")
-        || text.body.starts_with("call close ");
-    if !recognized {
+    let command = if text.body == "invite" {
+        "invite"
+    } else if text.body.starts_with("call create ") {
+        "call_create"
+    } else if text.body.starts_with("call close ") {
+        "call_close"
+    } else {
+        eprintln!("bot event=message_ignored reason=unrecognized_command");
         return Ok(());
-    }
+    };
+    eprintln!("bot event=command_started command={command}");
 
     let result: Result<()> = async {
         if text.body == "invite" {
@@ -124,8 +141,12 @@ async fn try_handle_message(
     }
     .await;
 
+    eprintln!(
+        "bot event=command_result command={command} success={}",
+        result.is_ok()
+    );
     if let Err(error) = result {
-        eprintln!("bot request failed: {error:#}");
+        logging::error("command_failed", &error);
         room.send(RoomMessageEventContent::text_plain(
             "処理に失敗しました。詳細はbotのjournalを確認してください。",
         ))
@@ -137,6 +158,8 @@ async fn try_handle_message(
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    logging::init()?;
+    eprintln!("bot event=diagnostics_started sdk_fields=redacted");
     let access_token: Arc<str> = env::var("MATRIX_ACCESS_TOKEN")
         .context("MATRIX_ACCESS_TOKEN is not set")?
         .into();
@@ -179,6 +202,12 @@ async fn main() -> Result<()> {
     {
         bail!("restored Matrix session is not the configured dedicated bot device");
     }
+    eprintln!(
+        "bot event=session_restored crypto_identity_present={}",
+        client.encryption().ed25519_key().await.is_some()
+            && client.encryption().curve25519_key().await.is_some(),
+    );
+    let diagnostics = diagnostics::Diagnostics::new(client.clone())?;
 
     let http = reqwest::Client::builder()
         .timeout(Duration::from_secs(15))
@@ -222,8 +251,10 @@ async fn main() -> Result<()> {
         .get_kv_data(StateStoreDataKey::SyncToken)
         .await?
         .is_some();
+    eprintln!("bot event=sync_start saved_sync_token={has_sync_token}");
     if !has_sync_token {
-        client.sync_once(SyncSettings::default()).await?;
+        let response = client.sync_once(SyncSettings::default()).await?;
+        diagnostics.observe(&response).await;
     }
     let message_app = app.clone();
     client.add_event_handler(move |event, room, encryption_info| {
@@ -231,6 +262,14 @@ async fn main() -> Result<()> {
     });
 
     tokio::spawn(app.calls.reconcile_loop());
-    client.sync(SyncSettings::default()).await?;
+    client
+        .sync_with_callback(SyncSettings::default(), move |response| {
+            let diagnostics = diagnostics.clone();
+            async move {
+                diagnostics.observe(&response).await;
+                LoopCtrl::Continue
+            }
+        })
+        .await?;
     Ok(())
 }
