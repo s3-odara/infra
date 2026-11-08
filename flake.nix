@@ -4,9 +4,6 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable-small";
 
-    # Temporary main pin for Matrix encryption diagnostics; keep upstream inputs.
-    tuwunel-main.url = "github:matrix-construct/tuwunel/b8901152479bea0a4f33fac67d715fea52bca2d0";
-
     # Use upstream packaging and its own nixpkgs, not the system package set.
     # Stable-release policy and approved exceptions: docs/operations.md.
     sable-next.url = "git+https://git.sable.moe/SableClient/sable-next?rev=f8e4d5463e228de01f4bcbf349973e288bf505db&shallow=1";
@@ -34,7 +31,6 @@
       nixos-images,
       sable-next,
       sops-nix,
-      tuwunel-main,
       ...
     }:
     let
@@ -163,10 +159,7 @@
 
         tuwunel = nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
-          specialArgs = {
-            configurationName = "tuwunel";
-            tuwunel-package = tuwunel-main.packages.x86_64-linux.default;
-          };
+          specialArgs.configurationName = "tuwunel";
           modules = [
             sops-nix.nixosModules.sops
             ./modules/guest
