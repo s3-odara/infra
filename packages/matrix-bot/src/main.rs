@@ -1,7 +1,6 @@
 mod call;
-mod diagnostics;
 mod invite;
-mod logging;
+mod session;
 
 use std::{
     env,
@@ -13,7 +12,7 @@ use std::{
 use anyhow::{Context, Result, bail};
 use call::CallService;
 use matrix_sdk::{
-    Client, LoopCtrl, Room, RoomMemberships, SessionMeta,
+    Room, RoomMemberships, SessionMeta,
     authentication::{SessionTokens, matrix::MatrixSession},
     config::SyncSettings,
     deserialized_responses::EncryptionInfo,
@@ -80,8 +79,12 @@ async fn handle_message(
     encryption_info: Option<EncryptionInfo>,
     app: App,
 ) {
-    if let Err(error) = try_handle_message(event, room, encryption_info, app).await {
-        logging::error("message_handling_failed", &error);
+    // Request errors can contain tokens or event data; do not dump them.
+    if try_handle_message(event, room, encryption_info, app)
+        .await
+        .is_err()
+    {
+        eprintln!("message handling failed");
     }
 }
 
@@ -94,37 +97,22 @@ async fn try_handle_message(
     let Some(original) = event.as_original() else {
         return Ok(());
     };
-    if original.sender.as_str() != INVITER {
-        return Ok(());
-    }
-    eprintln!(
-        "bot event=message_received encrypted={}",
-        encryption_info.is_some()
-    );
-    if encryption_info.is_none() {
-        eprintln!("bot event=message_ignored reason=not_encrypted");
-        return Ok(());
-    }
-    if !is_expected_dm(&room).await? {
-        eprintln!("bot event=message_ignored reason=unexpected_members");
+    if original.sender.as_str() != INVITER
+        || encryption_info.is_none()
+        || !is_expected_dm(&room).await?
+    {
         return Ok(());
     }
     let MessageType::Text(text) = &original.content.msgtype else {
-        eprintln!("bot event=message_ignored reason=not_text");
         return Ok(());
     };
 
-    let command = if text.body == "invite" {
-        "invite"
-    } else if text.body.starts_with("call create ") {
-        "call_create"
-    } else if text.body.starts_with("call close ") {
-        "call_close"
-    } else {
-        eprintln!("bot event=message_ignored reason=unrecognized_command");
+    let recognized = text.body == "invite"
+        || text.body.starts_with("call create ")
+        || text.body.starts_with("call close ");
+    if !recognized {
         return Ok(());
-    };
-    eprintln!("bot event=command_started command={command}");
+    }
 
     let result: Result<()> = async {
         if text.body == "invite" {
@@ -141,12 +129,8 @@ async fn try_handle_message(
     }
     .await;
 
-    eprintln!(
-        "bot event=command_result command={command} success={}",
-        result.is_ok()
-    );
-    if let Err(error) = result {
-        logging::error("command_failed", &error);
+    if result.is_err() {
+        eprintln!("bot request failed");
         room.send(RoomMessageEventContent::text_plain(
             "処理に失敗しました。詳細はbotのjournalを確認してください。",
         ))
@@ -158,8 +142,12 @@ async fn try_handle_message(
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    logging::init()?;
-    eprintln!("bot event=diagnostics_started sdk_fields=redacted");
+    let Some(mode) = session::StartupMode::parse(&env::args().skip(1).collect::<Vec<_>>())? else {
+        println!(
+            "Usage: matrix-bot [--initialize-crypto-store]\n\n--initialize-crypto-store: first-time initialization of a fresh device/store; verify keys, then exit."
+        );
+        return Ok(());
+    };
     let access_token: Arc<str> = env::var("MATRIX_ACCESS_TOKEN")
         .context("MATRIX_ACCESS_TOKEN is not set")?
         .into();
@@ -177,39 +165,28 @@ async fn main() -> Result<()> {
     let state_dir = PathBuf::from(
         env::var("STATE_DIRECTORY").unwrap_or_else(|_| "/var/lib/matrix-bot".to_owned()),
     );
-    let client = Client::builder()
-        .homeserver_url(HOMESERVER)
-        .sqlite_store(state_dir.join("matrix-sdk"), None)
-        .build()
-        .await?;
-    client
-        .restore_session(MatrixSession {
-            meta: SessionMeta {
-                user_id: user_id.clone(),
-                device_id: device_id.clone(),
-            },
+    let http = reqwest::Client::builder()
+        .timeout(Duration::from_secs(15))
+        .build()?;
+    let client = session::restore_guarded(
+        &http,
+        HOMESERVER,
+        &state_dir.join("matrix-sdk"),
+        MatrixSession {
+            meta: SessionMeta { user_id, device_id },
             tokens: SessionTokens {
                 access_token: access_token.to_string(),
                 refresh_token: None,
             },
-        })
-        .await?;
-    let whoami = client
-        .whoami()
-        .await
-        .context("verify restored Matrix session")?;
-    if whoami.user_id != user_id || whoami.device_id.as_ref() != Some(&device_id) || whoami.is_guest
-    {
-        bail!("restored Matrix session is not the configured dedicated bot device");
+        },
+        mode,
+    )
+    .await
+    .context("Matrix session safety check failed")?;
+    if mode == session::StartupMode::Initialize {
+        eprintln!("bot event=crypto_store_initialized");
+        return Ok(());
     }
-    eprintln!(
-        "bot event=session_restored crypto_identity_present={}",
-        client.encryption().ed25519_key().await.is_some()
-            && client.encryption().curve25519_key().await.is_some(),
-    );
-    let http = reqwest::Client::builder()
-        .timeout(Duration::from_secs(15))
-        .build()?;
     let guest_credentials = match (
         env::var("GUEST_ADMIN_ACCESS_TOKEN"),
         env::var("GUEST_SENTINEL_TOKEN"),
@@ -237,9 +214,6 @@ async fn main() -> Result<()> {
         access_token,
         calls,
     };
-    let diagnostics =
-        diagnostics::Diagnostics::new(client.clone(), app.http.clone(), app.access_token.clone())?;
-
     // Reconcile only closes the gate, so restore it here for persisted calls.
     if let Err(error) = app.calls.restore_guest_registration().await {
         eprintln!("failed to reconcile guest registration on startup: {error:#}");
@@ -251,10 +225,8 @@ async fn main() -> Result<()> {
         .get_kv_data(StateStoreDataKey::SyncToken)
         .await?
         .is_some();
-    eprintln!("bot event=sync_start saved_sync_token={has_sync_token}");
     if !has_sync_token {
-        let response = client.sync_once(SyncSettings::default()).await?;
-        diagnostics.observe(&response).await;
+        client.sync_once(SyncSettings::default()).await?;
     }
     let message_app = app.clone();
     client.add_event_handler(move |event, room, encryption_info| {
@@ -262,14 +234,6 @@ async fn main() -> Result<()> {
     });
 
     tokio::spawn(app.calls.reconcile_loop());
-    client
-        .sync_with_callback(SyncSettings::default(), move |response| {
-            let diagnostics = diagnostics.clone();
-            async move {
-                diagnostics.observe(&response).await;
-                LoopCtrl::Continue
-            }
-        })
-        .await?;
+    client.sync(SyncSettings::default()).await?;
     Ok(())
 }

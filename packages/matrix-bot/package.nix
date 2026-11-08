@@ -1,4 +1,5 @@
 {
+  cacert,
   pkg-config,
   rustPlatform,
   sqlite,
@@ -12,4 +13,6 @@ rustPlatform.buildRustPackage {
   meta.mainProgram = "matrix-bot";
   nativeBuildInputs = [ pkg-config ];
   buildInputs = [ sqlite ];
+  # reqwest loads system roots when constructing even an HTTP-only test client.
+  nativeCheckInputs = [ cacert ];
 }

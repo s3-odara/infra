@@ -1752,12 +1752,11 @@ dependencies = [
  "anyhow",
  "chrono",
  "matrix-sdk",
+ "matrix-sdk-crypto",
  "reqwest",
  "serde",
  "serde_json",
  "tokio",
- "tracing",
- "tracing-subscriber",
  "url",
 ]
 
