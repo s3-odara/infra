@@ -50,6 +50,20 @@
 
 ## NixOS・build toolへの適応
 
+### matrix-tuwunelにAWS-LCのbuild inputを追加する
+
+- 実装: `flake.nix`の`matrixTuwunelBuildWorkarounds`
+- 理由: nixpkgsのRust build hookが`AWS_LC_SYS_USE_SYSTEM=1`を設定する一方、`matrix-tuwunel`のderivationに`aws-lc`が含まれず、`aws-lc-sys`のbuildが失敗する。
+- 対応: Tuwunel両構成の`services.matrix-tuwunel.package`をoverrideし、`pkgs.aws-lc`を`buildInputs`へ追加する。
+- 撤去条件: nixpkgsの`matrix-tuwunel` derivationがAWS-LC依存を宣言し、このoverrideなしでbuildできるようになったとき。
+
+### jevmalloc-sysではupstreamのjemalloc forkをbuildする
+
+- 実装: `flake.nix`の`matrixTuwunelBuildWorkarounds`にある`preBuild`
+- 理由: nixpkgsのRust build hookが`JEMALLOC_OVERRIDE`に存在しないsentinel pathを設定する。`jevmalloc-sys`はこれを実ライブラリのpathとして扱い、存在確認で失敗する。通常のnixpkgs jemallocではなく、Tuwunelが使うupstream forkをbuildする必要がある。
+- 対応: Cargo build前に`JEMALLOC_OVERRIDE`をunsetし、bundled jemalloc forkをbuildさせる。
+- 撤去条件: nixpkgsのRust hookが`jevmalloc-sys`でsentinelを設定しなくなるか、package側でbundled forkをbuildできるようになったとき。
+
 ### update-flake時のkernel config生成で`preUnpack`を無効化する
 
 - 実装: `hosts/{aracha-ovh,mecha-vultr,tencha-conoha}/kernel.nix`の`generatedKernelConfig`
