@@ -164,6 +164,66 @@ in
     };
   };
 
+  systemd.services.tuwunel-local-media-prune = {
+    description = "Prune expired local Tuwunel media, retaining current avatars";
+    requires = [ "tuwunel.service" ];
+    # Reuse the bot's identity and its existing restricted API egress rules.
+    bindsTo = [ "nftables.service" ];
+    after = [
+      "tuwunel.service"
+      "nftables.service"
+    ];
+    serviceConfig = oneshotHardening.base // {
+      Type = "oneshot";
+      User = "matrix-bot";
+      Group = "matrix-bot";
+      TimeoutStartSec = "10m";
+      LoadCredential = [ "matrix-admin-token:${config.sops.secrets.matrix_bot_access_token.path}" ];
+    };
+    script = ''
+      set -euo pipefail
+      token="$(<"$CREDENTIALS_DIRECTORY/matrix-admin-token")"
+      if [[ -z "$token" || "$token" == *$'\r'* || "$token" == *$'\n'* ]]; then
+        echo "Invalid Matrix admin token credential" >&2
+        exit 1
+      fi
+
+      now="$(${pkgs.coreutils}/bin/date +%s)"
+      before_ts=$(( (now - 7 * 24 * 60 * 60) * 1000 ))
+      # Keep credentials out of argv and the journal; never follow redirects.
+      # Tuwunel compares storage mtime, not last access or message deletion time.
+      printf 'Authorization: Bearer %s\n' "$token" \
+        | ${pkgs.curl}/bin/curl \
+          --disable --silent --show-error --fail \
+          --connect-timeout 10 --max-time 540 \
+          --noproxy '*' --proto '=http' \
+          --request POST \
+          --header @- \
+          --header 'Content-Type: application/json' \
+          --data '{}' \
+          "http://127.0.0.1:8008/_synapse/admin/v1/media/delete?before_ts=$before_ts&keep_profiles=true" \
+        | ${pkgs.jq}/bin/jq --exit-status --raw-output '
+          if (.total | type == "number" and . >= 0 and . == floor) then
+            "Deleted \(.total) expired local media items (current avatars retained)"
+          else
+            error("Invalid media pruning response")
+          end
+        '
+    '';
+  };
+
+  systemd.timers.tuwunel-local-media-prune = {
+    description = "Daily local Tuwunel media expiry after seven days";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "*-*-* 05:30:00 Asia/Tokyo";
+      Persistent = true;
+      RandomizedDelaySec = "3m";
+      FixedRandomDelay = true;
+      AccuracySec = "1s";
+    };
+  };
+
   sops = {
     secrets = {
       turn_external_secret = {
