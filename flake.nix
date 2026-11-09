@@ -38,6 +38,20 @@
         nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/check-sygnal-pins/package.nix
           { };
 
+      matrixTuwunelBuildWorkarounds =
+        { pkgs, ... }:
+        {
+          # nixpkgs' Rust setup hook requires AWS-LC to be available as a system library.
+          # matrix-tuwunel uses aws-lc-sys but its package does not declare this input.
+          services.matrix-tuwunel.package = pkgs.matrix-tuwunel.overrideAttrs (oldAttrs: {
+            buildInputs = oldAttrs.buildInputs ++ [ pkgs.aws-lc ];
+            # jevmalloc-sys must build its bundled fork; nixpkgs' sentinel is treated as a real archive.
+            preBuild = (oldAttrs.preBuild or "") + ''
+              unset JEMALLOC_OVERRIDE
+            '';
+          });
+        };
+
       kexecInstaller =
         (nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
@@ -164,6 +178,7 @@
             sops-nix.nixosModules.sops
             ./modules/guest
             ./modules/guest/secrets.nix
+            matrixTuwunelBuildWorkarounds
             ./guests/tuwunel/configuration.nix
           ];
         };
@@ -173,6 +188,7 @@
           specialArgs.configurationName = "tuwunel-guest";
           modules = [
             ./modules/guest
+            matrixTuwunelBuildWorkarounds
             ./guests/tuwunel-guest/configuration.nix
           ];
         };
