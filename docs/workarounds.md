@@ -57,6 +57,13 @@
 - 対応: Tuwunel両構成の`services.matrix-tuwunel.package`をoverrideし、`pkgs.aws-lc`を`buildInputs`へ追加する。
 - 撤去条件: nixpkgsの`matrix-tuwunel` derivationがAWS-LC依存を宣言し、このoverrideなしでbuildできるようになったとき。
 
+### matrix-botにAWS-LCのbuild inputを宣言する
+
+- 実装: `packages/matrix-bot/package.nix`
+- 理由: nixpkgsのRust build hookが`AWS_LC_SYS_USE_SYSTEM=1`を設定するが、`matrix-bot`のbuild inputsに`aws-lc`がなく、`aws-lc-sys`のbuildが失敗する。
+- 対応: `aws-lc`を`buildInputs`に追加する。
+- 撤去条件: `matrix-bot`が`aws-lc-sys`を使わなくなるか、Rust build hookがsystem libraryを強制しなくなったとき。
+
 ### jevmalloc-sysではupstreamのjemalloc forkをbuildする
 
 - 実装: `flake.nix`の`matrixTuwunelBuildWorkarounds`にある`preBuild`

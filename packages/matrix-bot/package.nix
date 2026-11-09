@@ -1,4 +1,5 @@
 {
+  aws-lc,
   cacert,
   pkg-config,
   rustPlatform,
@@ -12,7 +13,10 @@ rustPlatform.buildRustPackage {
   cargoLock.lockFile = ./Cargo.lock;
   meta.mainProgram = "matrix-bot";
   nativeBuildInputs = [ pkg-config ];
-  buildInputs = [ sqlite ];
+  buildInputs = [
+    aws-lc
+    sqlite
+  ];
   # reqwest loads system roots when constructing even an HTTP-only test client.
   nativeCheckInputs = [ cacert ];
 }
