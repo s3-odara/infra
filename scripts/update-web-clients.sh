@@ -37,10 +37,13 @@ fi
 nix flake metadata --json "git+$upstream?ref=refs/tags/$tag&shallow=1" >"$tmp/source.json"
 rev=$(jq -er '.locked.rev' "$tmp/source.json")
 [[ $rev =~ ^[0-9a-f]{40}$ ]] || fail "release did not resolve to a Git commit"
-source_path=$(jq -er '.path' "$tmp/source.json")
+url="git+$upstream?ref=refs/tags/$tag&rev=$rev&shallow=1"
+# Metadata may report a store path without materializing the source (lazy trees).
+# Prefetch the resolved commit before reading files with external tools.
+nix flake prefetch --json "$url" >"$tmp/prefetch.json"
+source_path=$(jq -er '.storePath' "$tmp/prefetch.json")
 [[ $(jq -er .version "$source_path/package.json") == "$version" ]] ||
   fail "release tag and package version disagree"
-url="git+$upstream?ref=refs/tags/$tag&rev=$rev&shallow=1"
 
 log "Pinning Sable $version at $rev (no main-branch or hash-rewrite fallback)"
 awk -v url="$url" '
