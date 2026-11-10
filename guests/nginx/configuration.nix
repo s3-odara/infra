@@ -1137,7 +1137,7 @@ in
               limit_except POST { deny all; }
               limit_req zone=sygnal_push_ip burst=50 nodelay;
               limit_req zone=sygnal_push_global burst=100 nodelay;
-              limit_conn sygnal_push_conn 10;
+              limit_conn sygnal_push_conn 32;
               limit_req_status 429;
               limit_conn_status 429;
               client_max_body_size 1M;
