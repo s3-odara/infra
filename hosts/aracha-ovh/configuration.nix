@@ -84,25 +84,6 @@
   networking.nftables.enable = true;
   networking.nftables.flushRuleset = false;
 
-  # Tuwunel and Sygnal use public Matrix/Push URLs to retain SSRF protection,
-  # but Incus does not DNAT bridge-originated traffic and DNAT alone has an
-  # asymmetric return path. Do not SNAT the shared HTTPS forward because that
-  # would hide client IPs; translate only these local-client hairpin flows.
-  networking.nftables.tables."incus-hairpin" = {
-    family = "ip";
-    content = ''
-      chain prerouting {
-        type nat hook prerouting priority dstnat; policy accept;
-        iifname "incusbr0" ip saddr { 10.77.3.14, 10.77.3.16, 10.77.3.17 } ip daddr 15.235.184.173 tcp dport 443 dnat to 10.77.3.13:443
-      }
-
-      chain postrouting {
-        type nat hook postrouting priority srcnat; policy accept;
-        ip saddr { 10.77.3.14, 10.77.3.16, 10.77.3.17 } ip daddr 10.77.3.13 tcp dport 443 ct status dnat masquerade
-      }
-    '';
-  };
-
   # Allow guests to reach the DHCP/DNS service on the managed Incus bridge.
   networking.firewall.interfaces.incusbr0 = {
     allowedTCPPorts = [ 53 ];

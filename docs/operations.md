@@ -34,6 +34,30 @@ just update-flake
 
 ホストとゲストでは`system.autoUpgrade`も動く。ゲストの自動更新はSOPS暗号文を配送しない。暗号文を変更したら、Incusホスト上で`just upgrade-guests GUEST`を実行するか、管理端末から`just deploy-guest-closures USER@HOST`でclosureと暗号文をまとめて配送する。
 
+## apply-clodflare
+
+次の権限を持ったAccount API Tokenを作成。
+
+- Account → Workers R2 Storage → Edit
+
+Bash:
+
+```bash
+read -rsp 'Cloudflare API token: ' CLOUDFLARE_API_TOKEN; echo
+export CLOUDFLARE_API_TOKEN
+just apply-cloudflare
+unset CLOUDFLARE_API_TOKEN
+```
+
+zsh:
+
+```zsh
+read -rs 'CLOUDFLARE_API_TOKEN?Cloudflare API token: '; echo
+export CLOUDFLARE_API_TOKEN
+just apply-cloudflare
+unset CLOUDFLARE_API_TOKEN
+```
+
 ## 状態とログ
 
 ホスト：
