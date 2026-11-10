@@ -75,7 +75,7 @@ in
       port = [ 8008 ];
       ip_source = "rightmost_x_forwarded_for";
       ip_lookup_strategy = 1;
-      max_request_size = 16 * 1024 * 1024;
+      max_request_size = 1024 * 1024 * 1024;
       max_response_size = 128 * 1024 * 1024;
       new_user_displayname_suffix = "";
       allow_registration = true;
