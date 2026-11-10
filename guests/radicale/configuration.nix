@@ -87,7 +87,9 @@ in
 
   systemd.services.radicale = {
     bindsTo = [ "nftables.service" ];
+    wants = [ "network-online.target" ];
     after = [
+      "network-online.target"
       "nftables.service"
       "sops-nix.service"
     ];
@@ -95,9 +97,13 @@ in
     preStart = ''
       ${pkgs.coreutils}/bin/touch ${collectionsDirectory}/.Radicale.lock
     '';
-    serviceConfig.LoadCredential = [
-      "htpasswd:${config.sops.secrets.radicale_htpasswd.path}"
-    ];
+    serviceConfig = {
+      LoadCredential = [
+        "htpasswd:${config.sops.secrets.radicale_htpasswd.path}"
+      ];
+      Restart = "on-failure";
+      RestartSec = "5s";
+    };
   };
 
   sops = {
