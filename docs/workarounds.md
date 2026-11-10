@@ -145,17 +145,6 @@
 
 ## Incus・provider・networkへの適応
 
-### Tuwunelからnginxへのhairpin NATを手動設定する
-
-- 実装: `hosts/aracha-ovh/configuration.nix:86-103`
-- 理由: Incusはbridge trafficをpublic forwardへDNATせず、TuwunelはSSRF対策上public URLsを使う。
-- 対応: TuwunelからnginxへのHTTPSだけDNAT/masqueradeし、外部client IPは維持する。
-- 撤去条件: Incusがhairpin NATを提供するか、public URL不要の構成に変えたとき。
-- 導入コミット:
-  - `59058fc` (`fix: add scoped hairpin NAT for Sygnal`)
-  - `d1e107c` (`fix: DNAT Tuwunel push hairpin traffic`)
-  - `2fadac5` (`feat: add guest matrix call`) — guest Tuwunelも対象へ追加
-
 ### Incus providerのACL表現差を吸収する
 
 - 実装: `tofu/acls.tf:7-35`
@@ -273,6 +262,8 @@
 ## 撤去済み
 
 次のworkaroundは現行構成から撤去済み。
+
+- nginxへの手書きhairpin DNAT/masquerade — Incus生成DNATをトレースで確認し、Tuwunelから手書きルールを両方迂回した新規HTTPS接続が成功（2026-11-11 JST、Sygnal・guest Tuwunelは未検証）
 
 - Sygnal closure内のAnyIOテスト無効化 — nixpkgs更新でAnyIO 4.15.1のテストが通ることを確認
 - Tuwunel 1.9.1のdirect buildとthumbnail test無効化 — `2840052` (`Revert Tuwunel direct-build workarounds`)
