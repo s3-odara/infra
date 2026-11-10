@@ -56,6 +56,7 @@ let
     "rtc-matrix._acme-challenge.odarah.org."
     "sable-matrix._acme-challenge.odarah.org."
     "push-matrix._acme-challenge.odarah.org."
+    "dav._acme-challenge.odarah.org."
   ];
   xmppAcmeUpdateOwners = [
     "xmpp._acme-challenge.odarah.org."

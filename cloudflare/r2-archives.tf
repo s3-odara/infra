@@ -2,6 +2,7 @@ locals {
   archive_buckets = toset([
     "knot",
     "prosody",
+    "radicale",
     "tuwunel",
   ])
 

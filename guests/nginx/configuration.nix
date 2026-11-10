@@ -17,6 +17,7 @@ let
   rtcHost = "rtc.matrix.odarah.org";
   sableHost = "sable.matrix.odarah.org";
   pushHost = "push.matrix.odarah.org";
+  davHost = "dav.odarah.org";
   acmeDnsEnvironment = pkgs.writeText "acme-rfc2136.env" ''
     DNSUPDATE_NAMESERVER=10.77.3.11:53
     DNSUPDATE_TSIG_KEY=nginx.
@@ -31,6 +32,7 @@ let
   guestTuwunelAddress = "10.77.3.17";
   rtcAddress = "10.77.3.15";
   sygnalAddress = "10.77.3.16";
+  radicaleAddress = "10.77.3.18";
   pushClientConfig = builtins.fromJSON (builtins.readFile ../../packages/sygnal/client-config.json);
   oidcAccountCss = ./tuwunel-oidc.css;
   webClientHtml = pkgs.callPackage ../../packages/web-client-html/package.nix { };
@@ -471,6 +473,7 @@ in
         rtcHost
         sableHost
         pushHost
+        davHost
       ];
       profile = "shortlived";
       extraLegoRenewFlags = [ "--reuse-key" ];
@@ -526,6 +529,7 @@ in
           ip daddr { ${tuwunelAddress}, ${guestTuwunelAddress} } tcp dport 8008 counter accept
           ip daddr ${rtcAddress} tcp dport { 80, 5349, 7880, 8081 } counter accept
           ip daddr ${sygnalAddress} tcp dport 5000 counter accept
+          ip daddr ${radicaleAddress} tcp dport 5232 counter accept
           counter reject with icmpx type admin-prohibited
         }
       '';
@@ -565,6 +569,7 @@ in
         ${rtcHost} 127.0.0.1:9443;
         ${sableHost} 127.0.0.1:9443;
         ${pushHost} 127.0.0.1:9443;
+        ${davHost} 127.0.0.1:9443;
         turn.odarah.org 127.0.0.1:9446;
         xmpp.odarah.org 127.0.0.1:9444;
         conference.xmpp.odarah.org 127.0.0.1:9444;
@@ -690,6 +695,11 @@ in
       }
 
       limit_conn_zone $remote_addr zone=rtc_ws_conn:10m;
+      # DAV uses HTTP Basic authentication on normal sync requests too.
+      limit_req_zone $binary_remote_addr zone=radicale_ip:10m rate=10r/s;
+      limit_req_zone $server_name zone=radicale_global:1m rate=50r/s;
+      limit_conn_zone $binary_remote_addr zone=radicale_conn:10m;
+
       limit_req_zone $binary_remote_addr zone=sygnal_push_ip:10m rate=10r/s;
       limit_req_zone $server_name zone=sygnal_push_global:1m rate=50r/s;
       limit_conn_zone $binary_remote_addr zone=sygnal_push_conn:10m;
@@ -1142,6 +1152,53 @@ in
             '';
           };
           "/".extraConfig = "return 404;";
+        };
+      };
+
+      ${davHost} = {
+        useACMEHost = matrixHost;
+        forceSSL = true;
+        extraConfig = http3Config;
+        listen = [
+          {
+            addr = "0.0.0.0";
+            port = 80;
+          }
+          {
+            addr = "127.0.0.1";
+            port = 8443;
+            ssl = true;
+            proxyProtocol = true;
+          }
+        ];
+        locations = {
+          "= /.well-known/caldav".return = "301 https://${davHost}/";
+          "= /.well-known/carddav".return = "301 https://${davHost}/";
+          "/" = {
+            proxyPass = "http://${radicaleAddress}:5232";
+            extraConfig = ''
+              limit_req zone=radicale_ip burst=50 nodelay;
+              limit_req zone=radicale_global burst=100 nodelay;
+              limit_conn radicale_conn 20;
+              limit_req_status 429;
+              limit_conn_status 429;
+              client_max_body_size 100000000;
+              proxy_http_version 1.1;
+              proxy_set_header Host $host;
+              proxy_set_header X-Forwarded-Host $host;
+              proxy_set_header X-Forwarded-Port 443;
+              proxy_set_header X-Forwarded-Proto https;
+              proxy_set_header X-Forwarded-For $remote_addr;
+              # Root deployment: never accept a client-supplied path prefix or identity.
+              proxy_set_header X-Script-Name "";
+              proxy_set_header X-Remote-User "";
+              proxy_set_header Remote-User "";
+              proxy_set_header Connection "";
+              proxy_connect_timeout 5s;
+              proxy_read_timeout 60s;
+              proxy_send_timeout 60s;
+            '';
+          };
         };
       };
 
