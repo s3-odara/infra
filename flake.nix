@@ -204,6 +204,17 @@
           ];
         };
 
+        radicale = nixpkgs.lib.nixosSystem {
+          system = "x86_64-linux";
+          specialArgs.configurationName = "radicale";
+          modules = [
+            sops-nix.nixosModules.sops
+            ./modules/guest
+            ./modules/guest/secrets.nix
+            ./guests/radicale/configuration.nix
+          ];
+        };
+
         rtc = nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
           specialArgs.configurationName = "rtc";

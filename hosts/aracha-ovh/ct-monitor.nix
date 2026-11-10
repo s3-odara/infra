@@ -14,6 +14,7 @@ let
           pubkeySha256 = "b6691bdac9607f2d47df771acbb6b0bc231baf680435997b92b74ce2cbbb060c";
           dnsNames = [
             "cinny.matrix.odarah.org"
+            "dav.odarah.org"
             "element.matrix.odarah.org"
             "guest.matrix.odarah.org"
             "matrix.odarah.org"
