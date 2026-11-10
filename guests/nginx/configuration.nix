@@ -156,10 +156,10 @@ let
     proxy_send_timeout 300s;
   '';
 
-  matrixProxyConfig = ''
+  matrixProxyConfig = maxBodySize: ''
     gzip off;
     brotli off;
-    client_max_body_size 16M;
+    client_max_body_size ${maxBodySize};
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-For $remote_addr;
@@ -811,7 +811,7 @@ in
 
           "= /.well-known/openid-configuration" = {
             proxyPass = "http://${tuwunelAddress}:8008";
-            extraConfig = matrixProxyConfig;
+            extraConfig = matrixProxyConfig "16M";
           };
 
           "= /_tuwunel/oidc/account.css".extraConfig = ''
@@ -821,6 +821,13 @@ in
             add_header X-Content-Type-Options "nosniff" always;
           '';
 
+          # Match uploads before the generic API regex; leave other APIs at 16 MiB.
+          "~ ^/_matrix/media/(?:r0|v3|unstable/fi[.]mau[.]msc2246)/upload(?:/[^/]+/[^/]+)?$" = {
+            priority = 900;
+            proxyPass = "http://${tuwunelAddress}:8008";
+            extraConfig = matrixProxyConfig "1G";
+          };
+
           "~ ^/(?:_matrix|_tuwunel)/" = {
             proxyPass = "http://${tuwunelAddress}:8008";
             extraConfig = ''
@@ -829,7 +836,7 @@ in
               limit_conn matrix_login_conn 8;
               limit_req_status 429;
               limit_conn_status 429;
-              ${matrixProxyConfig}
+              ${matrixProxyConfig "16M"}
             '';
           };
         };
