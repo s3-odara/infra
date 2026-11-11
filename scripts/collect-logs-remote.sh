@@ -116,7 +116,7 @@ capture() {
 capture_zstd() {
   local name=$1 seconds=$2
   shift 2
-  capture "$name" "$seconds" bash -o pipefail -c '"$@" | zstd --quiet --threads=1 -1 --stdout' bash "$@"
+  capture "$name" "$seconds" bash -o pipefail -c '"$@" | zstd --quiet --threads=1 -6 --stdout' bash "$@"
 }
 valid_name() {
   [[ $1 =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]] && return 0
@@ -319,9 +319,9 @@ collect_all() {
     fi
   done
   printf 'finished_utc=%s\nfailed_phases=%s\n' "$(date -u +%FT%TZ)" "$failed" >>"$result/collection.txt"
-  tar -C "$result" -cf - "${files[@]}" | zstd --quiet --threads=1 -1 --stdout >"$result/collection.tar.zst.partial"
-  mv -- "$result/collection.tar.zst.partial" "$result/collection.tar.zst"
-  printf 'Archive ready: %s/collection.tar.zst\n' "$result"
+  tar -C "$result" -cf "$result/collection.tar.partial" "${files[@]}"
+  mv -- "$result/collection.tar.partial" "$result/collection.tar"
+  printf 'Archive ready: %s/collection.tar\n' "$result"
   printf 'Inspect phase metadata for incomplete acquisition.\n'
   return "$((failed != 0))"
 }

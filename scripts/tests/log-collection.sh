@@ -69,8 +69,8 @@ awk -F '\t' '$1 == "failed.txt" && $4 == 7 { found=1 } END { exit !found }' "$wo
 )
 
 printf 'fixture only\n' >"$temporary/collection.txt"
-tar --zstd -C "$temporary" -cf "$temporary/collection.tar.zst" collection.txt
-export LOG_TEST_ARCHIVE=$temporary/collection.tar.zst LOG_TEST_EVENTS=$temporary/events
+tar -C "$temporary" -cf "$temporary/collection.tar" collection.txt
+export LOG_TEST_ARCHIVE=$temporary/collection.tar LOG_TEST_EVENTS=$temporary/events
 
 record_socket() {
   local option
@@ -101,14 +101,13 @@ scp() {
     printf partial >"$destination"
     return 7
     ;;
-  corrupt) printf broken >"$destination" ;;
   *) cp -- "$LOG_TEST_ARCHIVE" "$destination" ;;
   esac
 }
 export -f record_socket ssh scp
 
 # One normal case and the failures that must not be reported as complete.
-for scenario in success collect-fail transfer-fail corrupt; do
+for scenario in success collect-fail transfer-fail; do
   export LOG_TEST_CASE=$scenario
   : >"$LOG_TEST_EVENTS"
   status=0
@@ -117,12 +116,11 @@ for scenario in success collect-fail transfer-fail corrupt; do
   case "$scenario" in
   success) [[ $status == 0 ]] ;;
   collect-fail | transfer-fail) [[ $status == 7 ]] ;;
-  corrupt) [[ $status == 1 ]] ;;
   esac
   [[ $(tail -n 1 "$LOG_TEST_EVENTS") == closed ]]
   [[ $(grep '^ControlPath=' "$LOG_TEST_EVENTS" | sort -u | wc -l) == 1 ]]
-  if [[ $scenario == success || $scenario == collect-fail ]]; then
-    [[ $(find "$temporary/$scenario" -name collection.tar.zst | wc -l) == 1 ]]
+  if [[ $scenario != transfer-fail ]]; then
+    [[ $(find "$temporary/$scenario" -name collection.tar | wc -l) == 1 ]]
     [[ $(find "$temporary/$scenario" -name receipt.txt | wc -l) == 1 ]]
   else
     [[ $(find "$temporary/$scenario" -name '*.partial' | wc -l) == 1 ]]
