@@ -8,6 +8,10 @@
     # Stable-release policy and approved exceptions: docs/operations.md.
     sable-next.url = "git+https://git.sable.moe/SableClient/sable-next?ref=refs/tags/v2.3.8&rev=0d50e5942dfab037a135aff7bf84ba7596f8ca39&shallow=1";
 
+    # Temporary until nixpkgs packages 2.0.0. Keep upstream's own dependency pins.
+    # Build in our CI; do not add upstream's binary caches or trusted keys.
+    tuwunel.url = "git+https://github.com/matrix-construct/tuwunel?ref=refs/tags/v2.0.0&rev=a3feae1a26ec764ee88606c2c68b659a9b5fba8d&shallow=1";
+
     disko = {
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -31,6 +35,7 @@
       nixos-images,
       sable-next,
       sops-nix,
+      tuwunel,
       ...
     }:
     let
@@ -54,18 +59,10 @@
         else
           upstream;
 
-      matrixTuwunelBuildWorkarounds =
+      matrixTuwunelUpstream =
         { pkgs, ... }:
         {
-          # nixpkgs' Rust setup hook requires AWS-LC to be available as a system library.
-          # matrix-tuwunel uses aws-lc-sys but its package does not declare this input.
-          services.matrix-tuwunel.package = pkgs.matrix-tuwunel.overrideAttrs (oldAttrs: {
-            buildInputs = oldAttrs.buildInputs ++ [ pkgs.aws-lc ];
-            # jevmalloc-sys must build its bundled fork; nixpkgs' sentinel is treated as a real archive.
-            preBuild = (oldAttrs.preBuild or "") + ''
-              unset JEMALLOC_OVERRIDE
-            '';
-          });
+          services.matrix-tuwunel.package = tuwunel.packages.${pkgs.stdenv.hostPlatform.system}.default;
         };
 
       kexecInstaller =
@@ -194,7 +191,7 @@
             sops-nix.nixosModules.sops
             ./modules/guest
             ./modules/guest/secrets.nix
-            matrixTuwunelBuildWorkarounds
+            matrixTuwunelUpstream
             ./guests/tuwunel/configuration.nix
           ];
         };
@@ -204,7 +201,7 @@
           specialArgs.configurationName = "tuwunel-guest";
           modules = [
             ./modules/guest
-            matrixTuwunelBuildWorkarounds
+            matrixTuwunelUpstream
             ./guests/tuwunel-guest/configuration.nix
           ];
         };
