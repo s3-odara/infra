@@ -40,10 +40,9 @@ else
 fi
 ((${#guests[@]} > 0)) || fail "no guests found"
 
-metadata=$(nix flake metadata --refresh --no-update-lock-file --json \
-  github:s3-odara/infra/main)
-main_commit=$(jq -er '.locked.rev | select(type == "string")' <<<"$metadata")
-main_source=$(jq -er '.path | select(type == "string")' <<<"$metadata")
+source_info=$(nix flake prefetch --refresh --json github:s3-odara/infra/main)
+main_commit=$(jq -er '.locked.rev | select(type == "string")' <<<"$source_info")
+main_source=$(jq -er '.storePath | select(type == "string")' <<<"$source_info")
 [[ $main_commit =~ ^[0-9a-f]{40}$ ]] || fail "could not resolve GitHub main commit"
 [[ $main_source == /nix/store/* && -d $main_source ]] ||
   fail "GitHub main snapshot path is invalid"

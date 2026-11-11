@@ -143,10 +143,9 @@ upgrade-host:
     #!/usr/bin/env -S nix shell "git+file://{{ repo_root }}#jq" -c bash
     set -euo pipefail
 
-    metadata=$(nix flake metadata --refresh --no-update-lock-file --json \
-      github:s3-odara/infra/main)
-    commit=$(jq -er '.locked.rev | select(type == "string")' <<<"$metadata")
-    source=$(jq -er '.path | select(type == "string")' <<<"$metadata")
+    source_info=$(nix flake prefetch --refresh --json github:s3-odara/infra/main)
+    commit=$(jq -er '.locked.rev | select(type == "string")' <<<"$source_info")
+    source=$(jq -er '.storePath | select(type == "string")' <<<"$source_info")
     [[ $commit =~ ^[0-9a-f]{40}$ ]] || { echo "Could not resolve GitHub main" >&2; exit 1; }
     [[ $source == /nix/store/* && -d $source ]] || { echo "GitHub main snapshot path is invalid" >&2; exit 1; }
     echo "Using GitHub main commit $commit from $source"
