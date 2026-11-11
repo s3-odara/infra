@@ -99,8 +99,8 @@ in
       allow_unlisted_room_search_by_id = false;
       delete_rooms_after_leave = true;
       require_auth_for_profile_requests = true;
-      cache_capacity_modifier = 0.5;
-      db_cache_capacity_mb = 128;
+      cache_capacity_modifier = 1.0;
+      db_cache_capacity_mb = 256;
       db_write_buffer_capacity_mb = 52;
       rocksdb_allow_fallocate = false;
       database_backup_path = backupDirectory;
