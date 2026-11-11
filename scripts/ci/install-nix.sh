@@ -36,17 +36,20 @@ install_args=(
   --enable-flakes
 )
 
+# Upstream flakes provide package definitions, not additional cache trust anchors.
+extra_conf='accept-flake-config = false'
 cache_name=${CACHIX_CACHE_NAME:-}
 public_key=${CACHIX_PUBLIC_KEY:-}
 if [[ -n $cache_name || -n $public_key ]]; then
   : "${cache_name:?CACHIX_CACHE_NAME is required when configuring Cachix}"
   : "${public_key:?CACHIX_PUBLIC_KEY is required when configuring Cachix}"
 
-  extra_conf=$(printf '%s\n%s' \
+  extra_conf=$(printf '%s\n%s\n%s' \
+    "$extra_conf" \
     "extra-substituters = https://$cache_name.cachix.org" \
     "extra-trusted-public-keys = $public_key")
-  install_args+=(--extra-conf "$extra_conf")
 fi
+install_args+=(--extra-conf "$extra_conf")
 
 sudo "$installer" "${install_args[@]}"
 printf '%s\n' /nix/var/nix/profiles/default/bin >>"$GITHUB_PATH"
