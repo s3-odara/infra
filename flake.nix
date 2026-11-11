@@ -6,7 +6,7 @@
 
     # Use upstream packaging and its own nixpkgs, not the system package set.
     # Stable-release policy and approved exceptions: docs/operations.md.
-    sable-next.url = "git+https://git.sable.moe/SableClient/sable-next?rev=f8e4d5463e228de01f4bcbf349973e288bf505db&shallow=1";
+    sable-next.url = "git+https://git.sable.moe/SableClient/sable-next?ref=refs/tags/v2.3.8&rev=0d50e5942dfab037a135aff7bf84ba7596f8ca39&shallow=1";
 
     disko = {
       url = "github:nix-community/disko";
