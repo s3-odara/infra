@@ -56,6 +56,10 @@ jobs:
           nix build --no-link --max-jobs 1 --cores 4 --print-out-paths "${targets[@]}" \
             >"$RUNNER_TEMP/cache-roots"
 
+          # This evaluation-time input is not part of the runtime closures.
+          nix build --no-link --print-out-paths path:.#tuwunel-rust-manifest \
+            >>"$RUNNER_TEMP/cache-roots"
+
       - name: Push signed closures
         shell: bash
         env:
