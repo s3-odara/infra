@@ -219,6 +219,8 @@ in
     ];
 
     extraConfig = ''
+      -- The generated config lives in /run/prosody; don't resolve certs relative to it.
+      certificates = "/etc/prosody/certs"
       use_dane = false
       ssl_ports = { 443 }
       c2s_direct_tls_ports = { 5223 }

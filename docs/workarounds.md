@@ -50,6 +50,13 @@
 
 ## NixOS・build toolへの適応
 
+### Prosodyの証明書探索先を絶対pathで指定する
+
+- 実装: `guests/prosody/configuration.nix`の`certificates`
+- 理由: NixOS moduleが設定を`/run/prosody`へ生成し、相対pathの`certs`が存在しない場所を指す。
+- 対応: moduleが用意する`/etc/prosody/certs`を明示する。
+- 撤去条件: upstream moduleが証明書探索先を適切に設定するようになったとき。
+
 ### matrix-tuwunelにAWS-LCのbuild inputを追加する
 
 - 実装: `flake.nix`の`matrixTuwunelBuildWorkarounds`
