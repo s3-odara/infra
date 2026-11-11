@@ -54,6 +54,20 @@ for guest in "${guests[@]}"; do
   incus info "$guest" >/dev/null || fail "guest not found: $guest"
   echo "Waiting for $guest..."
   wait_for_guest "$guest"
+  echo "Fetching configuration for $guest..."
+  incus exec "$guest" -- nix build \
+    --option experimental-features "nix-command flakes" \
+    --no-link \
+    --max-jobs 0 \
+    --option builders "" \
+    --option always-allow-substitutes true \
+    --option narinfo-cache-negative-ttl 0 \
+    "github:s3-odara/infra/$main_commit#nixosConfigurations.$guest.config.system.build.toplevel" ||
+    fail "could not fetch configuration for $guest; no guests were updated (ensure the Build and cache workflow has completed)"
+done
+
+# Do not copy secrets or activate any guest until every configuration is available.
+for guest in "${guests[@]}"; do
   copy_secrets "$guest"
   echo "Updating $guest..."
   incus exec "$guest" -- nixos-rebuild switch \

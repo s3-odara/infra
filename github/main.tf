@@ -67,14 +67,8 @@ resource "github_repository_ruleset" "main_pr_gate" {
 }
 
 resource "github_repository_environment" "cachix" {
-  repository          = local.repository
-  environment         = "cachix"
-  can_admins_bypass   = false
-  prevent_self_review = false
-
-  reviewers {
-    users = [76041920]
-  }
+  repository  = local.repository
+  environment = "cachix"
 
   deployment_branch_policy {
     protected_branches     = false
