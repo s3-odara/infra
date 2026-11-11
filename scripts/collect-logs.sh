@@ -19,12 +19,12 @@ fetch_results() {
   result=$(mktemp -d "$parent/$host.XXXXXXXXXX")
   printf 'Receiving into %s\n' "$result" >&2
   scp "${ssh_options[@]}" \
-    "$host:$source/collection.tar.zst" "$result/collection.tar.zst.partial"
-  zstd --quiet --test "$result/collection.tar.zst.partial"
-  mv -- "$result/collection.tar.zst.partial" "$result/collection.tar.zst"
-  printf 'received_utc=%s\nsource=%s:%s\ntransfer_exit=0\ncompression=zstd\ncompression_check=passed\n' \
+    "$host:$source/collection.tar" "$result/collection.tar.partial"
+  # Rely on SCP over SSH for transfer integrity; do not claim archive validation.
+  mv -- "$result/collection.tar.partial" "$result/collection.tar"
+  printf 'received_utc=%s\nsource=%s:%s\ntransfer_exit=0\n' \
     "$(date -u +%FT%TZ)" "$host" "$source" >"$result/receipt.txt"
-  printf 'Archive received (zstd format check only): %s/collection.tar.zst\n' "$result"
+  printf 'Archive received (SCP transfer succeeded): %s/collection.tar\n' "$result"
   printf 'Not extracted. Inspect collection metadata for incomplete acquisition.\n'
 }
 
@@ -54,10 +54,6 @@ fi
 [[ $host =~ ^[a-zA-Z0-9][a-zA-Z0-9_.@-]*$ ]] || {
   echo 'Invalid SSH destination' >&2
   exit 2
-}
-command -v zstd >/dev/null || {
-  echo 'zstd is required locally (nothing will be installed).' >&2
-  exit 1
 }
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 umask 077
