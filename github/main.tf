@@ -37,8 +37,7 @@ resource "github_repository_ruleset" "main" {
   }
 }
 
-# The maintainer can bypass PR and update restrictions at any time, including
-# for direct pushes. Checks and history protections remain non-bypassable.
+# Only the maintainer can bypass PR requirements; checks remain mandatory.
 resource "github_repository_ruleset" "main_pr_gate" {
   name        = "main PR gate"
   repository  = local.repository
@@ -59,8 +58,6 @@ resource "github_repository_ruleset" "main_pr_gate" {
   }
 
   rules {
-    update = true
-
     pull_request {
       dismiss_stale_reviews_on_push   = true
       require_code_owner_review       = true
@@ -110,10 +107,10 @@ resource "github_workflow_repository_permissions" "infra" {
   can_approve_pull_request_reviews = false
 }
 
-resource "github_actions_variable" "update_app_id" {
+resource "github_actions_variable" "update_app_client_id" {
   repository    = local.repository
-  variable_name = "UPDATE_APP_ID"
-  value         = "4973323"
+  variable_name = "UPDATE_APP_CLIENT_ID"
+  value         = "Iv23liAvhK1jIpXu0kUj"
 }
 
 resource "github_actions_variable" "cachix_cache_name" {
