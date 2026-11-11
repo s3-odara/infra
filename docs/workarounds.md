@@ -50,6 +50,14 @@
 
 ## NixOS・build toolへの適応
 
+### Sable 2.3.8のCargo vendor hashを補正する
+
+- 実装: `flake.nix`の`sableUnwrapped`
+- 理由: 上流v2.3.8のCargo vendor hashが誤っており、そのままでは依存ソースのhash検証に失敗する。
+- 対応: versionが`2.3.8`の場合だけ、`cargoDeps.vendorStaging.outputHash`を`sha256-BAg6nljjuDaIAXhplI0vFBX1h4eJCR72vo0CIUlTeY8=`へoverrideする。単体の`sable` packageとnginxの配信用packageに共通適用する。
+- 撤去条件: 正しいvendor hashを持つ上流revisionへ更新し、overrideなしでbuildできることを確認したとき。2.3.8以外ではoverrideを適用しない。
+- 導入コミット: `b78a529` (`fix(sable): cargo hash override`)
+
 ### Prosodyの証明書探索先を絶対pathで指定する
 
 - 実装: `guests/prosody/configuration.nix`の`certificates`
