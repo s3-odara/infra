@@ -123,6 +123,11 @@ in
   systemd.sockets.systemd-journal-remote = {
     # Incus creates the bridge asynchronously; wait for the device before
     # binding the socket and stop it if the bridge disappears.
+    # Incus starts after basic.target, so this late socket must not inherit
+    # Before=sockets.target. Keep the shutdown dependencies explicitly.
+    unitConfig.DefaultDependencies = false;
+    before = [ "shutdown.target" ];
+    conflicts = [ "shutdown.target" ];
     after = [
       "incus.service"
       "sys-subsystem-net-devices-incusbr0.device"
