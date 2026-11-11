@@ -36,9 +36,7 @@ jobs:
             task: update-go
           - name: web-clients
             task: update-web-clients
-            draft: true
     env:
-      DRAFT_PR: ${{ matrix.draft || false }}
       UPDATE_NAME: ${{ matrix.name }}
       UPDATE_TASK: ${{ matrix.task }}
     steps:
@@ -95,7 +93,7 @@ jobs:
         id: update-app-token
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
-          app-id: ${{ vars.UPDATE_APP_ID }}
+          client-id: ${{ vars.UPDATE_APP_CLIENT_ID }}
           private-key: ${{ secrets.UPDATE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
           repositories: infra
@@ -127,14 +125,12 @@ jobs:
             git push origin "HEAD:refs/heads/$branch"
           fi
 
-          draft_args=()
-          if [[ $DRAFT_PR == true ]]; then
-            draft_args+=(--draft)
-          fi
-
-          gh pr create \
-            "${draft_args[@]}" \
+          pr_url=$(gh pr create \
             --base main \
             --head "$branch" \
             --title "chore: update $UPDATE_NAME" \
-            --body "Automated dependency update."
+            --body "Automated dependency update.")
+          printf '%s\n' "$pr_url"
+
+          # CODEOWNER approval and CI remain required.
+          gh pr merge "$pr_url" --auto --merge
