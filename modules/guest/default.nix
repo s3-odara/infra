@@ -50,10 +50,15 @@ in
   };
   systemd.timers.nixos-upgrade.timerConfig.AccuracySec = "1s";
 
-  nix.settings.experimental-features = [
-    "nix-command"
-    "flakes"
-  ];
+  nix.settings = {
+    experimental-features = [
+      "nix-command"
+      "flakes"
+    ];
+    # Fetch even trivial system derivations from caches; never build in guests.
+    always-allow-substitutes = true;
+    max-jobs = 0;
+  };
 
   nix.gc = {
     automatic = true;

@@ -23,7 +23,7 @@ resource "incus_instance" "guest" {
 
   config = {
     "boot.autostart"          = "true"
-    "security.nesting"        = "true"
+    "security.nesting"        = "false"
     "security.idmap.isolated" = "true"
     "limits.cpu.allowance"    = each.value.cpu_allowance
     "limits.memory"           = each.value.memory

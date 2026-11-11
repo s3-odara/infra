@@ -15,7 +15,7 @@ resource "incus_project" "user" {
 
     "restricted"                      = "true"
     "restricted.containers.privilege" = "isolated"
-    # NixOS containerではsecurity.nesting=trueを使う。
+    # instance側でnestingを無効化する。全既存guestへの適用後にblockへ変更する。
     "restricted.containers.nesting" = "allow"
 
     # managed resourceだけ利用可能。
