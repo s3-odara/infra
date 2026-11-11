@@ -77,6 +77,73 @@ in
       ip_lookup_strategy = 1;
       max_request_size = 1024 * 1024 * 1024;
       max_response_size = 128 * 1024 * 1024;
+      media.url_preview = {
+        domain_explicit_allowlist = [
+          # 動画
+          "youtube.com"
+          "youtu.be"
+          "nicovideo.jp"
+          "nico.ms"
+
+          # 開発・技術
+          "github.com"
+          "gitlab.com"
+          "qiita.com"
+          "zenn.dev"
+          "stackoverflow.com"
+
+          # 開発者コミュニティ
+          "dev.to"
+          "ycombinator.com"
+          "serverfault.com"
+          "superuser.com"
+          "codeberg.org"
+          "stackexchange.com"
+          "unix.stackexchange.com"
+          "security.stackexchange.com"
+          "networkengineering.stackexchange.com"
+          "cs.stackexchange.com"
+          "crypto.stackexchange.com"
+
+          # パッケージ・ライブラリ
+          "npmjs.com"
+          "pypi.org"
+          "crates.io"
+          "docs.rs"
+          "go.dev"
+          "docker.com"
+
+          # 公式ドキュメント・技術ブログ
+          "mozilla.org"
+          "cloudflare.com"
+          "web.dev"
+          "chrome.com"
+          "microsoft.com"
+          "archlinux.org"
+
+          # その他
+          "arxiv.org"
+
+          # 記事・情報
+          "note.com"
+          "wikipedia.org"
+
+          # SNS
+          "x.com"
+          "twitter.com"
+          "bsky.app"
+          "reddit.com"
+
+          # 画像
+          "imgur.com"
+          "gyazo.com"
+        ];
+        # Also admit hosts with one extra label, including meta.<category>.stackexchange.com.
+        check_root_domain = true;
+        max_spider_size = "768 KiB";
+        max_media_size = "10 MiB";
+        cache_ttl = 86400;
+      };
       new_user_displayname_suffix = "";
       allow_registration = true;
       registration_token_file = registrationToken;
