@@ -38,6 +38,22 @@
         nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/check-sygnal-pins/package.nix
           { };
 
+      sableUnwrapped =
+        let
+          upstream = sable-next.packages.x86_64-linux.sable-unwrapped;
+        in
+        if upstream.version == "2.3.8" then
+          upstream.overrideAttrs (old: {
+            # v2.3.8 pins an incorrect Cargo vendor hash. Remove after upgrading.
+            cargoDeps = old.cargoDeps.overrideAttrs (deps: {
+              vendorStaging = deps.vendorStaging.overrideAttrs {
+                outputHash = "sha256-BAg6nljjuDaIAXhplI0vFBX1h4eJCR72vo0CIUlTeY8=";
+              };
+            });
+          })
+        else
+          upstream;
+
       matrixTuwunelBuildWorkarounds =
         { pkgs, ... }:
         {
@@ -89,7 +105,7 @@
         kexec-installer = kexecInstaller;
         nixos-anywhere = nixpkgs.legacyPackages.x86_64-linux.nixos-anywhere;
         opentofu = nixpkgs.legacyPackages.x86_64-linux.opentofu;
-        sable = sable-next.packages.x86_64-linux.sable-unwrapped;
+        sable = sableUnwrapped;
         shfmt = nixpkgs.legacyPackages.x86_64-linux.shfmt;
         sygnal = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/sygnal/package.nix { };
         sops = nixpkgs.legacyPackages.x86_64-linux.sops;
@@ -161,7 +177,7 @@
           system = "x86_64-linux";
           specialArgs = {
             configurationName = "nginx";
-            sable-unwrapped = sable-next.packages.x86_64-linux.sable-unwrapped;
+            sable-unwrapped = sableUnwrapped;
           };
           modules = [
             sops-nix.nixosModules.sops
