@@ -73,6 +73,13 @@
 - キャッシュ: 上流のsubstituter・公開鍵は追加しない。既存のCIでbuildし、自分のCachixへ署名付きclosureをpushする。`scripts/ci/install-nix.sh`は`accept-flake-config = false`を明示する。
 - 撤去条件: nixpkgsが2.0.0以降を提供し、必要なfeature（特にOIDC）とbuild・動作を確認できたとき。
 
+### Tuwunelの評価時Rust manifestをCachixへ追加する
+
+- 実装: `flake.nix`の`packages.x86_64-linux.tuwunel-rust-manifest`、`.github/workflows/build-cache.yml`の`Build closures`
+- 理由: 上流v2.0.0のFenix `fromToolchainFile`は、評価時に`channel-rust-1.95.0.toml`を取得して読む（IFD)。max-jobs = 0`のゲストでは評価に失敗する。
+- 対応: 上流と同じRust 1.95.0のmanifestとhashを`fetchurl`で定義し、CIの`cache-roots`へ追加して既存の署名付きpushで配布する。
+- 撤去条件: sableをnixpkgsのpackageへ移行するか、上流のIFDが不要になり、このmanifestを明示的に配布せずビルド禁止のゲストを更新できることを確認したとき。
+
 ### matrix-botにAWS-LCのbuild inputを宣言する
 
 - 実装: `packages/matrix-bot/package.nix`

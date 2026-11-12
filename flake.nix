@@ -106,6 +106,12 @@
         shfmt = nixpkgs.legacyPackages.x86_64-linux.shfmt;
         sygnal = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/sygnal/package.nix { };
         sops = nixpkgs.legacyPackages.x86_64-linux.sops;
+        # Cache tuwunel 2.0.0's IFD input for build-disabled guests.
+        # Keep the Rust version and hash in sync with the pinned upstream flake.
+        tuwunel-rust-manifest = nixpkgs.legacyPackages.x86_64-linux.fetchurl {
+          url = "https://static.rust-lang.org/dist/channel-rust-1.95.0.toml";
+          hash = "sha256-gh/xTkxKHL4eiRXzWv8KP7vfjSk61Iq48x47BEDFgfk=";
+        };
         web-client-html =
           nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/web-client-html/package.nix
             { };
