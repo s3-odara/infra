@@ -50,6 +50,13 @@
 
 ## NixOS・build toolへの適応
 
+### nix-update実行前に更新後のflakeを実体化する
+
+- 実装: `justfile`の`update-go`
+- 理由: nix-update 1.16.0が内部で使う`nix flake metadata`は、lazyな取得でまだ実体のないstore pathを返すことがあり、その後の評価が`No such file or directory`で失敗する。
+- 対応: `go get`と`go mod tidy`の後、`nix-update`の直前に`nix flake prefetch .`で変更後のソースを実体化する。
+- 撤去条件: nix-updateが評価前にソースを実体化し、事前prefetchなしで`just update-go`を完走できることを確認したとき。
+
 ### Sable 2.3.8のCargo vendor hashを補正する
 
 - 実装: `flake.nix`の`sableUnwrapped`
