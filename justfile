@@ -217,6 +217,8 @@ update-go:
         export GOTOOLCHAIN=local
         go -C packages/web-client-html get -u ./...
         go -C packages/web-client-html mod tidy
+        # metadata can return a lazy store path; materialize the updated flake first.
+        nix flake prefetch . >/dev/null
         nix-update --flake --version=skip web-client-html
       '
 
