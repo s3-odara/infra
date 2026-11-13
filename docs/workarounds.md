@@ -57,13 +57,13 @@
 - 対応: `go get`と`go mod tidy`の後、`nix-update`の直前に`nix flake prefetch .`で変更後のソースを実体化する。
 - 撤去条件: nix-updateが評価前にソースを実体化し、事前prefetchなしで`just update-go`を完走できることを確認したとき。
 
-### Sable 2.3.8のCargo vendor hashを補正する
+### Sable 2.3.9のCargo vendor hashを補正する
 
 - 実装: `flake.nix`の`sableUnwrapped`
-- 理由: 上流v2.3.8のCargo vendor hashが誤っており、そのままでは依存ソースのhash検証に失敗する。
-- 対応: versionが`2.3.8`の場合だけ、`cargoDeps.vendorStaging.outputHash`を`sha256-BAg6nljjuDaIAXhplI0vFBX1h4eJCR72vo0CIUlTeY8=`へoverrideする。単体の`sable` packageとnginxの配信用packageに共通適用する。
-- 撤去条件: 正しいvendor hashを持つ上流revisionへ更新し、overrideなしでbuildできることを確認したとき。2.3.8以外ではoverrideを適用しない。
-- 導入コミット: `b78a529` (`fix(sable): cargo hash override`)
+- 理由: 上流v2.3.9のCargo vendor hashが誤っており、そのままでは依存ソースのhash検証に失敗する。上流指定値`sha256-TOBVGGtU99fJw064HdYbGbl00z/ZJ1hp3zqMF8/FJHk=`に対し、Nixが`sha256-hhTjjNlAzGmniTa7r15LXaZicgKEEyLcuKkJlNsLCl0=`を報告した。
+- 対応: `cargoDeps.vendorStaging.outputHash`を正しい値へoverrideする。単体の`sable` packageとnginxの配信用packageに共通適用する。
+- 撤去条件: 正しいvendor hashを持つ上流revisionへ更新し、overrideなしでbuildできることを確認したとき。
+- 初回導入コミット: `b78a529` (`fix(sable): cargo hash override`)
 
 ### Prosodyの証明書探索先を絶対pathで指定する
 
