@@ -6,7 +6,7 @@
 
     # Use upstream packaging and its own nixpkgs, not the system package set.
     # Stable-release policy and approved exceptions: docs/operations.md.
-    sable-next.url = "git+https://git.sable.moe/SableClient/sable-next?ref=refs/tags/v2.3.8&rev=0d50e5942dfab037a135aff7bf84ba7596f8ca39&shallow=1";
+    sable-next.url = "git+https://git.sable.moe/SableClient/sable-next?ref=refs/tags/v2.3.9&rev=2b9e33610e91b49b77ab48f0b1e2837dd5ecbaf5&shallow=1";
 
     # Temporary until nixpkgs packages 2.0.0. Keep upstream's own dependency pins.
     # Build in our CI; do not add upstream's binary caches or trusted keys.
@@ -47,12 +47,12 @@
         let
           upstream = sable-next.packages.x86_64-linux.sable-unwrapped;
         in
-        if upstream.version == "2.3.8" then
+        if upstream.version == "2.3.9" then
           upstream.overrideAttrs (old: {
-            # v2.3.8 pins an incorrect Cargo vendor hash. Remove after upgrading.
+            # v2.3.9 pins an incorrect Cargo vendor hash.
             cargoDeps = old.cargoDeps.overrideAttrs (deps: {
               vendorStaging = deps.vendorStaging.overrideAttrs {
-                outputHash = "sha256-BAg6nljjuDaIAXhplI0vFBX1h4eJCR72vo0CIUlTeY8=";
+                outputHash = "sha256-hhTjjNlAzGmniTa7r15LXaZicgKEEyLcuKkJlNsLCl0=";
               };
             });
           })

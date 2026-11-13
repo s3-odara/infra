@@ -45,7 +45,7 @@
 - 実装: `guests/tuwunel/configuration.nix:87-91`
 - 理由: 不要なremote mediaの蓄積を防ぐ。
 - 対応: signal処理でbackup時に`media delete-range 7d --older-than`を実行する。
-- 撤去条件: Tuwunelに同等のmedia管理機能が実装されたとき。
+- 撤去条件: Tuwunelが[自動media retention（#546）](https://github.com/matrix-construct/tuwunel/issues/546)を実装し、外部の定期削除が不要になったとき。
 - 導入コミット: `3003cc4` (`feat(tuwunel): prune remote media`)
 
 ## NixOS・build toolへの適応
@@ -57,13 +57,13 @@
 - 対応: `go get`と`go mod tidy`の後、`nix-update`の直前に`nix flake prefetch .`で変更後のソースを実体化する。
 - 撤去条件: nix-updateが評価前にソースを実体化し、事前prefetchなしで`just update-go`を完走できることを確認したとき。
 
-### Sable 2.3.8のCargo vendor hashを補正する
+### Sable 2.3.9のCargo vendor hashを補正する
 
 - 実装: `flake.nix`の`sableUnwrapped`
-- 理由: 上流v2.3.8のCargo vendor hashが誤っており、そのままでは依存ソースのhash検証に失敗する。
-- 対応: versionが`2.3.8`の場合だけ、`cargoDeps.vendorStaging.outputHash`を`sha256-BAg6nljjuDaIAXhplI0vFBX1h4eJCR72vo0CIUlTeY8=`へoverrideする。単体の`sable` packageとnginxの配信用packageに共通適用する。
-- 撤去条件: 正しいvendor hashを持つ上流revisionへ更新し、overrideなしでbuildできることを確認したとき。2.3.8以外ではoverrideを適用しない。
-- 導入コミット: `b78a529` (`fix(sable): cargo hash override`)
+- 理由: 上流v2.3.9のCargo vendor hashが誤っており、そのままでは依存ソースのhash検証に失敗する。上流指定値`sha256-TOBVGGtU99fJw064HdYbGbl00z/ZJ1hp3zqMF8/FJHk=`に対し、Nixが`sha256-hhTjjNlAzGmniTa7r15LXaZicgKEEyLcuKkJlNsLCl0=`を報告した。
+- 対応: `cargoDeps.vendorStaging.outputHash`を正しい値へoverrideする。単体の`sable` packageとnginxの配信用packageに共通適用する。
+- 撤去条件: 正しいvendor hashを持つ上流revisionへ更新し、overrideなしでbuildできることを確認したとき。
+- 初回導入コミット: `b78a529` (`fix(sable): cargo hash override`)
 
 ### Prosodyの証明書探索先を絶対pathで指定する
 
@@ -86,13 +86,6 @@
 - 理由: 上流v2.0.0のFenix `fromToolchainFile`は、評価時に`channel-rust-1.95.0.toml`を取得して読む（IFD)。max-jobs = 0`のゲストでは評価に失敗する。
 - 対応: 上流と同じRust 1.95.0のmanifestとhashを`fetchurl`で定義し、CIの`cache-roots`へ追加して既存の署名付きpushで配布する。
 - 撤去条件: sableをnixpkgsのpackageへ移行するか、上流のIFDが不要になり、このmanifestを明示的に配布せずビルド禁止のゲストを更新できることを確認したとき。
-
-### matrix-botにAWS-LCのbuild inputを宣言する
-
-- 実装: `packages/matrix-bot/package.nix`
-- 理由: nixpkgsのRust build hookが`AWS_LC_SYS_USE_SYSTEM=1`を設定するが、`matrix-bot`のbuild inputsに`aws-lc`がなく、`aws-lc-sys`のbuildが失敗する。
-- 対応: `aws-lc`を`buildInputs`に追加する。
-- 撤去条件: `matrix-bot`が`aws-lc-sys`を使わなくなるか、Rust build hookがsystem libraryを強制しなくなったとき。
 
 ### update-flake時のkernel config生成で`preUnpack`を無効化する
 
@@ -117,14 +110,6 @@
 - 対応: module treeが空ならhost overlayで`depmod`をスキップする。
 - 撤去条件: upstreamが空のmodule treeを扱えるようになったとき。
 - 導入コミット: `d6fd809` (`fix: handle empty kernel module tree with CONFIG_MODULES=n`)
-
-### Clang 21で利用できないkmalloc hardeningを代替する
-
-- 実装: `hosts/{aracha-ovh,mecha-vultr,tencha-conoha}/kernel.nix:150-151`および各`kernel.config`
-- 理由: Clang 21はLinux 7.2の`KMALLOC_PARTITION_TYPED`に未対応。
-- 対応: kernel configとassertionで`KMALLOC_PARTITION_RANDOM`を要求する。
-- 撤去条件: 使用toolchainが`KMALLOC_PARTITION_TYPED`をサポートしたとき。
-- 導入コミット: `c2184d1` (`update-flake and kernel`)
 
 ### Incus guestの再起動先を現在のNixOS generationへ更新する
 
@@ -156,14 +141,6 @@
 - 理由: nixpkgsで削除された`boot.initrd.systemd.enable`を、`nixos-images`がまだ設定する。
 - 対応: upstream moduleを無効化し、remote-access serviceをローカル定義する。nixpkgsはpinしない。
 - 撤去条件: upstream moduleが現行nixpkgsで評価・buildできるようになったとき。
-- 導入コミット: `58e3735` (`fix: keep kexec installer working with unstable-small`)
-
-### kexec installerでは不要なZFS supportを無効にする
-
-- 実装: `flake.nix`の`kexecInstaller`
-- 理由: installerに不要なZFS packageが入り、nixpkgsの`zfs-user-2.4.4` buildがpermission errorになる。
-- 対応: installerのみZFS moduleを無効化する。hostのfilesystem設定は変更しない。
-- 撤去条件: nixpkgsのZFS buildが直るか、ZFS hostを追加するとき。
 - 導入コミット: `58e3735` (`fix: keep kexec installer working with unstable-small`)
 
 ## Incus・provider・networkへの適応
@@ -275,8 +252,11 @@
 
 ## 対象外のdownstream変更
 
-次はlocal patchまたは特殊設定だが、現在はワークアラウンドではなくsecurity policy・機能追加として扱う。
+次はlocal patchまたは特殊設定だが、現在はワークアラウンドではなく依存宣言・構成上の選択・security policy・機能追加として扱う。
 
+- `hosts/{aracha-ovh,mecha-vultr,tencha-conoha}/kernel.nix`のClang 22指定と`KMALLOC_PARTITION_TYPED` — Linux 7.2のtyped kmalloc hardeningを有効にするためのtoolchain・security policy
+- `packages/matrix-bot/package.nix`の`aws-lc` build input — nixpkgsのRust build hookがsystem AWS-LCを使う構成で必要な、正当な依存宣言
+- `flake.nix`のkexec installerにおけるZFS無効化 — installerに不要な機能・依存を含めない選択。原因だったZFS 2.4.4のbuild問題はnixpkgs [#578710](https://github.com/NixOS/nixpkgs/pull/578710)で修正済み（ZFSを再有効化したinstallerのbuildは未検証）
 - `guests/prosody/invites/patches/`のinvite page向けCSP、cache、Referrer-Policy追加
 - Prosody HTTP logからquery stringを除くpatch
 - ProsodyのOpenBSD client表示、独自invite HTML

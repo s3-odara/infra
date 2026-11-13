@@ -13,7 +13,7 @@ let
 
     configfile = ./kernel.config;
     features = kernelBase.features;
-    stdenv = pkgs.llvmPackages.stdenv;
+    stdenv = pkgs.llvmPackages_22.stdenv;
   };
 
   # linuxManualConfig infers only y/m values from configfile. Declare the
@@ -144,7 +144,7 @@ let
     "RANDOMIZE_BASE"
     "RANDOMIZE_KSTACK_OFFSET_DEFAULT"
     "RANDOMIZE_MEMORY"
-    "KMALLOC_PARTITION_RANDOM"
+    "KMALLOC_PARTITION_TYPED"
     "RANDSTRUCT_FULL"
     "SECURITY_APPARMOR"
     "SECURITY_DMESG_RESTRICT"
