@@ -599,11 +599,11 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1793540411,
-        "narHash": "sha256-us2GRWGXbOQpN1blyJGvmdx+g4bv9GoFYq5iiOHRiZ8=",
-        "rev": "0bb2eedc20e4739f29e8045034f2828ad7054f8f",
+        "lastModified": 1794537146,
+        "narHash": "sha256-bTKSclXJAmo9qdxPedTBHUGr8awPr4BrbOoOutJsYIc=",
+        "rev": "d5cc6833999746cffdfe0598f7bc801a57b887a9",
         "type": "tarball",
-        "url": "https://releases.nixos.org/nixos/unstable/nixos-26.11pre1106360.0bb2eedc20e4/nixexprs.tar.zst?lastModified=1793540411&rev=0bb2eedc20e4739f29e8045034f2828ad7054f8f"
+        "url": "https://releases.nixos.org/nixos/unstable/nixos-26.11pre1119549.d5cc68339997/nixexprs.tar.zst?lastModified=1794537146&rev=d5cc6833999746cffdfe0598f7bc801a57b887a9"
       },
       "original": {
         "type": "tarball",
@@ -730,17 +730,17 @@
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1794568297,
-        "narHash": "sha256-89oe2t8POjwSDz5T5onlDYgyfaPDWzf6KvLLi8uCFUM=",
-        "ref": "refs/tags/v2.3.9",
-        "rev": "2b9e33610e91b49b77ab48f0b1e2837dd5ecbaf5",
+        "lastModified": 1794781020,
+        "narHash": "sha256-3ndyjU2/oBpBWGJPkPoynQm7uCzSmYFGDCvzMUmS7qw=",
+        "ref": "refs/tags/v26.11.0",
+        "rev": "19fb8f54c8def174009a1ee20fc2bc78b97cf545",
         "shallow": true,
         "type": "git",
         "url": "https://git.sable.moe/SableClient/sable-next"
       },
       "original": {
-        "ref": "refs/tags/v2.3.9",
-        "rev": "2b9e33610e91b49b77ab48f0b1e2837dd5ecbaf5",
+        "ref": "refs/tags/v26.11.0",
+        "rev": "19fb8f54c8def174009a1ee20fc2bc78b97cf545",
         "shallow": true,
         "type": "git",
         "url": "https://git.sable.moe/SableClient/sable-next"
