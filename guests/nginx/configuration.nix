@@ -548,6 +548,15 @@ in
 
   services.nginx = {
     enable = true;
+    # CVE-2026-123007: remove once the pinned nixpkgs ships nginx >= 1.30.7.
+    package = pkgs.nginxStable.overrideAttrs (_: {
+      version = "1.30.7";
+      nginxVersion = "1.30.7";
+      src = pkgs.fetchurl {
+        url = "https://nginx.org/download/nginx-1.30.7.tar.gz";
+        hash = "sha256-JWW1yDcFDpWPcPsPc8SOK8pFQq00n9NW9G+wxyYQvG4=";
+      };
+    });
     recommendedOptimisation = true;
     recommendedTlsSettings = true;
     recommendedGzipSettings = true;
