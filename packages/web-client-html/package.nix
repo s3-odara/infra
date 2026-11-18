@@ -4,7 +4,7 @@ buildGoModule {
   pname = "web-client-html";
   version = "0.1.0";
   src = ./.;
-  vendorHash = "sha256-8uuos45DdPiThNnT2u76GhABlcVoq3sc+yDlf9z9rDE=";
+  vendorHash = "sha256-GZk22vwgT7fvjY5PDRKaWW8Y9UO2IL+MqSKKgrhguxQ=";
   env.CGO_ENABLED = "0";
   meta.mainProgram = "web-client-html";
 }
