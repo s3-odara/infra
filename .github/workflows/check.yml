@@ -73,4 +73,4 @@ jobs:
           set -euo pipefail
           diffs=$(nix build --no-link --print-out-paths \
             path:.#nixosConfigurations.nginx.config.system.build.webClientDiffs)
-          find -L "$diffs" -type f \( -name '*.diff' -o -name '*csp.conf' \) -print -exec cat {} \;
+          find -L "$diffs" -type f \( -name '*.diff' -o -name '*.csp' \) -print -exec cat {} \;
