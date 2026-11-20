@@ -730,17 +730,17 @@
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1794995517,
-        "narHash": "sha256-ris5iIygXBbVVxp1VwvWrxeAeodYiZz+dOYPoYIXnf4=",
-        "ref": "refs/tags/v26.11.3",
-        "rev": "0108975f07112fd42bc7f68a46007dd9941922c3",
+        "lastModified": 1795077806,
+        "narHash": "sha256-dapUFACRlFqp4/QysOPgrvCy1jCd6SRm/hIiSxzIwe4=",
+        "ref": "refs/tags/v26.11.4",
+        "rev": "0280a39acacb2df93382b7419ace324eee265c03",
         "shallow": true,
         "type": "git",
         "url": "https://git.sable.moe/SableClient/sable-next"
       },
       "original": {
-        "ref": "refs/tags/v26.11.3",
-        "rev": "0108975f07112fd42bc7f68a46007dd9941922c3",
+        "ref": "refs/tags/v26.11.4",
+        "rev": "0280a39acacb2df93382b7419ace324eee265c03",
         "shallow": true,
         "type": "git",
         "url": "https://git.sable.moe/SableClient/sable-next"
