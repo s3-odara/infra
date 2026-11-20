@@ -6,7 +6,7 @@
 
     # Use upstream packaging and its own nixpkgs, not the system package set.
     # Stable-release policy and approved exceptions: docs/operations.md.
-    sable-next.url = "git+https://git.sable.moe/SableClient/sable-next?ref=refs/tags/v26.11.3&rev=0108975f07112fd42bc7f68a46007dd9941922c3&shallow=1";
+    sable-next.url = "git+https://git.sable.moe/SableClient/sable-next?ref=refs/tags/v26.11.4&rev=0280a39acacb2df93382b7419ace324eee265c03&shallow=1";
 
     # Temporary until nixpkgs packages 2.0.0. Keep upstream's own dependency pins.
     # Build in our CI; do not add upstream's binary caches or trusted keys.
