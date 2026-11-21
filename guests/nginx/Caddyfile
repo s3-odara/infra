@@ -529,7 +529,7 @@ https://element.matrix.odarah.org:8447 {
 			}
 		}
 
-		@immutable path_regexp ^(?:/bundles/.*|/widgets/element-call/assets/.*|.*[.][0-9a-f]{7,}[.][a-z0-9]+)$
+		@immutable path_regexp ^(?:/bundles/[0-9a-f]+/.*|/widgets/element-call/assets/.*|.*[.][0-9a-f]{7,}[.][a-z0-9]+)$
 		handle @immutable {
 			header Cache-Control "public, max-age=31536000, immutable"
 			file_server {

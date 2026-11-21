@@ -215,14 +215,6 @@
 - 撤去条件: Element Callがinline styleなしで動作するようになったとき。
 - 導入コミット: `93c7dff` (`feat: harden Cinny style CSP`)
 
-### `writeNginxConfig`が壊すregex量指定子を展開する
-
-- 実装: `guests/nginx/configuration.nix:616-620`
-- 理由: `writeNginxConfig`が正規表現の`{7,}`をmangleする。
-- 対応: 7個の`[0-9a-f]`と末尾の`[0-9a-f]*`へ展開して、content-hashed Element assetを判定する。
-- 撤去条件: `writeNginxConfig`でbrace quantifierをそのまま記述できるようになったとき。
-- 導入コミット: `26df541` (`feat: improve elements web client cache`)
-
 ## Security hardening上の互換性緩和
 
 ### LXCFSのためYama ptrace scopeを2にする
