@@ -6,6 +6,13 @@
 - 撤去条件: Prosody 14で`csi_simple`へ移行し、battery saverを削除できたとき。
 - 導入コミット: `bc1342a` (`feat(prosody): save battery`)
 
+### Sableの検索辞書を同一オリジンから配信する
+
+- 実装: `guests/nginx/configuration.nix`のSable用ビルドと静的アセット。
+- 理由: 上流は検索用のJieba辞書をGitHubから遅延取得する。現行CSPではブロックされ、辞書未ロード時に日本語の検索語も一部スキップされる。
+- 対応: 上流と同じ辞書をコミット・SHA-256で固定して同梱し、Webビルドで取得先のみ同一オリジンに変更する。CSPと遅延取得は維持する。Sable更新時に上流の辞書ピンが変わったら同梱版も更新する。
+- 撤去条件: 上流が辞書を同梱するか、同一オリジン配信をビルド設定で指定できるようになったとき。
+
 ### TuwunelがMSC4174を実装するまでSygnalを運用する
 
 - 実装: `guests/sygnal/`, `packages/sygnal/`, `flake.nix`, nginx proxy
