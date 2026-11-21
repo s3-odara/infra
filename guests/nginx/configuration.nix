@@ -31,7 +31,12 @@ let
   rtcAddress = "10.77.3.15";
   sygnalAddress = "10.77.3.16";
   radicaleAddress = "10.77.3.18";
-  oidcAccountCss = ./tuwunel-oidc.css;
+  oidcRoot = pkgs.linkFarm "oidc-root" [
+    {
+      name = "tuwunel-oidc.css";
+      path = ./tuwunel-oidc.css;
+    }
+  ];
   matrixLandingRoot = pkgs.linkFarm "matrix-landing-root" [
     {
       name = "index.html";
@@ -70,7 +75,7 @@ let
       --subst-var-by CINNY_ROOT ${lib.escapeShellArg (toString webClients.cinny)} \
       --subst-var-by ELEMENT_ROOT ${lib.escapeShellArg (toString webClients.element)} \
       --subst-var-by SABLE_ROOT ${lib.escapeShellArg (toString webClients.sable)} \
-      --subst-var-by OIDC_ROOT ${lib.escapeShellArg (toString (builtins.dirOf oidcAccountCss))} \
+      --subst-var-by OIDC_ROOT ${lib.escapeShellArg (toString oidcRoot)} \
       --subst-var-by LANDING_CSP "$(<${webClients.cspPolicies}/landing.csp)" \
       --subst-var-by SABLE_CSP "$(<${webClients.cspPolicies}/sable.csp)" \
       --subst-var-by CINNY_CSP "$(<${webClients.cspPolicies}/cinny.csp)" \
