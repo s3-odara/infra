@@ -8,6 +8,7 @@
 }:
 
 let
+  oneshotHardening = import ../../modules/guest/oneshot-hardening.nix;
   odarahHost = "odarah.org";
   matrixHost = "matrix.odarah.org";
   cinnyHost = "cinny.matrix.odarah.org";
@@ -253,6 +254,38 @@ in
       ProtectSystem = "strict";
       ProtectProc = "invisible";
       InaccessiblePaths = [ "-/run/secrets" ];
+    };
+  };
+
+  systemd.services.guest-registration-blocklist = {
+    description = "Refresh the guest registration IP blocklist";
+    after = [ "caddy.service" ];
+    serviceConfig = oneshotHardening.base // {
+      Type = "oneshot";
+      User = config.services.caddy.user;
+      Group = config.services.caddy.group;
+      StateDirectory = "guest-registration-blocklist";
+      StateDirectoryMode = "0700";
+      ExecStart = "${pkgs.python3Minimal}/bin/python3 ${./update-guest-registration-blocklist.py} /var/log/caddy/guest-registration.log /var/lib/guest-registration-blocklist";
+      InaccessiblePaths = [
+        "-/run/caddy"
+        "-/run/secrets"
+        "-/var/lib/acme"
+        "-/var/lib/caddy"
+      ];
+      PrivateNetwork = true;
+      RestrictAddressFamilies = [ "AF_UNIX" ];
+      Nice = 10;
+      MemoryMax = "128M";
+      TasksMax = 16;
+    };
+  };
+
+  systemd.timers.guest-registration-blocklist = {
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnBootSec = "5min";
+      OnUnitActiveSec = "1h";
     };
   };
 

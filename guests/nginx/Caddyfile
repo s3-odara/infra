@@ -210,6 +210,23 @@ https://matrix.odarah.org:8447 {
 
 https://guest.matrix.odarah.org:8447 {
 	import web_https
+	log guest_registration {
+		no_hostname
+		output file /var/log/caddy/guest-registration.log {
+			roll_size 10MiB
+			roll_uncompressed
+			roll_keep 14
+			roll_keep_for 48h
+		}
+		format filter {
+			wrap json
+			fields {
+				request>headers delete
+				request>uri delete
+				resp_headers delete
+			}
+		}
+	}
 	root * @ELEMENT_CALL_ROOT@
 	import client_security DENY
 	header {
@@ -247,6 +264,20 @@ https://guest.matrix.odarah.org:8447 {
 			}
 		}
 
+		# Block before rate_limit so rejected IPs do not consume the shared quota.
+		@guest_registration_blocked {
+			method POST
+			path /_matrix/client/r0/register /_matrix/client/v3/register
+			file {
+				root /var/lib/guest-registration-blocklist
+				try_files /{http.request.remote.host}
+			}
+		}
+		route @guest_registration_blocked {
+			log_name guest_registration
+			respond 429
+		}
+
 		rate_limit {
 			zone guest_registration_ip {
 				match {
@@ -282,6 +313,7 @@ https://guest.matrix.odarah.org:8447 {
 			path /_matrix/client/r0/register /_matrix/client/v3/register
 		}
 		handle @guest_register {
+			log_name guest_registration
 			request_body {
 				max_size 32768
 			}
