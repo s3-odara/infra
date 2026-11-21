@@ -253,7 +253,42 @@ in
       AmbientCapabilities = [ "CAP_NET_BIND_SERVICE" ];
       ProtectSystem = "strict";
       ProtectProc = "invisible";
-      InaccessiblePaths = [ "-/run/secrets" ];
+      PrivateTmp = true;
+      PrivateIPC = true;
+      PrivateMounts = true;
+      ProtectClock = true;
+      ProtectControlGroups = true;
+      ProtectHostname = true;
+      ProtectKernelLogs = true;
+      ProtectKernelModules = true;
+      ProtectKernelTunables = true;
+      LockPersonality = true;
+      MemoryDenyWriteExecute = true;
+      RestrictNamespaces = true;
+      RestrictRealtime = true;
+      RestrictSUIDSGID = true;
+      # The admin API uses a Unix socket; HTTP/3 and the proxies need IP sockets.
+      RestrictAddressFamilies = [
+        "AF_UNIX"
+        "AF_INET"
+        "AF_INET6"
+      ];
+      SystemCallArchitectures = "native";
+      SystemCallErrorNumber = "EPERM";
+      SystemCallFilter = [
+        "@system-service"
+        # Keep @chown: Caddy's file logger can preserve ownership on rotation.
+        "~@aio @debug @ipc @keyring @mount @setuid capset name_to_handle_at userfaultfd"
+      ];
+      # Leave the ACME certificate and guest-registration blocklist readable.
+      InaccessiblePaths = [
+        "-/run/secrets"
+        "-/run/secrets.d"
+        "-/run/nginx"
+        "-/var/cache/nginx"
+        "-/var/lib/nginx"
+        "-/var/log/nginx"
+      ];
     };
   };
 
