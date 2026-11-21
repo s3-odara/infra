@@ -1,0 +1,695 @@
+{
+	admin unix//run/caddy/admin.sock
+	auto_https off
+	servers {
+		protocols h1
+	}
+	servers 127.0.0.1:8447 {
+		# Nix also attaches the public HTTP/3 listener to this named server.
+		name web
+		protocols h1 h2
+		listener_wrappers {
+			# Only the Nginx UID can reach this listener (nftables).
+			proxy_protocol {
+				fallback_policy require
+			}
+			tls
+		}
+	}
+}
+
+(security_deny) {
+	header {
+		Permissions-Policy "accelerometer=(), ambient-light-sensor=(), autoplay=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+		Referrer-Policy "no-referrer"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+	}
+}
+
+(client_security) {
+	header {
+		Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=(), usb=()"
+		Referrer-Policy "no-referrer"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "{args[0]}"
+	}
+}
+
+(web_https) {
+	bind 127.0.0.1
+	import access_log
+	tls /var/lib/acme/matrix.odarah.org/fullchain.pem /var/lib/acme/matrix.odarah.org/key.pem
+	header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+}
+
+(upstream_response_timeout) {
+	transport http {
+		response_header_timeout {args[0]}
+	}
+}
+
+(matrix_proxy) {
+	header_up Host {http.request.host}
+	header_up X-Forwarded-For {http.request.remote.host}
+	header_up X-Forwarded-Proto https
+	import upstream_response_timeout {args[0]}
+}
+
+(access_log) {
+	log {
+		output file /var/log/caddy/access.log {
+			roll_size 100MiB
+			roll_keep 14
+			roll_keep_for 336h
+		}
+	}
+}
+
+:80 {
+	import access_log
+	@known host odarah.org matrix.odarah.org cinny.matrix.odarah.org element.matrix.odarah.org guest.matrix.odarah.org rtc.matrix.odarah.org sable.matrix.odarah.org push.matrix.odarah.org dav.odarah.org xmpp.odarah.org conference.xmpp.odarah.org share.xmpp.odarah.org turn.odarah.org
+	redir @known https://{host}{uri} 308
+	respond 404
+}
+
+https://odarah.org:8447 {
+	import web_https
+	import security_deny
+
+	route {
+		@root path /
+		handle @root {
+			root * @ODARAH_LANDING_ROOT@
+			header {
+				Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+				Pragma "no-cache"
+				Content-Security-Policy "@LANDING_CSP@"
+			}
+			file_server {
+				precompressed br gzip
+			}
+		}
+		respond 404
+	}
+}
+
+https://matrix.odarah.org:8447 {
+	import web_https
+	import security_deny
+
+	route {
+		@root path /
+		handle @root {
+			root * @MATRIX_LANDING_ROOT@
+			header {
+				Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+				Pragma "no-cache"
+				Content-Security-Policy "@LANDING_CSP@"
+			}
+			file_server {
+				precompressed br gzip
+			}
+		}
+
+		@client_well_known path /.well-known/matrix/client
+		handle @client_well_known {
+			header {
+				Content-Type application/json
+				Access-Control-Allow-Origin "*"
+			}
+			respond `{"m.homeserver":{"base_url":"https://matrix.odarah.org"},"org.matrix.msc4143.rtc_foci":[{"type":"livekit","livekit_service_url":"https://rtc.matrix.odarah.org"}]}` 200
+		}
+
+		@server_well_known path /.well-known/matrix/server
+		handle @server_well_known {
+			header Content-Type application/json
+			respond `{"m.server":"matrix.odarah.org:443"}` 200
+		}
+
+		@support_well_known path /.well-known/matrix/support
+		handle @support_well_known {
+			header {
+				Content-Type application/json
+				Access-Control-Allow-Origin "*"
+			}
+			respond `{"contacts":[{"role":"m.role.admin","matrix_id":"@odara:matrix.odarah.org","email_address":"hostmaster@s3-odara.net"}]}` 200
+		}
+
+		@openid path /.well-known/openid-configuration
+		handle @openid {
+			reverse_proxy 10.77.3.14:8008 {
+				import matrix_proxy 60s
+			}
+		}
+
+		@oidc_css path /_tuwunel/oidc/account.css
+		handle @oidc_css {
+			header Cache-Control no-cache
+			rewrite * /tuwunel-oidc.css
+			root * @OIDC_ROOT@
+			file_server
+		}
+
+		@matrix_upload path_regexp ^/_matrix/media/(?:r0|v3|unstable/fi[.]mau[.]msc2246)/upload(?:/[^/]+/[^/]+)?$
+		handle @matrix_upload {
+			request_body {
+				max_size 1073741824
+			}
+			reverse_proxy 10.77.3.14:8008 {
+				import matrix_proxy 60s
+			}
+		}
+
+		rate_limit {
+			zone matrix_login_ip {
+				match {
+					path_regexp ^/(?:_matrix/client/(?:r0|v[0-9]+|unstable)/login|_tuwunel/oidc/native)$
+				}
+				key {http.request.remote.host}
+				events 1
+				window 1s
+			}
+			zone matrix_login_global {
+				match {
+					path_regexp ^/(?:_matrix/client/(?:r0|v[0-9]+|unstable)/login|_tuwunel/oidc/native)$
+				}
+				key global
+				events 10
+				window 1s
+			}
+		}
+
+		@matrix_api path_regexp ^/(?:_matrix|_tuwunel)/
+		# Tuwunel can long-poll for up to 90s; allow time to build the response.
+		@matrix_sync {
+			method GET
+			path /_matrix/client/r0/sync /_matrix/client/v3/sync
+		}
+		@sliding_sync {
+			method POST
+			path /_matrix/client/unstable/org.matrix.simplified_msc3575/sync
+		}
+		handle @matrix_api {
+			request_body {
+				max_size 16777216
+			}
+			reverse_proxy @matrix_sync 10.77.3.14:8008 {
+				import matrix_proxy 120s
+			}
+			reverse_proxy @sliding_sync 10.77.3.14:8008 {
+				import matrix_proxy 120s
+			}
+			reverse_proxy 10.77.3.14:8008 {
+				import matrix_proxy 60s
+			}
+		}
+		respond 404
+	}
+}
+
+https://guest.matrix.odarah.org:8447 {
+	import web_https
+	log guest_registration {
+		no_hostname
+		output file /var/log/caddy/guest-registration.log {
+			roll_size 10MiB
+			roll_uncompressed
+			roll_keep 14
+			roll_keep_for 48h
+		}
+		format filter {
+			wrap json
+			fields {
+				request>headers delete
+				request>uri delete
+				resp_headers delete
+			}
+		}
+	}
+	root * @ELEMENT_CALL_ROOT@
+	import client_security DENY
+	header {
+		Content-Security-Policy "@ELEMENT_CALL_CSP@"
+		Cache-Control no-cache
+	}
+
+	route {
+		@client_well_known path /.well-known/matrix/client
+		handle @client_well_known {
+			header {
+				Content-Type application/json
+				Access-Control-Allow-Origin "*"
+				Cache-Control no-store
+			}
+			respond `{"m.homeserver":{"base_url":"https://guest.matrix.odarah.org"},"org.matrix.msc4143.rtc_foci":[{"type":"livekit","livekit_service_url":"https://rtc.matrix.odarah.org"}]}` 200
+		}
+
+		@server_well_known path /.well-known/matrix/server
+		handle @server_well_known {
+			header {
+				Content-Type application/json
+				Cache-Control no-store
+			}
+			respond `{"m.server":"guest.matrix.odarah.org:443"}` 200
+		}
+
+		@guest_federation path_regexp ^/_matrix/(?:federation|key)/
+		handle @guest_federation {
+			request_body {
+				max_size 16777216
+			}
+			reverse_proxy 10.77.3.17:8008 {
+				import matrix_proxy 60s
+			}
+		}
+
+		# Block before rate_limit so rejected IPs do not consume the shared quota.
+		@guest_registration_blocked {
+			method POST
+			path /_matrix/client/r0/register /_matrix/client/v3/register
+			file {
+				root /var/lib/guest-registration-blocklist
+				try_files /{http.request.remote.host}
+			}
+		}
+		route @guest_registration_blocked {
+			log_name guest_registration
+			respond 429
+		}
+
+		rate_limit {
+			zone guest_registration_ip {
+				match {
+					method POST
+					path /_matrix/client/r0/register /_matrix/client/v3/register
+				}
+				key {http.request.remote.host}
+				events 1
+				window 1m
+			}
+			zone guest_registration_global {
+				match {
+					method POST
+					path /_matrix/client/r0/register /_matrix/client/v3/register
+				}
+				key global
+				events 2
+				window 1s
+			}
+			zone guest_username_ip {
+				match {
+					method GET
+					path /_matrix/client/r0/register/available /_matrix/client/v3/register/available
+				}
+				key {http.request.remote.host}
+				events 2
+				window 1s
+			}
+		}
+
+		@guest_register {
+			method POST
+			path /_matrix/client/r0/register /_matrix/client/v3/register
+		}
+		handle @guest_register {
+			log_name guest_registration
+			request_body {
+				max_size 32768
+			}
+			reverse_proxy 10.77.3.17:8008 {
+				import matrix_proxy 60s
+			}
+		}
+
+		@guest_available {
+			method GET
+			path /_matrix/client/r0/register/available /_matrix/client/v3/register/available
+		}
+		handle @guest_available {
+			request_body {
+				max_size 8192
+			}
+			reverse_proxy 10.77.3.17:8008 {
+				import matrix_proxy 60s
+			}
+		}
+
+		@guest_get {
+			method GET
+			path_regexp ^/_matrix/client/(?:versions|(?:r0|v3)/(?:sync|capabilities|pushrules/|voip/turnServer|room_keys/version|user/[^/]+/filter/[^/]+)|v1/media/(?:download|thumbnail)/[^/]+/[^/]+|unstable/org[.]matrix[.]msc4143/rtc/transports|unstable/im[.]nheko[.]summary/(?:summary/.*|rooms/.*/summary))$
+		}
+		@guest_sync path /_matrix/client/r0/sync /_matrix/client/v3/sync
+		handle @guest_get {
+			request_body {
+				max_size 1048576
+			}
+			reverse_proxy @guest_sync 10.77.3.17:8008 {
+				import matrix_proxy 120s
+			}
+			reverse_proxy 10.77.3.17:8008 {
+				import matrix_proxy 60s
+			}
+		}
+
+		@guest_post {
+			method POST
+			path_regexp ^/_matrix/client/(?:r0|v3)/(?:refresh|logout|user/[^/]+/filter|keys/(?:upload|query|claim|signatures/upload)|user/[^/]+/openid/request_token|join/.*|rooms/[^/]+/(?:join|leave))$|^/_matrix/client/unstable/org[.]matrix[.]msc4140/delayed_events/[^/]+(?:/(?:cancel|restart|send))?$
+		}
+		handle @guest_post {
+			request_body {
+				max_size 1048576
+			}
+			reverse_proxy 10.77.3.17:8008 {
+				import matrix_proxy 60s
+			}
+		}
+
+		@guest_put {
+			method PUT
+			path_regexp ^/_matrix/client/(?:r0|v3)/(?:profile/[^/]+/displayname|sendToDevice/[^/]+/[^/]+|rooms/[^/]+/state/(?:org[.]matrix[.]msc3401[.]call[.]member|org[.]matrix[.]msc4143[.]rtc[.]member)/.*)$
+		}
+		handle @guest_put {
+			request_body {
+				max_size 1048576
+			}
+			reverse_proxy 10.77.3.17:8008 {
+				import matrix_proxy 60s
+			}
+		}
+
+		@guest_client path_regexp ^/_matrix/client/
+		respond @guest_client 403
+
+		@guest_config path /config.json
+		handle @guest_config {
+			header Cache-Control no-store
+			file_server {
+				precompressed br gzip
+			}
+		}
+		@guest_assets path /assets/*
+		handle @guest_assets {
+			header Cache-Control "public, max-age=31536000, immutable"
+			file_server {
+				precompressed br gzip
+			}
+		}
+		@index path /index.html
+		handle @index {
+			file_server {
+				precompressed br gzip
+			}
+		}
+		handle {
+			try_files {path} {path}/ /index.html
+			file_server {
+				precompressed br gzip
+			}
+		}
+	}
+}
+
+https://cinny.matrix.odarah.org:8447 {
+	import web_https
+	root * @CINNY_ROOT@
+	import client_security SAMEORIGIN
+	@register path /register/*
+	log_skip @register
+
+	route {
+		@worker path /sw.js
+		handle @worker {
+			header Cache-Control no-cache
+			file_server {
+				precompressed br gzip
+			}
+		}
+
+		@call path /public/element-call/*
+		handle @call {
+			header {
+				Content-Security-Policy "@CINNY_CALL_CSP@"
+				Cache-Control no-cache
+				X-Frame-Options SAMEORIGIN
+			}
+			file_server {
+				precompressed br gzip
+			}
+		}
+
+		handle @register {
+			header {
+				Content-Security-Policy "@CINNY_CSP@"
+				Cache-Control no-store
+			}
+			rewrite * /index.html
+			file_server {
+				precompressed br gzip
+			}
+		}
+
+		@config path /config.json
+		handle @config {
+			header {
+				Content-Security-Policy "@CINNY_CSP@"
+				Cache-Control no-store
+			}
+			file_server {
+				precompressed br gzip
+			}
+		}
+
+		@fixed path /index.html /public/*
+		handle @fixed {
+			header {
+				Content-Security-Policy "@CINNY_CSP@"
+				Cache-Control no-cache
+			}
+			file_server {
+				precompressed br gzip
+			}
+		}
+
+		@assets path /assets/*
+		handle @assets {
+			header {
+				Content-Security-Policy "@CINNY_CSP@"
+				Cache-Control "public, max-age=31536000, immutable"
+			}
+			file_server {
+				precompressed br gzip
+			}
+		}
+		handle {
+			header {
+				Content-Security-Policy "@CINNY_CSP@"
+				Cache-Control no-cache
+			}
+			try_files {path} {path}/ /index.html
+			file_server {
+				precompressed br gzip
+			}
+		}
+	}
+}
+
+https://element.matrix.odarah.org:8447 {
+	import web_https
+	root * @ELEMENT_ROOT@
+	import client_security SAMEORIGIN
+
+	route {
+		@embedded_assets path /widgets/element-call/assets/*
+		handle @embedded_assets {
+			header {
+				Content-Security-Policy "@ELEMENT_EMBEDDED_CALL_CSP@"
+				Cache-Control "public, max-age=31536000, immutable"
+			}
+			file_server {
+				precompressed br gzip
+			}
+		}
+		@embedded path /widgets/element-call/*
+		handle @embedded {
+			header Content-Security-Policy "@ELEMENT_EMBEDDED_CALL_CSP@"
+			file_server {
+				precompressed br gzip
+			}
+		}
+		header Content-Security-Policy "@ELEMENT_CSP@"
+		@decoder path /decoder-ring /decoder-ring/*
+		respond @decoder 404
+
+		@config path_regexp ^/config(?:[.][^/]+)?[.]json$
+		handle @config {
+			header Cache-Control no-store
+			file_server {
+				precompressed br gzip
+			}
+		}
+
+		@immutable path_regexp ^(?:/bundles/[0-9a-f]+/.*|/widgets/element-call/assets/.*|.*[.][0-9a-f]{7,}[.][a-z0-9]+)$
+		handle @immutable {
+			header Cache-Control "public, max-age=31536000, immutable"
+			file_server {
+				precompressed br gzip
+			}
+		}
+		handle {
+			header Cache-Control no-cache
+			try_files {path} {path}/ /index.html
+			file_server {
+				precompressed br gzip
+			}
+		}
+	}
+}
+
+https://sable.matrix.odarah.org:8447 {
+	import web_https
+	root * @SABLE_ROOT@
+	import client_security DENY
+
+	route {
+		header Content-Security-Policy "@SABLE_CSP@"
+		@gone path /sw.js /manifest.json /public/element-call/*
+		respond @gone 410
+
+		@config path /config.json
+		handle @config {
+			header Cache-Control no-store
+			file_server {
+				precompressed br gzip
+			}
+		}
+
+		@immutable path /_app/immutable/*
+		handle @immutable {
+			header Cache-Control "public, max-age=31536000, immutable"
+			file_server {
+				precompressed br gzip
+			}
+		}
+
+		@static path /index.html /404.html /manifest.webmanifest /service-worker.js /assets/* /_app/* /icons/* /deepfilternet3/* /sound/*
+		handle @static {
+			header Cache-Control no-cache
+			file_server {
+				precompressed br gzip
+			}
+		}
+
+		handle {
+			header Cache-Control no-cache
+			try_files {path} {path}.html {path}/ /index.html
+			file_server {
+				precompressed br gzip
+			}
+		}
+	}
+}
+
+https://push.matrix.odarah.org:8447 {
+	import web_https
+	import security_deny
+
+	route {
+		# TCP trusts Nginx's PROXY source IP; QUIC uses the actual peer.
+		@push_allowed {
+			remote_ip 10.77.3.14
+			method POST
+			path /_matrix/push/v1/notify
+		}
+		handle @push_allowed {
+			rate_limit {
+				zone sygnal_push_ip {
+					match {
+						method POST
+						path /_matrix/push/v1/notify
+					}
+					key {http.request.remote.host}
+					events 10
+					window 1s
+				}
+				zone sygnal_push_global {
+					match {
+						method POST
+						path /_matrix/push/v1/notify
+					}
+					key sygnal
+					events 50
+					window 1s
+				}
+			}
+			request_body {
+				max_size 1048576
+			}
+			reverse_proxy 10.77.3.16:5000 {
+				import upstream_response_timeout 60s
+				header_up Host {http.request.host}
+				header_up X-Forwarded-For {http.request.remote.host}
+				header_up X-Forwarded-Proto https
+			}
+		}
+		respond 404
+	}
+}
+
+https://dav.odarah.org:8447 {
+	import web_https
+	import security_deny
+
+	route {
+		@well_known path /.well-known/caldav /.well-known/carddav
+		redir @well_known https://dav.odarah.org/ 301
+		rate_limit {
+			zone radicale_ip {
+				key {http.request.remote.host}
+				events 10
+				window 1s
+			}
+			zone radicale_global {
+				key global
+				events 50
+				window 1s
+			}
+		}
+		request_body {
+			max_size 100000000
+		}
+		reverse_proxy 10.77.3.18:5232 {
+			import upstream_response_timeout 60s
+			header_up Host {http.request.host}
+			header_up X-Forwarded-Host {http.request.host}
+			header_up X-Forwarded-Port 443
+			header_up X-Forwarded-Proto https
+			header_up X-Forwarded-For {http.request.remote.host}
+			header_up -X-Script-Name
+			header_up -X-Remote-User
+			header_up -Remote-User
+		}
+	}
+}
+
+https://rtc.matrix.odarah.org:8447 {
+	import web_https
+	import security_deny
+
+	route {
+		@rtc_control path_regexp ^/(?:sfu/get|healthz|get_token)
+		handle @rtc_control {
+			reverse_proxy 10.77.3.15:8081 {
+				import upstream_response_timeout 60s
+				header_up Host {http.request.host}
+				header_up X-Forwarded-For {http.request.remote.host}
+				header_up X-Forwarded-Proto https
+			}
+		}
+		reverse_proxy 10.77.3.15:7880 {
+			header_up Host {http.request.host}
+			header_up X-Forwarded-For {http.request.remote.host}
+			header_up X-Forwarded-Proto https
+		}
+	}
+}

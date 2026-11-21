@@ -26,16 +26,18 @@ let
     DNSUPDATE_SEQUENCE_INTERVAL=2
     DNSUPDATE_ZONES=_acme-challenge.odarah.org.
   '';
-  hstsValue = "max-age=63072000; includeSubDomains; preload";
   prosodyAddress = "10.77.3.10";
   tuwunelAddress = "10.77.3.14";
   guestTuwunelAddress = "10.77.3.17";
   rtcAddress = "10.77.3.15";
   sygnalAddress = "10.77.3.16";
   radicaleAddress = "10.77.3.18";
-  pushClientConfig = builtins.fromJSON (builtins.readFile ../../packages/sygnal/client-config.json);
-  oidcAccountCss = ./tuwunel-oidc.css;
-  webClientHtml = pkgs.callPackage ../../packages/web-client-html/package.nix { };
+  oidcRoot = pkgs.linkFarm "oidc-root" [
+    {
+      name = "tuwunel-oidc.css";
+      path = ./tuwunel-oidc.css;
+    }
+  ];
   matrixLandingRoot = pkgs.linkFarm "matrix-landing-root" [
     {
       name = "index.html";
@@ -49,433 +51,71 @@ let
     }
   ];
 
-  landingSecurityHeaders = ''
-    add_header Content-Security-Policy "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" always;
-    add_header Permissions-Policy "accelerometer=(), ambient-light-sensor=(), autoplay=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()" always;
-    add_header Referrer-Policy "no-referrer" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-Frame-Options "DENY" always;
+  webClients = import ./web-clients.nix {
+    inherit
+      pkgs
+      sable-unwrapped
+      matrixHost
+      guestMatrixHost
+      rtcHost
+      sableHost
+      pushHost
+      ;
+  };
+
+  caddyPackage = pkgs.caddy.withPlugins {
+    plugins = [ "github.com/mholt/caddy-ratelimit@v0.1.0" ];
+    hash = "sha256-d4VdlHHF0cqzknO7eS+l9uI2fpCfTQWEirx/5PMHzLk=";
+  };
+
+  caddyConfig = pkgs.runCommand "nginx-Caddyfile" { } ''
+    substitute ${./Caddyfile} "$out" \
+      --subst-var-by ODARAH_LANDING_ROOT ${lib.escapeShellArg (toString odarahLandingRoot)} \
+      --subst-var-by MATRIX_LANDING_ROOT ${lib.escapeShellArg (toString matrixLandingRoot)} \
+      --subst-var-by ELEMENT_CALL_ROOT ${lib.escapeShellArg (toString webClients.elementCall)} \
+      --subst-var-by CINNY_ROOT ${lib.escapeShellArg (toString webClients.cinny)} \
+      --subst-var-by ELEMENT_ROOT ${lib.escapeShellArg (toString webClients.element)} \
+      --subst-var-by SABLE_ROOT ${lib.escapeShellArg (toString webClients.sable)} \
+      --subst-var-by OIDC_ROOT ${lib.escapeShellArg (toString oidcRoot)} \
+      --subst-var-by LANDING_CSP "$(<${webClients.cspPolicies}/landing.csp)" \
+      --subst-var-by SABLE_CSP "$(<${webClients.cspPolicies}/sable.csp)" \
+      --subst-var-by CINNY_CSP "$(<${webClients.cspPolicies}/cinny.csp)" \
+      --subst-var-by CINNY_CALL_CSP "$(<${webClients.cspPolicies}/cinny-call.csp)" \
+      --subst-var-by ELEMENT_CSP "$(<${webClients.cspPolicies}/element.csp)" \
+      --subst-var-by ELEMENT_EMBEDDED_CALL_CSP "$(<${webClients.cspPolicies}/element-embedded-call.csp)" \
+      --subst-var-by ELEMENT_CALL_CSP "$(<${webClients.cspPolicies}/element-call.csp)"
   '';
-
-  # Fixed styles injected by react-colorful and the patched drag-and-drop fix.
-  # PDF.js only injects a font stylesheet when document.fonts is unavailable;
-  # browsers supporting the CSP Level 3 directives below use its FontFace path.
-  cinnyStyleHashes = "'sha256-I2px+fnpbN4E5+Djrj7aoTIyq9yyREkuVl19f4Sye9A=' 'sha256-gE6f9B7Di/6xvPsuFkoYXxNapPKVLAmRBvP73rpQ9+Y='";
-  sableCsp = {
-    beforeHashes = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self' 'wasm-unsafe-eval'";
-    afterHashes = "; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self'";
-  };
-  cinnyCsp = {
-    beforeHashes = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' 'wasm-unsafe-eval'";
-    afterHashes = "; script-src-attr 'none'; style-src 'self' ${cinnyStyleHashes}; style-src-elem 'self' ${cinnyStyleHashes}; style-src-attr 'none'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self'";
-  };
-  cinnyCallCsp = {
-    beforeHashes = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' 'wasm-unsafe-eval'";
-    afterHashes = "; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self'";
-  };
-  elementCsp = {
-    beforeHashes = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' 'wasm-unsafe-eval'";
-    afterHashes = "; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self' blob:";
-  };
-  elementCallCsp = {
-    beforeHashes = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self' 'wasm-unsafe-eval'";
-    afterHashes = "; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${guestMatrixHost}; media-src 'self' blob: https://${guestMatrixHost}; connect-src 'self' https://${guestMatrixHost} wss://${guestMatrixHost} https://${rtcHost} wss://${rtcHost}";
-  };
-
-  # Hash the served document(s), keeping hashes inside the script-src directive.
-  writeCsp =
-    {
-      html,
-      output,
-      policy,
-    }:
-    ''
-      hashes="$(web-client-html hashes ${html})"
-      cat >${output} <<EOF
-      add_header Content-Security-Policy "${policy.beforeHashes} $hashes${policy.afterHashes}" always;
-      EOF
-    '';
-
-  clientSecurityHeaders =
-    {
-      cspInclude,
-      xFrameOptions,
-    }:
-    ''
-      include ${cspInclude};
-      add_header Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=(), usb=()" always;
-      add_header Referrer-Policy "no-referrer" always;
-      add_header X-Content-Type-Options "nosniff" always;
-      add_header X-Frame-Options "${xFrameOptions}" always;
-    '';
-  sableSecurityHeaders = clientSecurityHeaders {
-    cspInclude = "${sable.webDiff}/csp.conf";
-    xFrameOptions = "DENY";
-  };
-  cinnySecurityHeaders = clientSecurityHeaders {
-    cspInclude = "${cinny.webDiff}/csp.conf";
-    xFrameOptions = "SAMEORIGIN";
-  };
-  cinnyCallSecurityHeaders = clientSecurityHeaders {
-    cspInclude = "${cinny.webDiff}/call-csp.conf";
-    xFrameOptions = "SAMEORIGIN";
-  };
-  elementSecurityHeaders = clientSecurityHeaders {
-    cspInclude = "${element.webDiff}/csp.conf";
-    xFrameOptions = "SAMEORIGIN";
-  };
-  elementEmbeddedCallSecurityHeaders = clientSecurityHeaders {
-    cspInclude = "${element.webDiff}/call-csp.conf";
-    xFrameOptions = "SAMEORIGIN";
-  };
-  elementCallSecurityHeaders = clientSecurityHeaders {
-    cspInclude = elementCallCspInclude;
-    xFrameOptions = "DENY";
-  };
-  http3PrimaryConfig = ''
-    listen 0.0.0.0:443 quic reuseport;
-    http3 on;
-    quic_gso on;
-    add_header Alt-Svc 'h3=":443"; ma=86400' always;
-  '';
-  http3Config = ''
-    listen 0.0.0.0:443 quic;
-    http3 on;
-    quic_gso on;
-    add_header Alt-Svc 'h3=":443"; ma=86400' always;
-  '';
-
-  guestMatrixProxyConfig = ''
-    gzip off;
-    brotli off;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $remote_addr;
-    proxy_set_header X-Forwarded-Proto https;
-    proxy_set_header Connection "";
-    proxy_connect_timeout 5s;
-    proxy_read_timeout 300s;
-    proxy_send_timeout 300s;
-  '';
-
-  matrixProxyConfig = maxBodySize: ''
-    gzip off;
-    brotli off;
-    client_max_body_size ${maxBodySize};
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $remote_addr;
-    proxy_set_header X-Forwarded-Proto https;
-    proxy_set_header Connection "";
-    proxy_connect_timeout 5s;
-    proxy_read_timeout 300s;
-    proxy_send_timeout 300s;
-  '';
-
-  guestRegistrationBlocklist = pkgs.writeShellScript "update-guest-registration-blocklist" ''
-    set -euo pipefail
-
-    runtime_dir=/run/guest-registration-blocklist
-    blocklist="$runtime_dir/blocklist.conf"
-    log=/var/log/nginx/guest-registration.log
-
-    exec 9>"$runtime_dir/update.lock"
-    ${pkgs.util-linux}/bin/flock -n 9 || exit 0
-    tmp="$(${pkgs.coreutils}/bin/mktemp "$runtime_dir/blocklist.tmp.XXXXXX")"
-    old="$runtime_dir/blocklist.old"
-    trap '${pkgs.coreutils}/bin/rm -f "$tmp" "$old"' EXIT
-
-    if [[ ! -r "$log" && ! -r "$log.1" ]]; then
-      exit 0
-    fi
-
-    sources=()
-    current_inode=
-    if [[ -r "$log" ]]; then
-      exec 3<"$log"
-      sources+=(/dev/fd/3)
-      current_inode="$(${pkgs.coreutils}/bin/stat -Lc '%d:%i' /dev/fd/3)"
-    fi
-    if [[ -r "$log.1" ]]; then
-      exec 4<"$log.1"
-      rotated_inode="$(${pkgs.coreutils}/bin/stat -Lc '%d:%i' /dev/fd/4)"
-      # Rotation between the two opens can make both descriptors refer to the
-      # same file. Read that inode only once; new records remain for next hour.
-      [[ "$rotated_inode" == "$current_inode" ]] || sources+=(/dev/fd/4)
-    fi
-
-    now="$(${pkgs.coreutils}/bin/date +%s)"
-    cutoff="$((now - 24 * 60 * 60))"
-    {
-      if (( ''${#sources[@]} )); then
-        ${pkgs.coreutils}/bin/cat "''${sources[@]}"
-      fi
-    } | ${pkgs.gawk}/bin/awk -v cutoff="$cutoff" -v now="$now" '
-      NF == 2 && $1 >= cutoff && $1 <= now &&
-        ($2 ~ /^[0-9.]+$/ || $2 ~ /^[0-9A-Fa-f:]+$/) { successes[$2]++ }
-      END { for (ip in successes) if (successes[ip] >= 30) print ip " 1;" }
-    ' | ${pkgs.coreutils}/bin/sort >"$tmp"
-    ${pkgs.coreutils}/bin/chmod 0644 "$tmp"
-
-    if [[ -r "$blocklist" ]] && ${pkgs.diffutils}/bin/cmp -s "$tmp" "$blocklist"; then
-      exit 0
-    fi
-    had_old=false
-    if [[ -e "$blocklist" ]]; then
-      ${pkgs.coreutils}/bin/cp -p "$blocklist" "$old"
-      had_old=true
-    fi
-    ${pkgs.coreutils}/bin/mv "$tmp" "$blocklist"
-    if ! ${pkgs.systemd}/bin/systemctl reload nginx.service; then
-      if $had_old; then
-        ${pkgs.coreutils}/bin/mv "$old" "$blocklist"
-      else
-        ${pkgs.coreutils}/bin/rm -f "$blocklist"
-      fi
-      exit 1
-    fi
-  '';
-
-  precompressStaticAssets = pkgs.writeShellScript "precompress-static-assets" ''
-    set -euo pipefail
-
-    ${pkgs.findutils}/bin/find "$1" -type f -size +256c \
-      \( -iname '*.css' -o -iname '*.csv' -o -iname '*.html' -o -iname '*.js' \
-      -o -iname '*.json' -o -iname '*.map' -o -iname '*.mjs' -o -iname '*.otf' \
-      -o -iname '*.svg' -o -iname '*.ttf' -o -iname '*.txt' -o -iname '*.vtt' \
-      -o -iname '*.wasm' -o -iname '*.webmanifest' -o -iname '*.xml' \) \
-      -print0 | while IFS= read -r -d "" file; do
-        [[ -e "$file.gz" ]] || ${pkgs.gzip}/bin/gzip -9 -n -k "$file"
-        [[ -e "$file.br" ]] || ${pkgs.brotli}/bin/brotli -q 9 -k "$file"
-      done
-  '';
-
-  # Match the dictionary.rs pin; keep the lazy fetch on the Sable origin.
-  sableJiebaSource = "https://raw.githubusercontent.com/messense/jieba-rs/9faccca490d8e797a14d6daffed2a96de9629df7";
-  sableDictionaryHash = "139519822fe8ab9e10d9d07e68ea0451045380aedaf54ecc51e2a28c6b42a13f";
-  sableDictionaryPath = "assets/jieba-${sableDictionaryHash}.txt";
-  sableDictionary = pkgs.fetchurl {
-    url = "${sableJiebaSource}/jieba/src/data/dict.txt";
-    sha256 = sableDictionaryHash;
-  };
-  sableDictionaryLicense = pkgs.fetchurl {
-    url = "${sableJiebaSource}/LICENSE";
-    hash = "sha256-kiV8jRx6BZ+gJyCzT84BdXSpkL7RTO6PVlWX9Pv7HxM=";
-  };
-  sableWithLocalDictionary = sable-unwrapped.overrideAttrs (old: {
-    postPatch = (old.postPatch or "") + ''
-      dictionary=crates/sable-core/src/search/dictionary.rs
-      grep -Fxq 'const SHA256: &str = "${sableDictionaryHash}";' "$dictionary"
-      substituteInPlace "$dictionary" \
-        --replace-fail '"${sableDictionary.url}"' '"https://${sableHost}/${sableDictionaryPath}"'
-    '';
-  });
-
-  sable =
-    pkgs.runCommand "sable-${sableWithLocalDictionary.version}-odarah"
+  caddyRuntimeConfig =
+    pkgs.runCommand "caddy-runtime.json"
       {
         nativeBuildInputs = [
-          webClientHtml
-          pkgs.diffutils
-        ];
-        outputs = [
-          "out"
-          "webDiff"
+          caddyPackage
+          pkgs.jq
         ];
       }
       ''
-        cp -R ${sableWithLocalDictionary} "$out"
-        chmod -R u+w "$out"
-        # Add after the web build so the service worker does not precache it.
-        install -Dm644 ${sableDictionary} "$out/${sableDictionaryPath}"
-        install -m644 ${sableDictionaryLicense} "$out/assets/jieba-LICENSE.txt"
-        mkdir -p "$webDiff"
-        for file in index.html 404.html service-worker.js manifest.webmanifest; do
-          test -s "$out/$file"
-        done
-        test -d "$out/_app/immutable"
-        ${pkgs.findutils}/bin/find "$out" -type f \( -name '*.gz' -o -name '*.br' \) -delete
-        cat > "$out/config.json" <<'JSON'
-        {
-          "branding": { "appName": "Sable" },
-          "defaultHomeserver": 0,
-          "homeserverList": ["${matrixHost}"],
-          "allowCustomHomeservers": false,
-          "calls": { "livekitServiceUrl": "https://${rtcHost}" },
-          "disableAccountSwitcher": false,
-          "hideUsernamePasswordFields": false,
-          "pushNotificationDetails": {
-            "pushNotifyUrl": "https://${pushHost}/_matrix/push/v1/notify",
-            "vapidPublicKey": "${pushClientConfig.vapidPublicKey}",
-            "webPushAppID": "${pushClientConfig.webPushAppID}"
-          },
-          "featuredCommunities": { "servers": [] }
-        }
-        JSON
-        # Keep SvelteKit's bootstrap scripts intact, authorizing their exact
-        # contents across all generated HTML pages (including the fallback).
-        ${writeCsp {
-          html = ''"$out"'';
-          output = ''"$webDiff/csp.conf"'';
-          policy = sableCsp;
-        }}
-        diff -u --label upstream/config.json --label local/config.json \
-          ${sableWithLocalDictionary}/config.json "$out/config.json" > "$webDiff/sable-config.diff" || test "$?" -eq 1
-        # Deployment headers are owned by Nginx, not the upstream Caddy/CF files.
-        rm "$out/csp.caddy" "$out/_headers"
-        ${precompressStaticAssets} "$out"
-      '';
-
-  cinny =
-    pkgs.runCommand "cinny-${pkgs.cinny-unwrapped.version}-odarah"
-      {
-        nativeBuildInputs = [
-          webClientHtml
-          pkgs.diffutils
-        ];
-        outputs = [
-          "out"
-          "webDiff"
-        ];
-      }
-      ''
-        cp -R ${pkgs.cinny-unwrapped} "$out"
-        chmod -R u+w "$out"
-        mkdir -p "$webDiff"
-        ${writeCsp {
-          html = ''"$out/index.html"'';
-          output = ''"$webDiff/csp.conf"'';
-          policy = cinnyCsp;
-        }}
-        ${writeCsp {
-          html = ''"$out/public/element-call/index.html"'';
-          output = ''"$webDiff/call-csp.conf"'';
-          policy = cinnyCallCsp;
-        }}
-        ${pkgs.findutils}/bin/find "$out" -type f \( -name '*.gz' -o -name '*.br' \) -delete
-        # Keep the separate gate for Cinny's runtime-injected drag style.
-        printf '%s  %s\n' 2b609a83eeb53ee19c83e48bca5687b6606161f7f6972f6b6babb9a932acd407 "$out/assets/index-DWIvG3QT.js" | ${pkgs.coreutils}/bin/sha256sum -c -
-        substituteInPlace "$out/assets/index-DWIvG3QT.js" \
-          --replace-fail \
-            'document.head.appendChild(e),(t=e.sheet)===null||t===void 0||t.insertRule("* { pointer-events: none !important; }")' \
-            'e.textContent="* { pointer-events: none !important; }",document.head.appendChild(e)'
-        cat > "$out/config.json" <<'JSON'
-        {
-          "defaultHomeserver": 0,
-          "homeserverList": ["matrix.odarah.org"],
-          "allowCustomHomeservers": false,
-          "featuredCommunities": { "openAsDefault": false, "spaces": [], "rooms": [], "servers": [] },
-          "hashRouter": { "enabled": false, "basename": "/" }
-        }
-        JSON
-        diff -u --label upstream/config.json --label local/config.json \
-          ${pkgs.cinny-unwrapped}/config.json "$out/config.json" > "$webDiff/cinny-config.diff" || test "$?" -eq 1
-        ${precompressStaticAssets} "$out"
-      '';
-
-  elementConfig = {
-    default_server_config."m.homeserver" = {
-      base_url = "https://${matrixHost}";
-      server_name = matrixHost;
-    };
-    disable_custom_urls = true;
-    disable_guests = true;
-    disable_3pid_login = true;
-    integrations_ui_url = null;
-    integrations_rest_url = null;
-    integrations_widgets_urls = null;
-    room_directory.servers = [ ];
-    map_style_url = null;
-    element_call = {
-      disable = false;
-      use_exclusively = true;
-      guest_spa_url = "https://${guestMatrixHost}";
-    };
-  };
-  elementConfigFile = pkgs.writeText "element-config.json" (builtins.toJSON elementConfig);
-  elementCallConfig = {
-    default_server_config."m.homeserver" = {
-      base_url = "https://${guestMatrixHost}";
-      server_name = guestMatrixHost;
-    };
-    livekit.livekit_service_url = "https://${rtcHost}";
-  };
-  elementCallConfigFile = pkgs.writeText "element-call-config.json" (
-    builtins.toJSON elementCallConfig
-  );
-  elementCall = pkgs.runCommand "element-call-${pkgs.element-call.version}-odarah" { } ''
-    mkdir -p "$out"
-    cp -R ${pkgs.element-call}/. "$out/"
-    chmod -R u+w "$out"
-    cp ${elementCallConfigFile} "$out/config.json"
-    cp ${./element-call-guest-only.css} "$out/guest-only.css"
-    substituteInPlace "$out/index.html" \
-      --replace-fail '</head>' '<link rel="stylesheet" href="/guest-only.css"></head>'
-    ${precompressStaticAssets} "$out"
-  '';
-  elementCallCspInclude =
-    pkgs.runCommand "element-call-generated-csp.conf" { nativeBuildInputs = [ webClientHtml ]; }
-      (writeCsp {
-        html = "${elementCall}/index.html";
-        output = ''"$out"'';
-        policy = elementCallCsp;
-      });
-  element =
-    pkgs.runCommand "element-web-${pkgs.element-web-unwrapped.version}-odarah"
-      {
-        nativeBuildInputs = [
-          webClientHtml
-          pkgs.diffutils
-        ];
-        outputs = [
-          "out"
-          "webDiff"
-        ];
-      }
-      ''
-        mkdir -p "$out"
-        cp -R ${pkgs.element-web-unwrapped}/. "$out/"
-        chmod -R u+w "$out"
-        mkdir -p "$webDiff"
-        web-client-html remove-meta-csp "$out/index.html"
-        diff -u --label before/index.html --label after/index.html \
-          ${pkgs.element-web-unwrapped}/index.html "$out/index.html" > "$webDiff/element-index.html.diff" || test "$?" -eq 1
-        ${writeCsp {
-          html = ''"$out/index.html"'';
-          output = ''"$webDiff/csp.conf"'';
-          policy = elementCsp;
-        }}
-        ${writeCsp {
-          html = ''"$out/widgets/element-call/index.html"'';
-          output = ''"$webDiff/call-csp.conf"'';
-          policy = elementCsp;
-        }}
-        ${pkgs.findutils}/bin/find "$out" -type f \( -name '*.gz' -o -name '*.br' \) -delete
-        cp ${elementConfigFile} "$out/config.json"
-        diff -u --label upstream/config.json --label local/config.json \
-          ${pkgs.element-web-unwrapped}/config.json "$out/config.json" > "$webDiff/element-config.diff" || test "$?" -eq 1
-        ${precompressStaticAssets} "$out"
+        caddy adapt --config ${caddyConfig} --adapter caddyfile > adapted.json
+        # Use the same routes and rate-limit buckets for both transports.
+        # Only the loopback TCP listener uses PROXY protocol. Nginx owns TCP/443.
+        jq -e '
+          .apps.http.servers.web |= (
+            if .listen != ["127.0.0.1:8447"] or .protocols != ["h1", "h2"] then
+              error("unexpected Caddy Web listener")
+            else
+              .listen += ["0.0.0.0:443"]
+              | .listen_protocols = [.protocols, ["h3"]]
+              | .allow_0rtt = false
+            end
+          )
+        ' adapted.json > "$out"
       '';
 in
 {
-  # Also expose the processed Sable site for focused update/build checks.
-  system.build.sable = sable;
-
-  # CI prints generated CSPs and config/HTML diffs without serving the reports.
-  system.build.webClientDiffs = pkgs.linkFarm "web-client-html-diffs" [
-    {
-      name = "sable";
-      path = sable.webDiff;
-    }
-    {
-      name = "cinny";
-      path = cinny.webDiff;
-    }
-    {
-      name = "element";
-      path = element.webDiff;
-    }
-  ];
+  # Keep these build targets available for the update script and CI.
+  system.build = {
+    inherit (webClients) sable webClientDiffs;
+    inherit caddyConfig caddyRuntimeConfig;
+  };
 
   networking.hostName = configurationName;
   networking.useDHCP = true;
@@ -501,6 +141,8 @@ in
       ];
       profile = "shortlived";
       extraLegoRenewFlags = [ "--reuse-key" ];
+      group = "caddy";
+      reloadServices = [ "caddy.service" ];
       renewInterval = "*-*-* 00,06,12,18:00:00";
       renewJitter = "1h";
     };
@@ -541,59 +183,139 @@ in
       content = ''
         chain output {
           type filter hook output priority filter; policy accept;
+          ip daddr 127.0.0.1 tcp dport 8447 meta skuid != "${config.services.nginx.user}" counter reject
           meta skuid "${config.services.nginx.user}" jump nginx_egress
+          meta skuid "caddy" jump caddy_egress
         }
 
         chain nginx_egress {
-          # Preserve responses to HTTP, WebSocket, TCP stream and QUIC clients,
-          # without allowing arbitrary established outbound connections.
+          # Preserve responses to TCP stream clients without granting arbitrary
+          # established outbound connections to the Nginx worker UID.
           ct direction reply counter accept
-          ip daddr 127.0.0.1 tcp dport { 8443, 9443, 9444, 9445, 9446 } counter accept
-          ip daddr ${prosodyAddress} tcp dport { 80, 443 } counter accept
+          ip daddr 127.0.0.1 tcp dport { 8447, 9444, 9445, 9446 } counter accept
+          ip daddr ${prosodyAddress} tcp dport 443 counter accept
+          ip daddr ${rtcAddress} tcp dport 5349 counter accept
+          counter reject with icmpx type admin-prohibited
+        }
+
+        chain caddy_egress {
+          ct direction reply counter accept
           ip daddr { ${tuwunelAddress}, ${guestTuwunelAddress} } tcp dport 8008 counter accept
-          ip daddr ${rtcAddress} tcp dport { 80, 5349, 7880, 8081 } counter accept
+          ip daddr ${rtcAddress} tcp dport { 7880, 8081 } counter accept
           ip daddr ${sygnalAddress} tcp dport 5000 counter accept
           ip daddr ${radicaleAddress} tcp dport 5232 counter accept
           counter reject with icmpx type admin-prohibited
         }
       '';
     };
-    # Rewrite only the build-check copy, not the installed username rule.
+    # Rewrite only the build-check copy, not the installed username rules.
     preCheckRuleset = ''
       substituteInPlace ruleset.conf \
-        --replace-fail 'meta skuid "${config.services.nginx.user}"' 'meta skuid 65534'
+        --replace-fail 'meta skuid != "${config.services.nginx.user}"' 'meta skuid != 65534' \
+        --replace-fail 'meta skuid "${config.services.nginx.user}"' 'meta skuid 65534' \
+        --replace-fail 'meta skuid "caddy"' 'meta skuid 65534'
     '';
   };
 
   systemd.services.nginx = {
     bindsTo = [ "nftables.service" ];
     after = [ "nftables.service" ];
+    serviceConfig.InaccessiblePaths = [
+      "-/var/lib/acme"
+      "-/run/secrets"
+      "-/run/caddy"
+      "-/var/log/caddy"
+    ];
+  };
+
+  services.caddy = {
+    enable = true;
+    package = caddyPackage;
+    configFile = caddyRuntimeConfig;
+    adapter = null;
+    enableReload = true;
+  };
+
+  systemd.services.caddy = {
+    bindsTo = [ "nftables.service" ];
+    requires = [ "acme-${matrixHost}.service" ];
+    after = [
+      "nftables.service"
+      "acme-${matrixHost}.service"
+      "nginx.service"
+    ];
+    serviceConfig = {
+      RuntimeDirectory = "caddy";
+      RuntimeDirectoryMode = "0700";
+      LogsDirectoryMode = "0750";
+      UMask = "0027";
+      CapabilityBoundingSet = [ "CAP_NET_BIND_SERVICE" ];
+      AmbientCapabilities = [ "CAP_NET_BIND_SERVICE" ];
+      ProtectSystem = "strict";
+      ProtectProc = "invisible";
+      InaccessiblePaths = [ "-/run/secrets" ];
+    };
+  };
+
+  systemd.services.guest-registration-blocklist = {
+    description = "Refresh the guest registration IP blocklist";
+    after = [ "caddy.service" ];
+    serviceConfig = oneshotHardening.base // {
+      Type = "oneshot";
+      User = config.services.caddy.user;
+      Group = config.services.caddy.group;
+      StateDirectory = "guest-registration-blocklist";
+      StateDirectoryMode = "0700";
+      ExecStart = "${pkgs.python3Minimal}/bin/python3 ${./update-guest-registration-blocklist.py} /var/log/caddy/guest-registration.log /var/lib/guest-registration-blocklist";
+      InaccessiblePaths = [
+        "-/run/caddy"
+        "-/run/secrets"
+        "-/var/lib/acme"
+        "-/var/lib/caddy"
+      ];
+      PrivateNetwork = true;
+      RestrictAddressFamilies = [ "AF_UNIX" ];
+      Nice = 10;
+      MemoryMax = "128M";
+      TasksMax = 16;
+    };
+  };
+
+  systemd.timers.guest-registration-blocklist = {
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnBootSec = "5min";
+      OnUnitActiveSec = "1h";
+    };
   };
 
   services.nginx = {
     enable = true;
-    recommendedOptimisation = true;
-    recommendedTlsSettings = true;
-    recommendedGzipSettings = true;
-    recommendedBrotliSettings = true;
-
-    # The public stream listener preserves Prosody's TLS termination while
-    # forwarding Matrix TLS to the local HTTP virtual host. The intermediate
-    # listeners remove PROXY protocol before Prosody and eturnal, but retain it
-    # for Matrix so the HTTP proxy can pass the real client address to tuwunel.
+    # The guest has one CPU of quota; extra workers do not add CPU capacity.
+    workerProcesses = 1;
+    # TLS passes through one stream proxy before Caddy's HTTP listener, so
+    # internal connections consume worker slots during scan bursts.
+    eventsConfig = ''
+      worker_connections 4096;
+    '';
+    appendConfig = ''
+      worker_rlimit_nofile 16384;
+    '';
+    # Forward ciphertext; only Caddy and the XMPP/TURN backends terminate TLS.
+    # The intermediate listeners strip PROXY protocol for XMPP/TURN.
     streamConfig = ''
       set_real_ip_from 127.0.0.1;
 
       map $ssl_preread_server_name $tls_dispatch {
-        ${odarahHost} 127.0.0.1:9443;
-        ${matrixHost} 127.0.0.1:9443;
-        ${cinnyHost} 127.0.0.1:9443;
-        ${elementHost} 127.0.0.1:9443;
-        ${guestMatrixHost} 127.0.0.1:9443;
-        ${rtcHost} 127.0.0.1:9443;
-        ${sableHost} 127.0.0.1:9443;
-        ${pushHost} 127.0.0.1:9443;
-        ${davHost} 127.0.0.1:9443;
+        ${odarahHost} 127.0.0.1:8447;
+        ${matrixHost} 127.0.0.1:8447;
+        ${cinnyHost} 127.0.0.1:8447;
+        ${elementHost} 127.0.0.1:8447;
+        ${guestMatrixHost} 127.0.0.1:8447;
+        ${rtcHost} 127.0.0.1:8447;
+        ${sableHost} 127.0.0.1:8447;
+        ${pushHost} 127.0.0.1:8447;
+        ${davHost} 127.0.0.1:8447;
         turn.odarah.org 127.0.0.1:9446;
         xmpp.odarah.org 127.0.0.1:9444;
         conference.xmpp.odarah.org 127.0.0.1:9444;
@@ -606,12 +328,6 @@ in
         ssl_preread on;
         proxy_protocol on;
         proxy_pass $tls_dispatch;
-      }
-
-      server {
-        listen 127.0.0.1:9443 proxy_protocol;
-        proxy_protocol on;
-        proxy_pass 127.0.0.1:8443;
       }
 
       server {
@@ -629,748 +345,11 @@ in
         proxy_pass ${rtcAddress}:5349;
       }
     '';
-
-    commonHttpConfig = ''
-      set_real_ip_from 127.0.0.1;
-      real_ip_header proxy_protocol;
-
-      # add_header omits empty values, so port 80 responses do not receive HSTS.
-      map $https $hsts_header {
-        default "";
-        on "${hstsValue}";
-      }
-      add_header_inherit merge;
-      add_header Strict-Transport-Security $hsts_header always;
-
-      # Empty limit-zone keys are ignored, so only password-auth endpoints are
-      # accounted while all Matrix traffic can share one simple proxy location.
-      map $uri $matrix_password_auth {
-        default 0;
-        ~^/(?:_matrix/client/(?:r0|v[0-9]+|unstable)/login|_tuwunel/oidc/native)$ 1;
-      }
-      map $matrix_password_auth $matrix_login_ip_key {
-        default "";
-        1 $remote_addr;
-      }
-      map $matrix_password_auth $matrix_login_global_key {
-        default "";
-        1 $server_name;
-      }
-
-      # The per-IP bucket handles the common case. The deliberately looser
-      # global bucket is a circuit breaker for distributed attacks.
-      limit_req_zone $matrix_login_ip_key zone=matrix_login_ip:10m rate=1r/s;
-      limit_req_zone $matrix_login_global_key zone=matrix_login_global:1m rate=10r/s;
-      limit_conn_zone $matrix_login_global_key zone=matrix_login_conn:1m;
-
-      # Guest registration has no homeserver-side request rate limit. Empty
-      # keys keep these limits scoped to the two registration endpoints.
-      log_format guest_registration_success '$msec $remote_addr';
-      map $status $guest_registration_success {
-        default 0;
-        200 1;
-      }
-      geo $guest_registration_blocked {
-        default 0;
-        include /run/guest-registration-blocklist/*.conf;
-      }
-      map $uri $guest_registration_request {
-        default 0;
-        ~^/_matrix/client/(?:r0|v3)/register$ 1;
-      }
-      map $uri $guest_username_request {
-        default 0;
-        ~^/_matrix/client/(?:r0|v3)/register/available$ 1;
-      }
-      map $guest_registration_request $guest_registration_ip_key {
-        default "";
-        1 $binary_remote_addr;
-      }
-      map $guest_registration_request $guest_registration_global_key {
-        default "";
-        1 $server_name;
-      }
-      map $guest_username_request $guest_username_ip_key {
-        default "";
-        1 $binary_remote_addr;
-      }
-      limit_req_zone $guest_registration_ip_key zone=guest_registration_ip:10m rate=1r/m;
-      limit_req_zone $guest_registration_global_key zone=guest_registration_global:1m rate=2r/s;
-      limit_req_zone $guest_username_ip_key zone=guest_username_ip:10m rate=2r/s;
-      limit_conn_zone $guest_registration_ip_key zone=guest_registration_conn_ip:10m;
-      limit_conn_zone $guest_registration_global_key zone=guest_registration_conn_global:1m;
-
-      # Element Call 0.25.0's standalone flow is read-only except for
-      # registration, crypto setup, joining/leaving, OpenID, and MatrixRTC
-      # membership. Its pinned matrix-js-sdk startup reads and authenticated
-      # avatar media are listed explicitly below; re-audit them on upgrades.
-      # Normal room send/state and media upload endpoints never match.
-      map "$request_method:$uri" $guest_matrix_client_allowed {
-        default 0;
-        ~^GET:/_matrix/client/versions$ 1;
-        ~^GET:/_matrix/client/(?:r0|v3)/(?:sync|capabilities|pushrules/|voip/turnServer|room_keys/version)$ 1;
-        ~^GET:/_matrix/client/(?:r0|v3)/user/[^/]+/filter/[^/]+$ 1;
-        ~^GET:/_matrix/client/v1/media/(?:download|thumbnail)/[^/]+/[^/]+$ 1;
-        ~^GET:/_matrix/client/unstable/org\.matrix\.msc4143/rtc/transports$ 1;
-        ~^GET:/_matrix/client/unstable/im\.nheko\.summary/(?:summary/.*|rooms/.*/summary)$ 1;
-        ~^POST:/_matrix/client/(?:r0|v3)/(?:register|refresh|logout|user/[^/]+/filter|keys/(?:upload|query|claim|signatures/upload)|user/[^/]+/openid/request_token|join/.*|rooms/[^/]+/(?:join|leave))$ 1;
-        ~^PUT:/_matrix/client/(?:r0|v3)/(?:profile/[^/]+/displayname|sendToDevice/[^/]+/[^/]+|rooms/[^/]+/state/(?:org\.matrix\.msc3401\.call\.member|org\.matrix\.msc4143\.rtc\.member)/.*)$ 1;
-        ~^POST:/_matrix/client/unstable/org\.matrix\.msc4140/delayed_events/[^/]+(?:/(?:cancel|restart|send))?$ 1;
-      }
-
-      limit_conn_zone $remote_addr zone=rtc_ws_conn:10m;
-      # DAV uses HTTP Basic authentication on normal sync requests too.
-      limit_req_zone $binary_remote_addr zone=radicale_ip:10m rate=10r/s;
-      limit_req_zone $server_name zone=radicale_global:1m rate=50r/s;
-      limit_conn_zone $binary_remote_addr zone=radicale_conn:10m;
-
-      limit_req_zone $binary_remote_addr zone=sygnal_push_ip:10m rate=10r/s;
-      limit_req_zone $server_name zone=sygnal_push_global:1m rate=50r/s;
-      limit_conn_zone $binary_remote_addr zone=sygnal_push_conn:10m;
-
-      map $request_uri $cinny_registration_loggable {
-        default 1;
-        ~^/register/ 0;
-      }
-      map $request_uri $cinny_cache_control {
-        default "no-cache";
-        ~^/assets/ "public, max-age=31536000, immutable";
-        ~^/register/ "no-store";
-      }
-      map $request_uri $element_call_cache_control {
-        default "no-cache";
-        ~^/config\.json$ "no-store";
-        ~^/assets/ "public, max-age=31536000, immutable";
-      }
-      map $request_uri $element_cache_control {
-        default "no-cache";
-        ~^/config(?:\.[^/]+)?\.json$ "no-store";
-        ~^/bundles/[0-9a-f]+/ "public, max-age=31536000, immutable";
-        ~^/widgets/element-call/assets/ "public, max-age=31536000, immutable";
-        # element-web emits content-hashed filenames (7 hex chars as of 1.12.x)
-        # outside /bundles/ too: fonts, i18n, img, icons, vector-icons, ...
-        # Must stay below the config.json no-store entry; first regex match wins.
-        # {7,} is spelled out because writeNginxConfig mangles brace quantifiers.
-        ~\.[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]*\.[a-z0-9]+ "public, max-age=31536000, immutable";
-      }
-      map $uri $sable_cache_control {
-        default "no-cache";
-        ~^/config\.json$ "no-store";
-        ~^/_app/immutable/ "public, max-age=31536000, immutable";
-      }
-      map $http_upgrade $connection_upgrade {
-        default upgrade;
-        "" close;
-      }
-      access_log /var/log/nginx/access.log combined if=$cinny_registration_loggable;
-    '';
-
-    virtualHosts = {
-      ${odarahHost} = {
-        useACMEHost = matrixHost;
-        forceSSL = true;
-        listen = [
-          {
-            addr = "0.0.0.0";
-            port = 80;
-          }
-          {
-            addr = "127.0.0.1";
-            port = 8443;
-            ssl = true;
-            proxyProtocol = true;
-          }
-        ];
-        extraConfig = http3Config;
-
-        locations."= /" = {
-          root = odarahLandingRoot;
-          tryFiles = "/index.html =404";
-          extraConfig = ''
-            default_type text/html;
-            charset utf-8;
-            add_header Cache-Control "no-store, no-cache, must-revalidate, max-age=0" always;
-            add_header Pragma "no-cache" always;
-            ${landingSecurityHeaders}
-          '';
-        };
-      };
-
-      ${matrixHost} = {
-        enableACME = true;
-        forceSSL = true;
-        listen = [
-          {
-            addr = "0.0.0.0";
-            port = 80;
-          }
-          {
-            addr = "127.0.0.1";
-            port = 8443;
-            ssl = true;
-            proxyProtocol = true;
-          }
-        ];
-        extraConfig = http3Config;
-
-        locations = {
-          "= /" = {
-            root = matrixLandingRoot;
-            tryFiles = "/index.html =404";
-            extraConfig = ''
-              default_type text/html;
-              charset utf-8;
-              add_header Cache-Control "no-store, no-cache, must-revalidate, max-age=0" always;
-              add_header Pragma "no-cache" always;
-              ${landingSecurityHeaders}
-            '';
-          };
-
-          "= /.well-known/matrix/client".extraConfig = ''
-            default_type application/json;
-            add_header Access-Control-Allow-Origin "*" always;
-            return 200 '{"m.homeserver":{"base_url":"https://${matrixHost}"},"org.matrix.msc4143.rtc_foci":[{"type":"livekit","livekit_service_url":"https://${rtcHost}"}]}';
-          '';
-
-          "= /.well-known/matrix/server".extraConfig = ''
-            default_type application/json;
-            return 200 '{"m.server":"${matrixHost}:443"}';
-          '';
-
-          "= /.well-known/matrix/support".extraConfig = ''
-            default_type application/json;
-            add_header Access-Control-Allow-Origin "*" always;
-            return 200 '{"contacts":[{"role":"m.role.admin","matrix_id":"@odara:matrix.odarah.org","email_address":"hostmaster@s3-odara.net"}]}';
-          '';
-
-          "= /.well-known/openid-configuration" = {
-            proxyPass = "http://${tuwunelAddress}:8008";
-            extraConfig = matrixProxyConfig "16M";
-          };
-
-          "= /_tuwunel/oidc/account.css".extraConfig = ''
-            alias ${oidcAccountCss};
-            default_type text/css;
-            add_header Cache-Control "no-cache" always;
-            add_header X-Content-Type-Options "nosniff" always;
-          '';
-
-          # Match uploads before the generic API regex; leave other APIs at 16 MiB.
-          "~ ^/_matrix/media/(?:r0|v3|unstable/fi[.]mau[.]msc2246)/upload(?:/[^/]+/[^/]+)?$" = {
-            priority = 900;
-            proxyPass = "http://${tuwunelAddress}:8008";
-            extraConfig = matrixProxyConfig "1G";
-          };
-
-          "~ ^/(?:_matrix|_tuwunel)/" = {
-            proxyPass = "http://${tuwunelAddress}:8008";
-            extraConfig = ''
-              limit_req zone=matrix_login_ip burst=5 nodelay;
-              limit_req zone=matrix_login_global burst=20 nodelay;
-              limit_conn matrix_login_conn 8;
-              limit_req_status 429;
-              limit_conn_status 429;
-              ${matrixProxyConfig "16M"}
-            '';
-          };
-        };
-      };
-
-      ${guestMatrixHost} = {
-        useACMEHost = matrixHost;
-        forceSSL = true;
-        root = elementCall;
-        listen = [
-          {
-            addr = "0.0.0.0";
-            port = 80;
-          }
-          {
-            addr = "127.0.0.1";
-            port = 8443;
-            ssl = true;
-            proxyProtocol = true;
-          }
-        ];
-        extraConfig = ''
-          ${http3Config}
-          ${elementCallSecurityHeaders}
-          add_header Cache-Control $element_call_cache_control always;
-        '';
-
-        locations = {
-          "= /.well-known/matrix/client".extraConfig = ''
-            default_type application/json;
-            add_header_inherit off;
-            ${elementCallSecurityHeaders}
-            add_header Strict-Transport-Security "${hstsValue}" always;
-            add_header Cache-Control "no-store" always;
-            add_header Alt-Svc 'h3=":443"; ma=86400' always;
-            add_header Access-Control-Allow-Origin "*" always;
-            return 200 '{"m.homeserver":{"base_url":"https://${guestMatrixHost}"},"org.matrix.msc4143.rtc_foci":[{"type":"livekit","livekit_service_url":"https://${rtcHost}"}]}';
-          '';
-
-          "= /.well-known/matrix/server".extraConfig = ''
-            default_type application/json;
-            return 200 '{"m.server":"${guestMatrixHost}:443"}';
-          '';
-
-          "~ ^/_matrix/(?:federation|key)/" = {
-            proxyPass = "http://${guestTuwunelAddress}:8008";
-            extraConfig = ''
-              client_max_body_size 16M;
-              ${guestMatrixProxyConfig}
-            '';
-          };
-
-          # Exact locations take precedence over the generic Client API regex,
-          # so registration can never bypass its stricter limits.
-          "= /_matrix/client/r0/register" = {
-            proxyPass = "http://${guestTuwunelAddress}:8008";
-            extraConfig = ''
-              limit_except POST { deny all; }
-              if ($guest_registration_blocked) { return 429; }
-              access_log /var/log/nginx/guest-registration.log guest_registration_success if=$guest_registration_success;
-              limit_req zone=guest_registration_ip burst=10 nodelay;
-              limit_req zone=guest_registration_global burst=40 nodelay;
-              limit_conn guest_registration_conn_ip 2;
-              limit_conn guest_registration_conn_global 32;
-              limit_req_status 429;
-              limit_conn_status 429;
-              client_max_body_size 32K;
-              ${guestMatrixProxyConfig}
-            '';
-          };
-          "= /_matrix/client/v3/register" = {
-            proxyPass = "http://${guestTuwunelAddress}:8008";
-            extraConfig = ''
-              limit_except POST { deny all; }
-              if ($guest_registration_blocked) { return 429; }
-              access_log /var/log/nginx/guest-registration.log guest_registration_success if=$guest_registration_success;
-              limit_req zone=guest_registration_ip burst=10 nodelay;
-              limit_req zone=guest_registration_global burst=40 nodelay;
-              limit_conn guest_registration_conn_ip 2;
-              limit_conn guest_registration_conn_global 32;
-              limit_req_status 429;
-              limit_conn_status 429;
-              client_max_body_size 32K;
-              ${guestMatrixProxyConfig}
-            '';
-          };
-
-          "= /_matrix/client/r0/register/available" = {
-            proxyPass = "http://${guestTuwunelAddress}:8008";
-            extraConfig = ''
-              limit_except GET { deny all; }
-              limit_req zone=guest_username_ip burst=10 nodelay;
-              limit_req_status 429;
-              client_max_body_size 8K;
-              ${guestMatrixProxyConfig}
-            '';
-          };
-          "= /_matrix/client/v3/register/available" = {
-            proxyPass = "http://${guestTuwunelAddress}:8008";
-            extraConfig = ''
-              limit_except GET { deny all; }
-              limit_req zone=guest_username_ip burst=10 nodelay;
-              limit_req_status 429;
-              client_max_body_size 8K;
-              ${guestMatrixProxyConfig}
-            '';
-          };
-
-          "~ ^/_matrix/client/" = {
-            proxyPass = "http://${guestTuwunelAddress}:8008";
-            extraConfig = ''
-              if ($guest_matrix_client_allowed = 0) { return 403; }
-              client_max_body_size 1M;
-              ${guestMatrixProxyConfig}
-            '';
-          };
-
-          "^~ /assets/".tryFiles = "$uri =404";
-          "= /config.json".tryFiles = "$uri =404";
-          "= /index.html".tryFiles = "$uri =404";
-          "/".extraConfig = ''
-            try_files $uri $uri/ /index.html;
-          '';
-        };
-      };
-
-      ${cinnyHost} = {
-        useACMEHost = matrixHost;
-        forceSSL = true;
-        root = cinny;
-        listen = [
-          {
-            addr = "0.0.0.0";
-            port = 80;
-          }
-          {
-            addr = "127.0.0.1";
-            port = 8443;
-            ssl = true;
-            proxyProtocol = true;
-          }
-        ];
-        extraConfig = ''
-          ${http3PrimaryConfig}
-          ${cinnySecurityHeaders}
-          add_header Cache-Control $cinny_cache_control always;
-        '';
-
-        locations = {
-          "= /config.json".tryFiles = "$uri =404";
-          "= /sw.js".tryFiles = "$uri =404";
-          "= /index.html".tryFiles = "$uri =404";
-          "^~ /assets/".tryFiles = "$uri =404";
-          "^~ /register/".extraConfig = ''
-            access_log off;
-            error_log /dev/null emerg;
-            rewrite ^ /index.html break;
-            try_files $uri =404;
-          '';
-          "^~ /public/element-call/".extraConfig = ''
-            try_files $uri $uri/ =404;
-            # Element Call still creates dynamic style elements and attributes.
-            # Replace Cinny's strict main policy only for the embedded call app.
-            add_header_inherit off;
-            ${cinnyCallSecurityHeaders}
-            add_header Strict-Transport-Security "${hstsValue}" always;
-            add_header Cache-Control $cinny_cache_control always;
-            add_header Alt-Svc 'h3=":443"; ma=86400' always;
-          '';
-          "^~ /public/".extraConfig = ''
-            try_files $uri =404;
-          '';
-          "/".extraConfig = ''
-            try_files $uri $uri/ /index.html;
-          '';
-        };
-      };
-
-      ${elementHost} = {
-        useACMEHost = matrixHost;
-        forceSSL = true;
-        root = element;
-        listen = [
-          {
-            addr = "0.0.0.0";
-            port = 80;
-          }
-          {
-            addr = "127.0.0.1";
-            port = 8443;
-            ssl = true;
-            proxyProtocol = true;
-          }
-        ];
-        extraConfig = ''
-          ${http3Config}
-          ${elementSecurityHeaders}
-          add_header Cache-Control $element_cache_control always;
-        '';
-
-        locations = {
-          "= /decoder-ring/".return = "404";
-          "^~ /decoder-ring/".return = "404";
-          "~ ^/config(?:\\.[^/]+)?\\.json$".tryFiles = "$uri =404";
-          "= /index.html".tryFiles = "$uri =404";
-          "^~ /bundles/".tryFiles = "$uri =404";
-          "^~ /widgets/element-call/assets/".tryFiles = "$uri =404";
-          "^~ /widgets/element-call/".extraConfig = ''
-            try_files $uri $uri/ =404;
-            add_header_inherit off;
-            ${elementEmbeddedCallSecurityHeaders}
-            add_header Strict-Transport-Security "${hstsValue}" always;
-            add_header Cache-Control $element_cache_control always;
-            add_header Alt-Svc 'h3=":443"; ma=86400' always;
-          '';
-          "/".extraConfig = ''
-            try_files $uri $uri/ /index.html;
-          '';
-        };
-      };
-
-      ${sableHost} = {
-        useACMEHost = matrixHost;
-        forceSSL = true;
-        root = sable;
-        listen = [
-          {
-            addr = "0.0.0.0";
-            port = 80;
-          }
-          {
-            addr = "127.0.0.1";
-            port = 8443;
-            ssl = true;
-            proxyProtocol = true;
-          }
-        ];
-        extraConfig = ''
-          ${http3Config}
-          ${sableSecurityHeaders}
-          add_header Cache-Control $sable_cache_control always;
-        '';
-
-        locations = {
-          "= /config.json".tryFiles = "$uri =404";
-          "= /index.html".tryFiles = "$uri =404";
-          "= /404.html".tryFiles = "$uri =404";
-          "= /manifest.webmanifest".tryFiles = "$uri =404";
-          "= /service-worker.js".tryFiles = "$uri =404";
-          # Do not serve the SPA document to legacy workers/assets.
-          "= /sw.js".return = "410";
-          "= /manifest.json".return = "410";
-          "^~ /assets/".tryFiles = "$uri =404";
-          "^~ /public/element-call/".return = "410";
-          "^~ /_app/".tryFiles = "$uri =404";
-          "^~ /icons/".tryFiles = "$uri =404";
-          "^~ /deepfilternet3/".tryFiles = "$uri =404";
-          "^~ /sound/".tryFiles = "$uri =404";
-          "/".extraConfig = ''
-            try_files $uri $uri.html $uri/ /index.html;
-          '';
-        };
-      };
-
-      ${pushHost} = {
-        useACMEHost = matrixHost;
-        forceSSL = true;
-        extraConfig = http3Config;
-        listen = [
-          {
-            addr = "0.0.0.0";
-            port = 80;
-          }
-          {
-            addr = "127.0.0.1";
-            port = 8443;
-            ssl = true;
-            proxyProtocol = true;
-          }
-        ];
-        locations = {
-          "= /_matrix/push/v1/notify" = {
-            proxyPass = "http://${sygnalAddress}:5000";
-            extraConfig = ''
-              # Tuwunel is the only valid caller; retain rate limits as defense in depth.
-              allow ${tuwunelAddress};
-              deny all;
-              limit_except POST { deny all; }
-              limit_req zone=sygnal_push_ip burst=50 nodelay;
-              limit_req zone=sygnal_push_global burst=100 nodelay;
-              limit_conn sygnal_push_conn 32;
-              limit_req_status 429;
-              limit_conn_status 429;
-              client_max_body_size 1M;
-              proxy_http_version 1.1;
-              proxy_set_header Host $host;
-              proxy_set_header X-Forwarded-For $remote_addr;
-              proxy_set_header X-Forwarded-Proto https;
-              proxy_set_header Connection "";
-              proxy_connect_timeout 5s;
-              proxy_read_timeout 30s;
-              proxy_send_timeout 30s;
-            '';
-          };
-          "/".extraConfig = "return 404;";
-        };
-      };
-
-      ${davHost} = {
-        useACMEHost = matrixHost;
-        forceSSL = true;
-        extraConfig = http3Config;
-        listen = [
-          {
-            addr = "0.0.0.0";
-            port = 80;
-          }
-          {
-            addr = "127.0.0.1";
-            port = 8443;
-            ssl = true;
-            proxyProtocol = true;
-          }
-        ];
-        locations = {
-          "= /.well-known/caldav".return = "301 https://${davHost}/";
-          "= /.well-known/carddav".return = "301 https://${davHost}/";
-          "/" = {
-            proxyPass = "http://${radicaleAddress}:5232";
-            extraConfig = ''
-              limit_req zone=radicale_ip burst=50 nodelay;
-              limit_req zone=radicale_global burst=100 nodelay;
-              limit_conn radicale_conn 20;
-              limit_req_status 429;
-              limit_conn_status 429;
-              client_max_body_size 100000000;
-              proxy_http_version 1.1;
-              proxy_set_header Host $host;
-              proxy_set_header X-Forwarded-Host $host;
-              proxy_set_header X-Forwarded-Port 443;
-              proxy_set_header X-Forwarded-Proto https;
-              proxy_set_header X-Forwarded-For $remote_addr;
-              # Root deployment: never accept a client-supplied path prefix or identity.
-              proxy_set_header X-Script-Name "";
-              proxy_set_header X-Remote-User "";
-              proxy_set_header Remote-User "";
-              proxy_set_header Connection "";
-              proxy_connect_timeout 5s;
-              proxy_read_timeout 60s;
-              proxy_send_timeout 60s;
-            '';
-          };
-        };
-      };
-
-      ${rtcHost} = {
-        useACMEHost = matrixHost;
-        forceSSL = true;
-        extraConfig = http3Config;
-        listen = [
-          {
-            addr = "0.0.0.0";
-            port = 80;
-          }
-          {
-            addr = "127.0.0.1";
-            port = 8443;
-            ssl = true;
-            proxyProtocol = true;
-          }
-        ];
-        locations = {
-          "~ ^/(?:sfu/get|healthz|get_token)" = {
-            proxyPass = "http://${rtcAddress}:8081";
-            extraConfig = ''
-              proxy_http_version 1.1;
-              proxy_set_header Host $host;
-              proxy_set_header X-Forwarded-For $remote_addr;
-              proxy_set_header X-Forwarded-Proto https;
-              proxy_set_header Connection "";
-              proxy_connect_timeout 5s;
-            '';
-          };
-          "/" = {
-            proxyPass = "http://${rtcAddress}:7880";
-            extraConfig = ''
-              limit_conn rtc_ws_conn 20;
-              limit_conn_status 429;
-              proxy_http_version 1.1;
-              proxy_set_header Host $host;
-              proxy_set_header X-Forwarded-For $remote_addr;
-              proxy_set_header X-Forwarded-Proto https;
-              proxy_set_header Upgrade $http_upgrade;
-              proxy_set_header Connection $connection_upgrade;
-              proxy_connect_timeout 5s;
-              proxy_read_timeout 3600s;
-              proxy_send_timeout 3600s;
-            '';
-          };
-        };
-      };
-
-      "xmpp-http" = {
-        serverName = "xmpp.odarah.org";
-        serverAliases = [
-          "conference.xmpp.odarah.org"
-          "share.xmpp.odarah.org"
-        ];
-        listen = [
-          {
-            addr = "0.0.0.0";
-            port = 80;
-          }
-        ];
-
-        locations = {
-          "^~ /.well-known/acme-challenge/" = {
-            proxyPass = "http://${prosodyAddress}:80";
-            extraConfig = ''
-              proxy_set_header Host $host;
-              proxy_set_header X-Forwarded-For $remote_addr;
-            '';
-          };
-          "/".return = "301 https://$host$request_uri";
-        };
-      };
-
-      "turn-http" = {
-        serverName = "turn.odarah.org";
-        listen = [
-          {
-            addr = "0.0.0.0";
-            port = 80;
-          }
-        ];
-        locations = {
-          "^~ /.well-known/acme-challenge/" = {
-            proxyPass = "http://${rtcAddress}:80";
-            extraConfig = ''
-              proxy_set_header Host $host;
-              proxy_set_header X-Forwarded-For $remote_addr;
-            '';
-          };
-          "/".return = "301 https://$host$request_uri";
-        };
-      };
-
-      "reject-http" = {
-        default = true;
-        serverName = "_";
-        listen = [
-          {
-            addr = "0.0.0.0";
-            port = 80;
-          }
-        ];
-        locations."/".return = "444";
-      };
-    };
-  };
-
-  systemd.tmpfiles.rules = [
-    "d /run/guest-registration-blocklist 0755 root root -"
-  ];
-
-  systemd.services.guest-registration-blocklist = {
-    description = "Update the guest registration IP blocklist";
-    serviceConfig = oneshotHardening.base // {
-      Type = "oneshot";
-      ExecStart = guestRegistrationBlocklist;
-      PrivateNetwork = true;
-      RestrictAddressFamilies = [ "AF_UNIX" ];
-      ReadWritePaths = [ "/run/guest-registration-blocklist" ];
-      SupplementaryGroups = [ config.services.nginx.group ];
-      MemoryMax = "256M";
-      TasksMax = 64;
-    };
-  };
-
-  systemd.timers.guest-registration-blocklist = {
-    wantedBy = [ "timers.target" ];
-    timerConfig = {
-      OnCalendar = "hourly";
-      Persistent = false;
-      RandomizedDelaySec = "1h";
-      FixedRandomDelay = true;
-      AccuracySec = "1s";
-    };
   };
 
   sops.secrets = {
     nginx_tsig_secret = { };
     ntfy_topic = { };
-  };
-
-  services.logrotate.settings.nginx = {
-    frequency = "daily";
-    rotate = 14;
-    maxage = 14;
-    maxsize = "200M";
   };
 
   system.stateVersion = "26.05";
