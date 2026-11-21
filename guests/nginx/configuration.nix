@@ -250,8 +250,29 @@ let
       done
   '';
 
+  # Match the dictionary.rs pin; keep the lazy fetch on the Sable origin.
+  sableJiebaSource = "https://raw.githubusercontent.com/messense/jieba-rs/9faccca490d8e797a14d6daffed2a96de9629df7";
+  sableDictionaryHash = "139519822fe8ab9e10d9d07e68ea0451045380aedaf54ecc51e2a28c6b42a13f";
+  sableDictionaryPath = "assets/jieba-${sableDictionaryHash}.txt";
+  sableDictionary = pkgs.fetchurl {
+    url = "${sableJiebaSource}/jieba/src/data/dict.txt";
+    sha256 = sableDictionaryHash;
+  };
+  sableDictionaryLicense = pkgs.fetchurl {
+    url = "${sableJiebaSource}/LICENSE";
+    hash = "sha256-kiV8jRx6BZ+gJyCzT84BdXSpkL7RTO6PVlWX9Pv7HxM=";
+  };
+  sableWithLocalDictionary = sable-unwrapped.overrideAttrs (old: {
+    postPatch = (old.postPatch or "") + ''
+      dictionary=crates/sable-core/src/search/dictionary.rs
+      grep -Fxq 'const SHA256: &str = "${sableDictionaryHash}";' "$dictionary"
+      substituteInPlace "$dictionary" \
+        --replace-fail '"${sableDictionary.url}"' '"https://${sableHost}/${sableDictionaryPath}"'
+    '';
+  });
+
   sable =
-    pkgs.runCommand "sable-${sable-unwrapped.version}-odarah"
+    pkgs.runCommand "sable-${sableWithLocalDictionary.version}-odarah"
       {
         nativeBuildInputs = [
           webClientHtml
@@ -263,8 +284,11 @@ let
         ];
       }
       ''
-        cp -R ${sable-unwrapped} "$out"
+        cp -R ${sableWithLocalDictionary} "$out"
         chmod -R u+w "$out"
+        # Add after the web build so the service worker does not precache it.
+        install -Dm644 ${sableDictionary} "$out/${sableDictionaryPath}"
+        install -m644 ${sableDictionaryLicense} "$out/assets/jieba-LICENSE.txt"
         mkdir -p "$webDiff"
         for file in index.html 404.html service-worker.js manifest.webmanifest; do
           test -s "$out/$file"
@@ -296,7 +320,7 @@ let
           policy = sableCsp;
         }}
         diff -u --label upstream/config.json --label local/config.json \
-          ${sable-unwrapped}/config.json "$out/config.json" > "$webDiff/sable-config.diff" || test "$?" -eq 1
+          ${sableWithLocalDictionary}/config.json "$out/config.json" > "$webDiff/sable-config.diff" || test "$?" -eq 1
         # Deployment headers are owned by Nginx, not the upstream Caddy/CF files.
         rm "$out/csp.caddy" "$out/_headers"
         ${precompressStaticAssets} "$out"
