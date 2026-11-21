@@ -43,6 +43,19 @@
 	header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
 }
 
+(upstream_response_timeout) {
+	transport http {
+		response_header_timeout {args[0]}
+	}
+}
+
+(matrix_proxy) {
+	header_up Host {http.request.host}
+	header_up X-Forwarded-For {http.request.remote.host}
+	header_up X-Forwarded-Proto https
+	import upstream_response_timeout {args[0]}
+}
+
 (access_log) {
 	log {
 		output file /var/log/caddy/access.log {
@@ -126,9 +139,7 @@ https://matrix.odarah.org:8447 {
 		@openid path /.well-known/openid-configuration
 		handle @openid {
 			reverse_proxy 10.77.3.14:8008 {
-				header_up Host {http.request.host}
-				header_up X-Forwarded-For {http.request.remote.host}
-				header_up X-Forwarded-Proto https
+				import matrix_proxy 60s
 			}
 		}
 
@@ -146,9 +157,7 @@ https://matrix.odarah.org:8447 {
 				max_size 1073741824
 			}
 			reverse_proxy 10.77.3.14:8008 {
-				header_up Host {http.request.host}
-				header_up X-Forwarded-For {http.request.remote.host}
-				header_up X-Forwarded-Proto https
+				import matrix_proxy 60s
 			}
 		}
 
@@ -172,14 +181,27 @@ https://matrix.odarah.org:8447 {
 		}
 
 		@matrix_api path_regexp ^/(?:_matrix|_tuwunel)/
+		# Tuwunel can long-poll for up to 90s; allow time to build the response.
+		@matrix_sync {
+			method GET
+			path /_matrix/client/r0/sync /_matrix/client/v3/sync
+		}
+		@sliding_sync {
+			method POST
+			path /_matrix/client/unstable/org.matrix.simplified_msc3575/sync
+		}
 		handle @matrix_api {
 			request_body {
 				max_size 16777216
 			}
+			reverse_proxy @matrix_sync 10.77.3.14:8008 {
+				import matrix_proxy 120s
+			}
+			reverse_proxy @sliding_sync 10.77.3.14:8008 {
+				import matrix_proxy 120s
+			}
 			reverse_proxy 10.77.3.14:8008 {
-				header_up Host {http.request.host}
-				header_up X-Forwarded-For {http.request.remote.host}
-				header_up X-Forwarded-Proto https
+				import matrix_proxy 60s
 			}
 		}
 		respond 404
@@ -221,9 +243,7 @@ https://guest.matrix.odarah.org:8447 {
 				max_size 16777216
 			}
 			reverse_proxy 10.77.3.17:8008 {
-				header_up Host {http.request.host}
-				header_up X-Forwarded-For {http.request.remote.host}
-				header_up X-Forwarded-Proto https
+				import matrix_proxy 60s
 			}
 		}
 
@@ -266,9 +286,7 @@ https://guest.matrix.odarah.org:8447 {
 				max_size 32768
 			}
 			reverse_proxy 10.77.3.17:8008 {
-				header_up Host {http.request.host}
-				header_up X-Forwarded-For {http.request.remote.host}
-				header_up X-Forwarded-Proto https
+				import matrix_proxy 60s
 			}
 		}
 
@@ -281,9 +299,7 @@ https://guest.matrix.odarah.org:8447 {
 				max_size 8192
 			}
 			reverse_proxy 10.77.3.17:8008 {
-				header_up Host {http.request.host}
-				header_up X-Forwarded-For {http.request.remote.host}
-				header_up X-Forwarded-Proto https
+				import matrix_proxy 60s
 			}
 		}
 
@@ -291,14 +307,16 @@ https://guest.matrix.odarah.org:8447 {
 			method GET
 			path_regexp ^/_matrix/client/(?:versions|(?:r0|v3)/(?:sync|capabilities|pushrules/|voip/turnServer|room_keys/version|user/[^/]+/filter/[^/]+)|v1/media/(?:download|thumbnail)/[^/]+/[^/]+|unstable/org[.]matrix[.]msc4143/rtc/transports|unstable/im[.]nheko[.]summary/(?:summary/.*|rooms/.*/summary))$
 		}
+		@guest_sync path /_matrix/client/r0/sync /_matrix/client/v3/sync
 		handle @guest_get {
 			request_body {
 				max_size 1048576
 			}
+			reverse_proxy @guest_sync 10.77.3.17:8008 {
+				import matrix_proxy 120s
+			}
 			reverse_proxy 10.77.3.17:8008 {
-				header_up Host {http.request.host}
-				header_up X-Forwarded-For {http.request.remote.host}
-				header_up X-Forwarded-Proto https
+				import matrix_proxy 60s
 			}
 		}
 
@@ -311,9 +329,7 @@ https://guest.matrix.odarah.org:8447 {
 				max_size 1048576
 			}
 			reverse_proxy 10.77.3.17:8008 {
-				header_up Host {http.request.host}
-				header_up X-Forwarded-For {http.request.remote.host}
-				header_up X-Forwarded-Proto https
+				import matrix_proxy 60s
 			}
 		}
 
@@ -326,9 +342,7 @@ https://guest.matrix.odarah.org:8447 {
 				max_size 1048576
 			}
 			reverse_proxy 10.77.3.17:8008 {
-				header_up Host {http.request.host}
-				header_up X-Forwarded-For {http.request.remote.host}
-				header_up X-Forwarded-Proto https
+				import matrix_proxy 60s
 			}
 		}
 
@@ -580,6 +594,7 @@ https://push.matrix.odarah.org:8447 {
 				max_size 1048576
 			}
 			reverse_proxy 10.77.3.16:5000 {
+				import upstream_response_timeout 60s
 				header_up Host {http.request.host}
 				header_up X-Forwarded-For {http.request.remote.host}
 				header_up X-Forwarded-Proto https
@@ -612,6 +627,7 @@ https://dav.odarah.org:8447 {
 			max_size 100000000
 		}
 		reverse_proxy 10.77.3.18:5232 {
+			import upstream_response_timeout 60s
 			header_up Host {http.request.host}
 			header_up X-Forwarded-Host {http.request.host}
 			header_up X-Forwarded-Port 443
@@ -632,6 +648,7 @@ https://rtc.matrix.odarah.org:8447 {
 		@rtc_control path_regexp ^/(?:sfu/get|healthz|get_token)
 		handle @rtc_control {
 			reverse_proxy 10.77.3.15:8081 {
+				import upstream_response_timeout 60s
 				header_up Host {http.request.host}
 				header_up X-Forwarded-For {http.request.remote.host}
 				header_up X-Forwarded-Proto https
