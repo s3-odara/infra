@@ -8,7 +8,7 @@
 
 ### Sableの検索辞書を同一オリジンから配信する
 
-- 実装: `guests/nginx/configuration.nix`のSable用ビルドと静的アセット。
+- 実装: `guests/nginx/web-clients.nix`のSable用ビルドと静的アセット。
 - 理由: 上流は検索用のJieba辞書をGitHubから遅延取得する。現行CSPではブロックされ、辞書未ロード時に日本語の検索語も一部スキップされる。
 - 対応: 上流と同じ辞書をコミット・SHA-256で固定して同梱し、Webビルドで取得先のみ同一オリジンに変更する。CSPと遅延取得は維持する。Sable更新時に上流の辞書ピンが変わったら同梱版も更新する。
 - 撤去条件: 上流が辞書を同梱するか、同一オリジン配信をビルド設定で指定できるようになったとき。
@@ -201,7 +201,7 @@
 
 ### Cinnyのruntime drag styleをpatchする
 
-- 実装: `guests/nginx/configuration.nix:282-287`
+- 実装: `guests/nginx/web-clients.nix` の `cinny` ビルド。
 - 理由: Cinnyがdrag中に`CSSStyleSheet.insertRule()`でstyleを注入し、main pageのstrict CSPと両立しない。
 - 対応: 対象bundleのSHA-256を検証してから、style設定を`style.textContent`へ書き換える。
 - 撤去条件: Cinny upstreamがstrict CSPと両立するstyle処理へ変更したとき。Cinny更新時はbundle path、hash、置換対象を再確認する。
@@ -209,7 +209,7 @@
 
 ### 埋め込みElement CallだけCSPを緩和する
 
-- 実装: `guests/nginx/configuration.nix:891-898`
+- 実装: `guests/nginx/web-clients.nix` の `cinnyCallCsp` と `guests/nginx/Caddyfile` の `/public/element-call/` ルート。
 - 理由: Element Callが動的なstyle elementとstyle attributeを生成するため、Cinny main pageのstrict style policyでは動かない。
 - 対応: `/public/element-call/`だけ別のCSPへ差し替え、inline styleを許可する。
 - 撤去条件: Element Callがinline styleなしで動作するようになったとき。
