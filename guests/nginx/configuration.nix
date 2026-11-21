@@ -139,7 +139,7 @@ in
         davHost
       ];
       profile = "shortlived";
-      # Dropping --reuse-key changes the certificate cache, not the CAA-bound account.
+      extraLegoRenewFlags = [ "--reuse-key" ];
       group = "caddy";
       reloadServices = [ "caddy.service" ];
       renewInterval = "*-*-* 00,06,12,18:00:00";
