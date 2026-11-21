@@ -1,4 +1,4 @@
-odarah.org. 3600 IN SOA ns.odarah.org. HOSTMASTER.S3-ODARA.NET. 2026090103 3600 1800 604800 600
+odarah.org. 3600 IN SOA ns.odarah.org. HOSTMASTER.S3-ODARA.NET. 2026112101 3600 1800 604800 600
 odarah.org. 3600 IN NS ns.odarah.org.
 _acme-challenge.odarah.org. 3600 IN NS ns.odarah.org.
 _acme-challenge.odarah.org. 300 IN DS 20139 15 2 b3c303d6bbae6313d4fad3a2a929662a93b968666fbaf91efb7c9319fa7a18e2
@@ -15,23 +15,23 @@ _acme-challenge.conference.xmpp.odarah.org. 300 IN CNAME conference-xmpp._acme-c
 _acme-challenge.share.xmpp.odarah.org. 300 IN CNAME share-xmpp._acme-challenge.odarah.org.
 _acme-challenge.turn.odarah.org. 300 IN CNAME turn._acme-challenge.odarah.org.
 odarah.org. 3600 IN A 15.235.184.173
-odarah.org. 3600 IN HTTPS 1 . alpn="h3,h2"
+odarah.org. 3600 IN HTTPS 1 . alpn="h2"
 ns.odarah.org. 3600 IN A 15.235.184.173
 matrix.odarah.org. 3600 IN A 15.235.184.173
-matrix.odarah.org. 3600 IN HTTPS 1 . alpn="h3,h2"
+matrix.odarah.org. 3600 IN HTTPS 1 . alpn="h2"
 guest.matrix.odarah.org. 3600 IN A 15.235.184.173
-guest.matrix.odarah.org. 3600 IN HTTPS 1 . alpn="h3,h2"
+guest.matrix.odarah.org. 3600 IN HTTPS 1 . alpn="h2"
 rtc.matrix.odarah.org. 3600 IN A 15.235.184.173
 sable.matrix.odarah.org. 3600 IN A 15.235.184.173
-sable.matrix.odarah.org. 3600 IN HTTPS 1 . alpn="h3,h2"
+sable.matrix.odarah.org. 3600 IN HTTPS 1 . alpn="h2"
 push.matrix.odarah.org. 3600 IN A 15.235.184.173
-push.matrix.odarah.org. 3600 IN HTTPS 1 . alpn="h3,h2"
+push.matrix.odarah.org. 3600 IN HTTPS 1 . alpn="h2"
 dav.odarah.org. 3600 IN A 15.235.184.173
-dav.odarah.org. 3600 IN HTTPS 1 . alpn="h3,h2"
+dav.odarah.org. 3600 IN HTTPS 1 . alpn="h2"
 cinny.matrix.odarah.org. 3600 IN A 15.235.184.173
-cinny.matrix.odarah.org. 3600 IN HTTPS 1 . alpn="h3,h2"
+cinny.matrix.odarah.org. 3600 IN HTTPS 1 . alpn="h2"
 element.matrix.odarah.org. 3600 IN A 15.235.184.173
-element.matrix.odarah.org. 3600 IN HTTPS 1 . alpn="h3,h2"
+element.matrix.odarah.org. 3600 IN HTTPS 1 . alpn="h2"
 xmpp.odarah.org. 3600 IN A 15.235.184.173
 turn.odarah.org. 3600 IN A 15.235.184.173
 _xmpp-client._tcp.xmpp.odarah.org. 3600 IN SRV 30 5 5222 xmpp.odarah.org.
