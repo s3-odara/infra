@@ -5,7 +5,6 @@
 		protocols h1
 	}
 	servers 127.0.0.1:8447 {
-		# Nix also attaches the public HTTP/3 listener to this named server.
 		name web
 		protocols h1 h2
 		listener_wrappers {
@@ -40,6 +39,8 @@
 	bind 127.0.0.1
 	import access_log
 	tls /var/lib/acme/matrix.odarah.org/fullchain.pem /var/lib/acme/matrix.odarah.org/key.pem
+	# Clear the previous 30-day HTTP/3 advertisement during the transition.
+	header Alt-Svc clear
 	header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
 }
 
@@ -595,7 +596,7 @@ https://push.matrix.odarah.org:8447 {
 	import security_deny
 
 	route {
-		# TCP trusts Nginx's PROXY source IP; QUIC uses the actual peer.
+		# The source IP comes from Nginx's PROXY protocol header.
 		@push_allowed {
 			remote_ip 10.77.3.14
 			method POST

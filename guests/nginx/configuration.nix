@@ -86,28 +86,9 @@ let
       --subst-var-by ELEMENT_CALL_CSP "$(<${webClients.cspPolicies}/element-call.csp)"
   '';
   caddyRuntimeConfig =
-    pkgs.runCommand "caddy-runtime.json"
-      {
-        nativeBuildInputs = [
-          caddyPackage
-          pkgs.jq
-        ];
-      }
+    pkgs.runCommand "caddy-runtime.json" { nativeBuildInputs = [ caddyPackage ]; }
       ''
-        caddy adapt --config ${caddyConfig} --adapter caddyfile > adapted.json
-        # Use the same routes and rate-limit buckets for both transports.
-        # Only the loopback TCP listener uses PROXY protocol. Nginx owns TCP/443.
-        jq -e '
-          .apps.http.servers.web |= (
-            if .listen != ["127.0.0.1:8447"] or .protocols != ["h1", "h2"] then
-              error("unexpected Caddy Web listener")
-            else
-              .listen += ["0.0.0.0:443"]
-              | .listen_protocols = [.protocols, ["h3"]]
-              | .allow_0rtt = false
-            end
-          )
-        ' adapted.json > "$out"
+        caddy adapt --config ${caddyConfig} --adapter caddyfile > "$out"
       '';
 in
 {
@@ -267,7 +248,7 @@ in
       RestrictNamespaces = true;
       RestrictRealtime = true;
       RestrictSUIDSGID = true;
-      # The admin API uses a Unix socket; HTTP/3 and the proxies need IP sockets.
+      # The admin API uses a Unix socket; HTTP listeners and proxies need IP sockets.
       RestrictAddressFamilies = [
         "AF_UNIX"
         "AF_INET"
