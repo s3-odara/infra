@@ -16,25 +16,53 @@ let
   # PDF.js only injects a font stylesheet when document.fonts is unavailable;
   # browsers supporting the CSP Level 3 directives below use its FontFace path.
   cinnyStyleHashes = "'sha256-I2px+fnpbN4E5+Djrj7aoTIyq9yyREkuVl19f4Sye9A=' 'sha256-gE6f9B7Di/6xvPsuFkoYXxNapPKVLAmRBvP73rpQ9+Y='";
-  sableCsp = {
-    beforeHashes = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self' 'wasm-unsafe-eval'";
-    afterHashes = "; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self'";
+  clientCsp =
+    {
+      homeserver ? matrixHost,
+      frameAncestors ? "'none'",
+      styleDirectives ? [ "style-src 'self' 'unsafe-inline'" ],
+      frameSrc ? "'self'",
+    }:
+    hashes:
+    builtins.concatStringsSep "; " (
+      [
+        "default-src 'none'"
+        "base-uri 'none'"
+        "object-src 'none'"
+        "form-action 'self'"
+        "frame-ancestors ${frameAncestors}"
+        "script-src 'self' 'wasm-unsafe-eval' ${hashes}"
+        "script-src-attr 'none'"
+      ]
+      ++ styleDirectives
+      ++ [
+        "font-src 'self' data:"
+        "worker-src 'self' blob:"
+        "manifest-src 'self'"
+        "img-src 'self' data: blob: https://${homeserver}"
+        "media-src 'self' blob: https://${homeserver}"
+        "connect-src 'self' https://${homeserver} wss://${homeserver} https://${rtcHost} wss://${rtcHost}"
+      ]
+      ++ (if frameSrc == null then [ ] else [ "frame-src ${frameSrc}" ])
+    );
+
+  sableCsp = clientCsp { };
+  cinnyCsp = clientCsp {
+    frameAncestors = "'self'";
+    styleDirectives = [
+      "style-src 'self' ${cinnyStyleHashes}"
+      "style-src-elem 'self' ${cinnyStyleHashes}"
+      "style-src-attr 'none'"
+    ];
   };
-  cinnyCsp = {
-    beforeHashes = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' 'wasm-unsafe-eval'";
-    afterHashes = "; script-src-attr 'none'; style-src 'self' ${cinnyStyleHashes}; style-src-elem 'self' ${cinnyStyleHashes}; style-src-attr 'none'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self'";
+  cinnyCallCsp = clientCsp { frameAncestors = "'self'"; };
+  elementCsp = clientCsp {
+    frameAncestors = "'self'";
+    frameSrc = "'self' blob:";
   };
-  cinnyCallCsp = {
-    beforeHashes = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' 'wasm-unsafe-eval'";
-    afterHashes = "; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self'";
-  };
-  elementCsp = {
-    beforeHashes = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' 'wasm-unsafe-eval'";
-    afterHashes = "; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${matrixHost}; media-src 'self' blob: https://${matrixHost}; connect-src 'self' https://${matrixHost} wss://${matrixHost} https://${rtcHost} wss://${rtcHost}; frame-src 'self' blob:";
-  };
-  elementCallCsp = {
-    beforeHashes = "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self' 'wasm-unsafe-eval'";
-    afterHashes = "; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; img-src 'self' data: blob: https://${guestMatrixHost}; media-src 'self' blob: https://${guestMatrixHost}; connect-src 'self' https://${guestMatrixHost} wss://${guestMatrixHost} https://${rtcHost} wss://${rtcHost}";
+  elementCallCsp = clientCsp {
+    homeserver = guestMatrixHost;
+    frameSrc = null; # Fall back to default-src 'none'.
   };
 
   # Hash the served document(s), keeping hashes inside the script-src directive.
@@ -46,7 +74,7 @@ let
     }:
     ''
       hashes="$(web-client-html hashes ${html})"
-      printf '%s\n' "${policy.beforeHashes} $hashes${policy.afterHashes}" > ${output}
+      printf '%s\n' "${policy "$hashes"}" > ${output}
     '';
 
   precompressStaticAssets = pkgs.writeShellScript "precompress-static-assets" ''
@@ -152,7 +180,7 @@ let
         cat > "$out/config.json" <<'JSON'
         {
           "defaultHomeserver": 0,
-          "homeserverList": ["matrix.odarah.org"],
+          "homeserverList": ["${matrixHost}"],
           "allowCustomHomeservers": false,
           "featuredCommunities": { "openAsDefault": false, "spaces": [], "rooms": [], "servers": [] },
           "hashRouter": { "enabled": false, "basename": "/" }
