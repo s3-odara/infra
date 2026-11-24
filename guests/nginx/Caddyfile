@@ -168,16 +168,16 @@ https://matrix.odarah.org:8447 {
 					path_regexp ^/(?:_matrix/client/(?:r0|v[0-9]+|unstable)/login|_tuwunel/oidc/native)$
 				}
 				key {http.request.remote.host}
-				events 1
-				window 1s
+				events 5
+				window 5s
 			}
 			zone matrix_login_global {
 				match {
 					path_regexp ^/(?:_matrix/client/(?:r0|v[0-9]+|unstable)/login|_tuwunel/oidc/native)$
 				}
 				key global
-				events 10
-				window 1s
+				events 20
+				window 2s
 			}
 		}
 
@@ -286,8 +286,8 @@ https://guest.matrix.odarah.org:8447 {
 					path /_matrix/client/r0/register /_matrix/client/v3/register
 				}
 				key {http.request.remote.host}
-				events 1
-				window 1m
+				events 10
+				window 10m
 			}
 			zone guest_registration_global {
 				match {
@@ -295,8 +295,8 @@ https://guest.matrix.odarah.org:8447 {
 					path /_matrix/client/r0/register /_matrix/client/v3/register
 				}
 				key global
-				events 2
-				window 1s
+				events 40
+				window 20s
 			}
 			zone guest_username_ip {
 				match {
@@ -304,8 +304,8 @@ https://guest.matrix.odarah.org:8447 {
 					path /_matrix/client/r0/register/available /_matrix/client/v3/register/available
 				}
 				key {http.request.remote.host}
-				events 2
-				window 1s
+				events 10
+				window 5s
 			}
 		}
 
@@ -610,8 +610,8 @@ https://push.matrix.odarah.org:8447 {
 						path /_matrix/push/v1/notify
 					}
 					key {http.request.remote.host}
-					events 10
-					window 1s
+					events 50
+					window 5s
 				}
 				zone sygnal_push_global {
 					match {
@@ -619,8 +619,8 @@ https://push.matrix.odarah.org:8447 {
 						path /_matrix/push/v1/notify
 					}
 					key sygnal
-					events 50
-					window 1s
+					events 100
+					window 2s
 				}
 			}
 			request_body {
@@ -647,13 +647,13 @@ https://dav.odarah.org:8447 {
 		rate_limit {
 			zone radicale_ip {
 				key {http.request.remote.host}
-				events 10
-				window 1s
+				events 50
+				window 5s
 			}
 			zone radicale_global {
 				key global
-				events 50
-				window 1s
+				events 100
+				window 2s
 			}
 		}
 		request_body {
