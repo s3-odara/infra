@@ -65,7 +65,7 @@ let
 
   caddyPackage = pkgs.caddy.withPlugins {
     plugins = [ "github.com/mholt/caddy-ratelimit@v0.1.0" ];
-    hash = "sha256-d4VdlHHF0cqzknO7eS+l9uI2fpCfTQWEirx/5PMHzLk=";
+    hash = "sha256-Vup9N2cWtd3pznLRdFpzOnwHZ8QvbyKRfYl7t2b8EnM=";
   };
 
   caddyConfig = pkgs.runCommand "nginx-Caddyfile" { } ''
