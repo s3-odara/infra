@@ -60,10 +60,6 @@ jobs:
             echo "skip=false" >>"$GITHUB_OUTPUT"
           fi
 
-      - name: Clean up runner
-        if: steps.existing-pr.outputs.skip != 'true'
-        run: ./scripts/ci/cleanup-runner.sh
-
       - name: Install Nix
         if: steps.existing-pr.outputs.skip != 'true'
         env:

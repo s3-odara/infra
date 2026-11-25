@@ -26,9 +26,6 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Clean up runner
-        run: ./scripts/ci/cleanup-runner.sh
-
       - name: Install Nix
         env:
           GH_TOKEN: ${{ github.token }}
@@ -49,9 +46,6 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-
-      - name: Clean up runner
-        run: ./scripts/ci/cleanup-runner.sh
 
       - name: Install Nix
         env:
