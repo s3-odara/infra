@@ -4,3 +4,31 @@ updates:
     directory: /
     schedule:
       interval: weekly
+
+  - package-ecosystem: cargo
+    directories:
+      - /packages/matrix-bot
+      - /packages/check-sygnal-pins
+    schedule:
+      interval: weekly
+    allow:
+      - dependency-type: all
+    cooldown:
+      default-days: 7
+    groups:
+      all:
+        patterns:
+          - "*"
+
+  - package-ecosystem: gomod
+    directory: /packages/web-client-html
+    schedule:
+      interval: weekly
+    allow:
+      - dependency-type: all
+    cooldown:
+      default-days: 7
+    groups:
+      all:
+        patterns:
+          - "*"
