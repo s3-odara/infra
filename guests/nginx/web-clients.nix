@@ -112,83 +112,59 @@ let
     '';
   });
 
-  sable =
-    pkgs.runCommand "sable-${sableWithLocalDictionary.version}-odarah"
-      {
-        nativeBuildInputs = [ pkgs.diffutils ];
-        outputs = [
-          "out"
-          "webDiff"
-        ];
-      }
-      ''
-        cp -R ${sableWithLocalDictionary} "$out"
-        chmod -R u+w "$out"
-        # Add after the web build so the service worker does not precache it.
-        install -Dm644 ${sableDictionary} "$out/${sableDictionaryPath}"
-        install -m644 ${sableDictionaryLicense} "$out/assets/jieba-LICENSE.txt"
-        mkdir -p "$webDiff"
-        for file in index.html 404.html service-worker.js manifest.webmanifest; do
-          test -s "$out/$file"
-        done
-        test -d "$out/_app/immutable"
-        ${pkgs.findutils}/bin/find "$out" -type f \( -name '*.gz' -o -name '*.br' \) -delete
-        cat > "$out/config.json" <<'JSON'
-        {
-          "branding": { "appName": "Sable" },
-          "defaultHomeserver": 0,
-          "homeserverList": ["${matrixHost}"],
-          "allowCustomHomeservers": false,
-          "disableAccountSwitcher": false,
-          "hideUsernamePasswordFields": false,
-          "pushNotificationDetails": {
-            "pushNotifyUrl": "https://${pushHost}/_matrix/push/v1/notify",
-            "vapidPublicKey": "${pushClientConfig.vapidPublicKey}",
-            "webPushAppID": "${pushClientConfig.webPushAppID}"
-          },
-          "featuredCommunities": { "servers": [] }
-        }
-        JSON
-        diff -u --label upstream/config.json --label local/config.json \
-          ${sableWithLocalDictionary}/config.json "$out/config.json" > "$webDiff/sable-config.diff" || test "$?" -eq 1
-        # Deployment headers are owned by this IaC, not the upstream files.
-        rm "$out/csp.caddy" "$out/_headers"
-        ${precompressStaticAssets} "$out"
-      '';
+  sable = pkgs.runCommand "sable-${sableWithLocalDictionary.version}-odarah" { } ''
+    cp -R ${sableWithLocalDictionary} "$out"
+    chmod -R u+w "$out"
+    # Add after the web build so the service worker does not precache it.
+    install -Dm644 ${sableDictionary} "$out/${sableDictionaryPath}"
+    install -m644 ${sableDictionaryLicense} "$out/assets/jieba-LICENSE.txt"
+    for file in index.html 404.html service-worker.js manifest.webmanifest; do
+      test -s "$out/$file"
+    done
+    test -d "$out/_app/immutable"
+    ${pkgs.findutils}/bin/find "$out" -type f \( -name '*.gz' -o -name '*.br' \) -delete
+    cat > "$out/config.json" <<'JSON'
+    {
+      "branding": { "appName": "Sable" },
+      "defaultHomeserver": 0,
+      "homeserverList": ["${matrixHost}"],
+      "allowCustomHomeservers": false,
+      "disableAccountSwitcher": false,
+      "hideUsernamePasswordFields": false,
+      "pushNotificationDetails": {
+        "pushNotifyUrl": "https://${pushHost}/_matrix/push/v1/notify",
+        "vapidPublicKey": "${pushClientConfig.vapidPublicKey}",
+        "webPushAppID": "${pushClientConfig.webPushAppID}"
+      },
+      "featuredCommunities": { "servers": [] }
+    }
+    JSON
+    # Deployment headers are owned by this IaC, not the upstream files.
+    rm "$out/csp.caddy" "$out/_headers"
+    ${precompressStaticAssets} "$out"
+  '';
 
-  cinny =
-    pkgs.runCommand "cinny-${pkgs.cinny-unwrapped.version}-odarah"
-      {
-        nativeBuildInputs = [ pkgs.diffutils ];
-        outputs = [
-          "out"
-          "webDiff"
-        ];
-      }
-      ''
-        cp -R ${pkgs.cinny-unwrapped} "$out"
-        chmod -R u+w "$out"
-        mkdir -p "$webDiff"
-        ${pkgs.findutils}/bin/find "$out" -type f \( -name '*.gz' -o -name '*.br' \) -delete
-        # Keep the separate gate for Cinny's runtime-injected drag style.
-        printf '%s  %s\n' 2b609a83eeb53ee19c83e48bca5687b6606161f7f6972f6b6babb9a932acd407 "$out/assets/index-DWIvG3QT.js" | ${pkgs.coreutils}/bin/sha256sum -c -
-        substituteInPlace "$out/assets/index-DWIvG3QT.js" \
-          --replace-fail \
-            'document.head.appendChild(e),(t=e.sheet)===null||t===void 0||t.insertRule("* { pointer-events: none !important; }")' \
-            'e.textContent="* { pointer-events: none !important; }",document.head.appendChild(e)'
-        cat > "$out/config.json" <<'JSON'
-        {
-          "defaultHomeserver": 0,
-          "homeserverList": ["${matrixHost}"],
-          "allowCustomHomeservers": false,
-          "featuredCommunities": { "openAsDefault": false, "spaces": [], "rooms": [], "servers": [] },
-          "hashRouter": { "enabled": false, "basename": "/" }
-        }
-        JSON
-        diff -u --label upstream/config.json --label local/config.json \
-          ${pkgs.cinny-unwrapped}/config.json "$out/config.json" > "$webDiff/cinny-config.diff" || test "$?" -eq 1
-        ${precompressStaticAssets} "$out"
-      '';
+  cinny = pkgs.runCommand "cinny-${pkgs.cinny-unwrapped.version}-odarah" { } ''
+    cp -R ${pkgs.cinny-unwrapped} "$out"
+    chmod -R u+w "$out"
+    ${pkgs.findutils}/bin/find "$out" -type f \( -name '*.gz' -o -name '*.br' \) -delete
+    # Keep the separate gate for Cinny's runtime-injected drag style.
+    printf '%s  %s\n' 2b609a83eeb53ee19c83e48bca5687b6606161f7f6972f6b6babb9a932acd407 "$out/assets/index-DWIvG3QT.js" | ${pkgs.coreutils}/bin/sha256sum -c -
+    substituteInPlace "$out/assets/index-DWIvG3QT.js" \
+      --replace-fail \
+        'document.head.appendChild(e),(t=e.sheet)===null||t===void 0||t.insertRule("* { pointer-events: none !important; }")' \
+        'e.textContent="* { pointer-events: none !important; }",document.head.appendChild(e)'
+    cat > "$out/config.json" <<'JSON'
+    {
+      "defaultHomeserver": 0,
+      "homeserverList": ["${matrixHost}"],
+      "allowCustomHomeservers": false,
+      "featuredCommunities": { "openAsDefault": false, "spaces": [], "rooms": [], "servers": [] },
+      "hashRouter": { "enabled": false, "basename": "/" }
+    }
+    JSON
+    ${precompressStaticAssets} "$out"
+  '';
 
   elementConfig = {
     default_server_config."m.homeserver" = {
@@ -231,32 +207,17 @@ let
   '';
   element =
     pkgs.runCommand "element-web-${pkgs.element-web-unwrapped.version}-odarah"
-      {
-        nativeBuildInputs = [
-          webClientHtml
-          pkgs.diffutils
-        ];
-        outputs = [
-          "out"
-          "webDiff"
-        ];
-      }
+      { nativeBuildInputs = [ webClientHtml ]; }
       ''
         mkdir -p "$out"
         cp -R ${pkgs.element-web-unwrapped}/. "$out/"
         chmod -R u+w "$out"
-        mkdir -p "$webDiff"
         web-client-html remove-meta-csp "$out/index.html"
-        diff -u --label before/index.html --label after/index.html \
-          ${pkgs.element-web-unwrapped}/index.html "$out/index.html" > "$webDiff/element-index.html.diff" || test "$?" -eq 1
         ${pkgs.findutils}/bin/find "$out" -type f \( -name '*.gz' -o -name '*.br' \) -delete
         cp ${elementConfigFile} "$out/config.json"
-        diff -u --label upstream/config.json --label local/config.json \
-          ${pkgs.element-web-unwrapped}/config.json "$out/config.json" > "$webDiff/element-config.diff" || test "$?" -eq 1
         ${precompressStaticAssets} "$out"
       '';
 
-  # Caddy and the CI review output use these exact policy values.
   cspPolicies = pkgs.runCommand "web-client-csp" { nativeBuildInputs = [ webClientHtml ]; } ''
     mkdir -p "$out"
     printf '%s\n' "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" > "$out/landing.csp"
@@ -292,26 +253,6 @@ let
       policy = elementCallCsp;
     }}
   '';
-
-  # CI prints generated CSPs and config/HTML diffs without serving the reports.
-  webClientDiffs = pkgs.linkFarm "web-client-html-diffs" [
-    {
-      name = "csp";
-      path = cspPolicies;
-    }
-    {
-      name = "sable";
-      path = sable.webDiff;
-    }
-    {
-      name = "cinny";
-      path = cinny.webDiff;
-    }
-    {
-      name = "element";
-      path = element.webDiff;
-    }
-  ];
 in
 {
   inherit
@@ -320,6 +261,5 @@ in
     element
     elementCall
     cspPolicies
-    webClientDiffs
     ;
 }

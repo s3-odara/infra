@@ -63,7 +63,7 @@ install -m 0644 "$tmp/flake.nix" "$repo_root/flake.nix"
   nix flake lock
 )
 
-log "Building the configured Sable site, CSP and review diffs"
+log "Building the configured Sable site"
 nix build --no-link --max-jobs 1 --cores 2 \
   "path:$repo_root#nixosConfigurations.nginx.config.system.build.sable"
 
