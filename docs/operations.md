@@ -12,7 +12,6 @@ just upgrade-guests
 just upgrade-guests prosody wireguard
 just upgrade-host
 just update-eturnal
-just update-matrix-bot
 just update-providers
 just update-sygnal
 just update-web-clients
@@ -26,7 +25,6 @@ just update-flake
 - `upgrade-guests`: OpenTofuを触らず、全ゲストまたは指定したゲストを適用する
 - `upgrade-host`: ホストの`nixos-upgrade.service`を起動して完了を待つ
 - `update-eturnal`: eturnalの最新releaseとRebar3依存hashへ更新してpackageをbuildする。
-- `update-matrix-bot`: Matrix botの`Cargo.toml`と`Cargo.lock`を更新して単体packageをbuildする。
 - `update-providers`: Incus・Cloudflare providerを最新版へ更新して`構成を検証する。
 - `update-sygnal`: Sygnalの最新releaseとsource hashへ更新し、単体packageをbuildする。更新時は上流のPythonバージョンと個別に定義しているパッケージの上流での固定バージョンを確認し、個別定義が互換性問題で依然必要かテストする。
 - `update-web-clients`: Sableの最新安定releaseへ上流flakeのrevisionとlockを更新し、設定・CSPを含む配信用サイトをbuildする。

@@ -29,10 +29,8 @@ help topic="":
       upgrade-host            Upgrade the host configuration
       regenerate-sops         Regenerate .sops.yaml
       update-eturnal          Update eturnal and its locked dependencies
-      update-rust             Update Rust dependencies
-      update-providers         Update OpenTofu provider locks
+      update-providers        Update OpenTofu provider locks
       update-sygnal           Update Sygnal
-      update-go               Update Go dependencies
       update-web-clients      Update Sable
       update-flake            Update flake inputs and generated files
 
@@ -175,18 +173,6 @@ install-host configuration target:
 update-eturnal:
     nix shell "git+file://{{ repo_root }}#gh" "git+file://{{ repo_root }}#jq" -c ./scripts/update-eturnal.sh
 
-# Rust依存をCargo.toml/Cargo.lockともに更新する
-update-rust:
-    #!/usr/bin/env bash
-    set -euo pipefail
-
-    nix shell --inputs-from "git+file://{{ repo_root }}" nixpkgs#cargo nixpkgs#cargo-edit -c bash -euc '
-      for package in matrix-bot check-sygnal-pins; do
-        cargo upgrade --manifest-path "packages/$package/Cargo.toml" --incompatible allow
-        cargo update --manifest-path "packages/$package/Cargo.toml"
-      done
-    '
-
 # OpenTofu providerを更新する
 update-providers:
     #!/usr/bin/env bash
@@ -206,21 +192,6 @@ update-sygnal:
       "git+file://{{ repo_root }}#jq" \
       "git+file://{{ repo_root }}#check-sygnal-pins" \
       -c ./scripts/update-sygnal.sh
-
-# Go依存を更新する（現在の対象はweb-client-html）。Go本体はupdate-flakeで更新する
-update-go:
-    #!/usr/bin/env bash
-    set -euo pipefail
-
-    nix shell --inputs-from "git+file://{{ repo_root }}" \
-      "git+file://{{ repo_root }}#web-client-html.go" nixpkgs#nix-update -c bash -euc '
-        export GOTOOLCHAIN=local
-        go -C packages/web-client-html get -u ./...
-        go -C packages/web-client-html mod tidy
-        # metadata can return a lazy store path; materialize the updated flake first.
-        nix flake prefetch . >/dev/null
-        nix-update --flake --version=skip web-client-html
-      '
 
 # Sableの安定releaseへ上流flakeを更新し、配信用サイトまでbuildする
 update-web-clients:

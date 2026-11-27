@@ -26,14 +26,10 @@ jobs:
             task: update-flake
           - name: eturnal
             task: update-eturnal
-          - name: rust
-            task: update-rust
           - name: providers
             task: update-providers
           - name: sygnal
             task: update-sygnal
-          - name: go
-            task: update-go
           - name: web-clients
             task: update-web-clients
     env:
