@@ -92,9 +92,9 @@ let
       '';
 in
 {
-  # Keep these build targets available for the update script and CI.
+  # Keep these build targets available for the update script and local inspection.
   system.build = {
-    inherit (webClients) sable webClientDiffs;
+    inherit (webClients) sable;
     inherit caddyConfig caddyRuntimeConfig;
   };
 

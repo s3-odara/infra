@@ -439,7 +439,10 @@ https://cinny.matrix.odarah.org:8447 {
 	route {
 		@worker path /sw.js
 		handle @worker {
-			header Cache-Control no-cache
+			header {
+				Content-Security-Policy "@CINNY_CSP@"
+				Cache-Control no-cache
+			}
 			file_server {
 				precompressed br gzip
 			}
