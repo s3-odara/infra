@@ -139,7 +139,6 @@ let
           "defaultHomeserver": 0,
           "homeserverList": ["${matrixHost}"],
           "allowCustomHomeservers": false,
-          "calls": { "livekitServiceUrl": "https://${rtcHost}" },
           "disableAccountSwitcher": false,
           "hideUsernamePasswordFields": false,
           "pushNotificationDetails": {
@@ -216,7 +215,6 @@ let
       base_url = "https://${guestMatrixHost}";
       server_name = guestMatrixHost;
     };
-    livekit.livekit_service_url = "https://${rtcHost}";
   };
   elementCallConfigFile = pkgs.writeText "element-call-config.json" (
     builtins.toJSON elementCallConfig

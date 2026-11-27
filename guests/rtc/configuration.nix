@@ -9,6 +9,7 @@
 let
   privateAddress = "10.77.3.15";
   turnHost = "turn.odarah.org";
+  livekitApiKey = "tuwunel";
   acmeDnsEnvironment = pkgs.writeText "acme-rfc2136.env" ''
     DNSUPDATE_NAMESERVER=10.77.3.11:53
     DNSUPDATE_TSIG_KEY=rtc.
@@ -24,16 +25,7 @@ in
   networking.hostName = configurationName;
   networking.useDHCP = true;
   networking.firewall.enable = false;
-  networking.hosts."10.77.3.13" = [
-    "matrix.odarah.org"
-    "rtc.matrix.odarah.org"
-  ];
-
-  users.groups.lk-jwt-service = { };
-  users.users.lk-jwt-service = {
-    isSystemUser = true;
-    group = "lk-jwt-service";
-  };
+  networking.hosts."10.77.3.13" = [ "matrix.odarah.org" ];
 
   services.livekit = {
     enable = true;
@@ -67,67 +59,16 @@ in
         ];
       };
       room.auto_create = false;
+      webhook = {
+        api_key = livekitApiKey;
+        urls = [ "https://matrix.odarah.org/_tuwunel/livekit/webhook" ];
+      };
     };
   };
 
   systemd.services.livekit.serviceConfig.LoadCredential = [
     "turn-secret:${config.sops.secrets.turn_external_secret.path}"
   ];
-
-  systemd.services.lk-jwt-service = {
-    description = "MatrixRTC LiveKit JWT authorization service";
-    wantedBy = [ "multi-user.target" ];
-    wants = [ "network-online.target" ];
-    after = [
-      "livekit.service"
-      "network-online.target"
-    ];
-    serviceConfig = {
-      User = "lk-jwt-service";
-      Group = "lk-jwt-service";
-      LoadCredential = [ "livekit-key:${config.sops.templates."livekit-key-file".path}" ];
-      Environment = [
-        "LIVEKIT_JWT_BIND=${privateAddress}:8081"
-        "LIVEKIT_URL=wss://rtc.matrix.odarah.org"
-        "LIVEKIT_KEY_FILE=%d/livekit-key"
-        "LIVEKIT_FULL_ACCESS_HOMESERVERS=matrix.odarah.org,guest.matrix.odarah.org"
-      ];
-      ExecStart = lib.getExe pkgs.lk-jwt-service;
-      Restart = "on-failure";
-      RestartSec = "5s";
-      UMask = "0077";
-
-      CapabilityBoundingSet = "";
-      LockPersonality = true;
-      MemoryDenyWriteExecute = true;
-      NoNewPrivileges = true;
-      PrivateDevices = true;
-      PrivateMounts = true;
-      PrivateTmp = true;
-      ProtectClock = true;
-      ProtectControlGroups = true;
-      ProtectHome = true;
-      ProtectHostname = true;
-      ProtectKernelLogs = true;
-      ProtectKernelModules = true;
-      ProtectKernelTunables = true;
-      ProtectProc = "invisible";
-      ProtectSystem = "strict";
-      RestrictAddressFamilies = [
-        "AF_INET"
-        "AF_INET6"
-      ];
-      RestrictNamespaces = true;
-      RestrictRealtime = true;
-      RestrictSUIDSGID = true;
-      SystemCallArchitectures = "native";
-      SystemCallFilter = [
-        "@system-service"
-        "~@privileged"
-        "~@resources"
-      ];
-    };
-  };
 
   security.acme = {
     acceptTerms = true;
@@ -175,7 +116,6 @@ in
   sops = {
     secrets = {
       rtc_tsig_secret = { };
-      livekit_api_key = { };
       livekit_api_secret = { };
       ntfy_topic = { };
       turn_external_secret.restartUnits = [
@@ -184,14 +124,11 @@ in
       ];
     };
     templates."livekit-key-file" = {
-      content = "${config.sops.placeholder.livekit_api_key}: ${config.sops.placeholder.livekit_api_secret}\n";
+      content = "${livekitApiKey}: ${config.sops.placeholder.livekit_api_secret}\n";
       owner = "root";
       group = "root";
       mode = "0400";
-      restartUnits = [
-        "livekit.service"
-        "lk-jwt-service.service"
-      ];
+      restartUnits = [ "livekit.service" ];
     };
   };
 

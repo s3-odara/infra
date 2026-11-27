@@ -11,6 +11,8 @@ let
   matrixBot = pkgs.callPackage ../../packages/matrix-bot/package.nix { };
   registrationToken = "/var/lib/tuwunel/registration-token";
   backupDirectory = "/var/lib/tuwunel-backups";
+  livekitUrl = "wss://rtc.matrix.odarah.org";
+  livekitApiKey = "tuwunel";
   backupFailureNotifier = pkgs.writeShellScript "notify-backup-failure" ''
     topic="$(<"$CREDENTIALS_DIRECTORY/ntfy-topic")"
     ${pkgs.curl}/bin/curl \
@@ -66,6 +68,7 @@ in
 
   services.matrix-tuwunel = {
     enable = true;
+    environmentFile = config.sops.templates."tuwunel-livekit.env".path;
     settings.global = {
       server_name = "matrix.odarah.org";
       address = [
@@ -185,7 +188,18 @@ in
       turn_ttl = 86400;
       turn_secret_file = config.sops.secrets.turn_external_secret.path;
       well_known.client = "https://matrix.odarah.org";
-      well_known.livekit_url = "https://rtc.matrix.odarah.org";
+      well_known.rtc_transports = [
+        # Needed for Element Call 0.28.1/0.28.2; 0.29+ uses the m.livekit transport
+        # that Tuwunel advertises automatically from [global.livekit].
+        {
+          type = "livekit";
+          url = livekitUrl;
+        }
+      ];
+      livekit = {
+        url = livekitUrl;
+        api_key = livekitApiKey;
+      };
       error_on_unknown_config_opts = true;
     };
   };
@@ -307,9 +321,19 @@ in
       matrix_bot_access_token = { };
       guest_registration_admin_token = { };
       guest_registration_sentinel = { };
+      livekit_api_secret = { };
     };
 
     templates = {
+      "tuwunel-livekit.env" = {
+        content = ''
+          TUWUNEL_LIVEKIT__API_SECRET=${config.sops.placeholder.livekit_api_secret}
+        '';
+        owner = "root";
+        group = "root";
+        mode = "0400";
+        restartUnits = [ "tuwunel.service" ];
+      };
       "restic-r2.env" = {
         content = ''
           AWS_ACCESS_KEY_ID=${config.sops.placeholder.r2_access_key_id}
