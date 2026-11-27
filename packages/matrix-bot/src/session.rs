@@ -9,7 +9,10 @@ use matrix_sdk::{
     config::SyncSettings,
     ruma::{OwnedDeviceId, OwnedUserId, serde::Raw},
 };
-use matrix_sdk_crypto::{store::CryptoStore, types::DeviceKeys, vodozemac::olm::IdentityKeys};
+use matrix_sdk_crypto::{
+    CollectStrategy, DecryptionSettings, TrustRequirement, store::CryptoStore, types::DeviceKeys,
+    vodozemac::olm::IdentityKeys,
+};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -195,6 +198,10 @@ pub(crate) async fn restore_guarded(
     let client = Client::builder()
         .homeserver_url(homeserver)
         .sqlite_store(path, None)
+        .with_decryption_settings(DecryptionSettings {
+            sender_device_trust_requirement: TrustRequirement::CrossSigned,
+        })
+        .with_room_key_recipient_strategy(CollectStrategy::IdentityBasedStrategy)
         .build()
         .await?;
     client.restore_session(session.clone()).await?;

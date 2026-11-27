@@ -386,7 +386,7 @@ https://guest.matrix.odarah.org:8447 {
 
 		@guest_put {
 			method PUT
-			path_regexp ^/_matrix/client/(?:r0|v3)/(?:profile/[^/]+/displayname|sendToDevice/[^/]+/[^/]+|rooms/[^/]+/state/(?:org[.]matrix[.]msc3401[.]call[.]member|org[.]matrix[.]msc4143[.]rtc[.]member)/.*)$
+			path_regexp ^/_matrix/client/(?:r0|v3)/(?:profile/[^/]+/displayname|sendToDevice/[^/]+/[^/]+|rooms/[^/]+/state/org[.]matrix[.]msc3401[.]call[.]member/.*)$
 		}
 		handle @guest_put {
 			request_body {

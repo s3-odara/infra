@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fs, path::PathBuf, sync::Arc, time::Duration};
+use std::{collections::BTreeMap, fs, io::Write, path::PathBuf, sync::Arc, time::Duration};
 
 use anyhow::{Context, Result, bail};
 use matrix_sdk::{
@@ -19,9 +19,9 @@ use matrix_sdk::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, watch};
 
-use crate::{BOT_USER, INVITER, now_secs};
+use crate::{INVITER, now_secs};
 
 const ADMIN_ROOMS_API: &str = "http://127.0.0.1:8008/_synapse/admin/v1/rooms";
 const GUEST_ADMIN_API_BASE: &str = "http://10.77.3.17:8008/_synapse/admin/v1/registration_tokens";
@@ -98,7 +98,9 @@ impl CallStore {
             .context("managed call state has no parent")?;
         fs::create_dir_all(parent)?;
         let temporary = self.path.with_extension("json.tmp");
-        fs::write(&temporary, serde_json::to_vec_pretty(calls)?)?;
+        let mut file = fs::File::create(&temporary)?;
+        file.write_all(&serde_json::to_vec_pretty(calls)?)?;
+        file.sync_all()?;
         fs::rename(&temporary, &self.path)?;
         Ok(())
     }
@@ -408,12 +410,18 @@ impl CallService {
         Ok(())
     }
 
-    pub(crate) async fn reconcile_loop(self) {
+    pub(crate) async fn wait_for_idle(&self) {
+        let _guard = self.close_lock.lock().await;
+    }
+
+    pub(crate) async fn reconcile_loop(self, mut shutdown: watch::Receiver<bool>) {
         let mut interval = tokio::time::interval(RECONCILE_INTERVAL);
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         loop {
-            interval.tick().await;
-            self.reconcile_all().await;
+            tokio::select! {
+                _ = interval.tick() => self.reconcile_all().await,
+                _ = shutdown.changed() => break,
+            }
         }
     }
 
