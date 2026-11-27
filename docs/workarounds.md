@@ -71,19 +71,19 @@
 - 対応: moduleが用意する`/etc/prosody/certs`を明示する。
 - 撤去条件: upstream moduleが証明書探索先を適切に設定するようになったとき。
 
-### Tuwunel 2.0.0を上流flakeからbuildする
+### Tuwunel 2.1.0を上流flakeからbuildする
 
 - 実装: `flake.nix`の`tuwunel` inputと`matrixTuwunelUpstream`
-- 理由: nixpkgsの`matrix-tuwunel`がまだ1.9.4のため、2.0.0の上流package定義を一時的に使用する。
-- 対応: v2.0.0のcommit `a3feae1a26ec764ee88606c2c68b659a9b5fba8d`と上流の依存lockを固定し、両ゲストの`services.matrix-tuwunel.package`へ適用する。nixpkgs 1.9.4向けのAWS-LC・jemalloc overrideは適用しない。
+- 理由: nixpkgsの`matrix-tuwunel`がまだ1.9.4のため、2.1.0の上流package定義を一時的に使用する。
+- 対応: v2.1.0のcommit `4b0d90d9743e3f084815b37dcd986bb7efcea1fd`と上流の依存lockを固定し、両ゲストの`services.matrix-tuwunel.package`へ適用する。nixpkgs 1.9.4向けのAWS-LC・jemalloc overrideは適用しない。
 - キャッシュ: 上流のsubstituter・公開鍵は追加しない。既存のCIでbuildし、自分のCachixへ署名付きclosureをpushする。`scripts/ci/install-nix.sh`は`accept-flake-config = false`を明示する。
-- 撤去条件: nixpkgsが2.0.0以降を提供し、必要なfeature（特にOIDC）とbuild・動作を確認できたとき。
+- 撤去条件: nixpkgsが2.1.0以降を提供し、必要なfeature（特にOIDC）とbuild・動作を確認できたとき。
 
 ### Tuwunelの評価時Rust manifestをCachixへ追加する
 
 - 実装: `flake.nix`の`packages.x86_64-linux.tuwunel-rust-manifest`、`.github/workflows/build-cache.yml`の`Build closures`
-- 理由: 上流v2.0.0のFenix `fromToolchainFile`は、評価時に`channel-rust-1.95.0.toml`を取得して読む（IFD)。max-jobs = 0`のゲストでは評価に失敗する。
-- 対応: 上流と同じRust 1.95.0のmanifestとhashを`fetchurl`で定義し、CIの`cache-roots`へ追加して既存の署名付きpushで配布する。
+- 理由: 上流v2.1.0のFenix `fenix.stable`は、評価時に`channel-rust-1.97.1.toml`を取得して読む（IFD)。`max-jobs = 0`のゲストでは評価に失敗する。
+- 対応: 上流と同じRust 1.97.1のmanifestとhashを`fetchurl`で定義し、CIの`cache-roots`へ追加して既存の署名付きpushで配布する。
 - 撤去条件: sableをnixpkgsのpackageへ移行するか、上流のIFDが不要になり、このmanifestを明示的に配布せずビルド禁止のゲストを更新できることを確認したとき。
 
 ### update-flake時のkernel config生成で`preUnpack`を無効化する

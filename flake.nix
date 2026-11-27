@@ -8,9 +8,9 @@
     # Stable-release policy and approved exceptions: docs/operations.md.
     sable-next.url = "git+https://git.sable.moe/SableClient/sable-next?ref=refs/tags/v26.11.4&rev=0280a39acacb2df93382b7419ace324eee265c03&shallow=1";
 
-    # Temporary until nixpkgs packages 2.0.0. Keep upstream's own dependency pins.
+    # Temporary until nixpkgs packages 2.1.0. Keep upstream's own dependency pins.
     # Build in our CI; do not add upstream's binary caches or trusted keys.
-    tuwunel.url = "git+https://github.com/matrix-construct/tuwunel?ref=refs/tags/v2.0.0&rev=a3feae1a26ec764ee88606c2c68b659a9b5fba8d&shallow=1";
+    tuwunel.url = "git+https://github.com/matrix-construct/tuwunel?ref=refs/tags/v2.1.0&rev=4b0d90d9743e3f084815b37dcd986bb7efcea1fd&shallow=1";
 
     disko = {
       url = "github:nix-community/disko";
@@ -90,11 +90,11 @@
         shfmt = nixpkgs.legacyPackages.x86_64-linux.shfmt;
         sygnal = nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/sygnal/package.nix { };
         sops = nixpkgs.legacyPackages.x86_64-linux.sops;
-        # Cache tuwunel 2.0.0's IFD input for build-disabled guests.
+        # Cache tuwunel 2.1.0's IFD input for build-disabled guests.
         # Keep the Rust version and hash in sync with the pinned upstream flake.
         tuwunel-rust-manifest = nixpkgs.legacyPackages.x86_64-linux.fetchurl {
-          url = "https://static.rust-lang.org/dist/channel-rust-1.95.0.toml";
-          hash = "sha256-gh/xTkxKHL4eiRXzWv8KP7vfjSk61Iq48x47BEDFgfk=";
+          url = "https://static.rust-lang.org/dist/channel-rust-1.97.1.toml";
+          hash = "sha256-A1abGIbOtcBSdrUMhDGrER3pRM1hQP4fp9gh3Y4PKc8=";
         };
         web-client-html =
           nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/web-client-html/package.nix
