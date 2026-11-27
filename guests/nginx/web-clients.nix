@@ -22,10 +22,22 @@ let
       frameAncestors ? "'none'",
       styleDirectives ? [ "style-src 'self' 'unsafe-inline'" ],
       frameSrc ? "'self'",
+      extraConnectSrc ? [ ],
     }:
     hashes:
     let
       homeserverSrc = if homeserver == null then "" else " https://${homeserver}";
+      connectSrc = builtins.concatStringsSep " " (
+        [
+          "'self'"
+        ]
+        ++ (if homeserver == null then [ ] else [ "https://${homeserver}" ])
+        ++ [
+          "https://${rtcHost}"
+          "wss://${rtcHost}"
+        ]
+        ++ extraConnectSrc
+      );
     in
     builtins.concatStringsSep "; " (
       [
@@ -44,13 +56,14 @@ let
         "manifest-src 'self'"
         "img-src 'self' data: blob:${homeserverSrc}"
         "media-src 'self' blob:${homeserverSrc}"
-        "connect-src 'self'${homeserverSrc} https://${rtcHost} wss://${rtcHost}"
+        "connect-src ${connectSrc}"
       ]
       ++ (if frameSrc == null then [ ] else [ "frame-src ${frameSrc}" ])
     );
 
   sableCsp = clientCsp {
     frameSrc = null; # Fall back to default-src 'none'.
+    extraConnectSrc = [ "blob:" ];
   };
   cinnyCsp = clientCsp {
     frameAncestors = "'self'";
