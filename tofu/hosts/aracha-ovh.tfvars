@@ -237,11 +237,6 @@ guests = {
         port     = 7880
         source   = "10.77.3.13/32"
       },
-      {
-        protocol = "tcp"
-        port     = 8081
-        source   = "10.77.3.13/32"
-      },
     ]
     denied_egress = [
       "10.77.3.0",

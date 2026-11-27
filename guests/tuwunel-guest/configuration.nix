@@ -61,7 +61,6 @@ in
       allow_inbound_profile_lookup_federation_requests = false;
 
       well_known.client = "https://guest.matrix.odarah.org";
-      well_known.livekit_url = "https://rtc.matrix.odarah.org";
       error_on_unknown_config_opts = true;
     };
   };

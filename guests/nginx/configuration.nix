@@ -182,7 +182,7 @@ in
         chain caddy_egress {
           ct direction reply counter accept
           ip daddr { ${tuwunelAddress}, ${guestTuwunelAddress} } tcp dport 8008 counter accept
-          ip daddr ${rtcAddress} tcp dport { 7880, 8081 } counter accept
+          ip daddr ${rtcAddress} tcp dport 7880 counter accept
           ip daddr ${sygnalAddress} tcp dport 5000 counter accept
           ip daddr ${radicaleAddress} tcp dport 5232 counter accept
           counter reject with icmpx type admin-prohibited

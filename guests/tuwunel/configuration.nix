@@ -185,7 +185,15 @@ in
       turn_ttl = 86400;
       turn_secret_file = config.sops.secrets.turn_external_secret.path;
       well_known.client = "https://matrix.odarah.org";
-      well_known.livekit_url = "https://rtc.matrix.odarah.org";
+      well_known.rtc_transports = [
+        # Needed for Element Call 0.28.1/0.28.2; 0.29+ uses the m.livekit transport
+        # that Tuwunel advertises automatically from [global.livekit].
+        {
+          type = "livekit";
+          url = "wss://rtc.matrix.odarah.org";
+        }
+      ];
+      livekit.url = "wss://rtc.matrix.odarah.org";
       error_on_unknown_config_opts = true;
     };
   };
@@ -193,6 +201,7 @@ in
   # The module creates /var/lib/tuwunel before start and runs this as its user.
   systemd.services.tuwunel = {
     serviceConfig = {
+      EnvironmentFile = [ config.sops.templates."tuwunel-livekit.env".path ];
       StateDirectory = [ "tuwunel-backups" ];
       ExecStartPre = pkgs.writeShellScript "tuwunel-registration-token" ''
         set -eu
@@ -307,9 +316,21 @@ in
       matrix_bot_access_token = { };
       guest_registration_admin_token = { };
       guest_registration_sentinel = { };
+      livekit_api_key = { };
+      livekit_api_secret = { };
     };
 
     templates = {
+      "tuwunel-livekit.env" = {
+        content = ''
+          TUWUNEL_LIVEKIT__API_KEY=${config.sops.placeholder.livekit_api_key}
+          TUWUNEL_LIVEKIT__API_SECRET=${config.sops.placeholder.livekit_api_secret}
+        '';
+        owner = "root";
+        group = "root";
+        mode = "0400";
+        restartUnits = [ "tuwunel.service" ];
+      };
       "restic-r2.env" = {
         content = ''
           AWS_ACCESS_KEY_ID=${config.sops.placeholder.r2_access_key_id}

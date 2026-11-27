@@ -119,7 +119,7 @@ https://matrix.odarah.org:8447 {
 				Content-Type application/json
 				Access-Control-Allow-Origin "*"
 			}
-			respond `{"m.homeserver":{"base_url":"https://matrix.odarah.org"},"org.matrix.msc4143.rtc_foci":[{"type":"livekit","livekit_service_url":"https://rtc.matrix.odarah.org"}]}` 200
+			respond `{"m.homeserver":{"base_url":"https://matrix.odarah.org"}}` 200
 		}
 
 		@server_well_known path /.well-known/matrix/server
@@ -179,6 +179,24 @@ https://matrix.odarah.org:8447 {
 				events 20
 				window 2s
 			}
+		}
+
+		@livekit_webhook path /_tuwunel/livekit/webhook
+		handle @livekit_webhook {
+			# The source IP comes from Nginx's PROXY protocol header.
+			@livekit_webhook_allowed {
+				remote_ip 10.77.3.15
+				method POST
+			}
+			handle @livekit_webhook_allowed {
+				request_body {
+					max_size 1048576
+				}
+				reverse_proxy 10.77.3.14:8008 {
+					import matrix_proxy 60s
+				}
+			}
+			respond 404
 		}
 
 		@matrix_api path_regexp ^/(?:_matrix|_tuwunel)/
@@ -243,7 +261,7 @@ https://guest.matrix.odarah.org:8447 {
 				Access-Control-Allow-Origin "*"
 				Cache-Control no-store
 			}
-			respond `{"m.homeserver":{"base_url":"https://guest.matrix.odarah.org"},"org.matrix.msc4143.rtc_foci":[{"type":"livekit","livekit_service_url":"https://rtc.matrix.odarah.org"}]}` 200
+			respond `{"m.homeserver":{"base_url":"https://guest.matrix.odarah.org"}}` 200
 		}
 
 		@server_well_known path /.well-known/matrix/server
@@ -355,7 +373,7 @@ https://guest.matrix.odarah.org:8447 {
 
 		@guest_post {
 			method POST
-			path_regexp ^/_matrix/client/(?:r0|v3)/(?:refresh|logout|user/[^/]+/filter|keys/(?:upload|query|claim|signatures/upload)|user/[^/]+/openid/request_token|join/.*|rooms/[^/]+/(?:join|leave))$|^/_matrix/client/unstable/org[.]matrix[.]msc4140/delayed_events/[^/]+(?:/(?:cancel|restart|send))?$
+			path_regexp ^/_matrix/client/(?:r0|v3)/(?:refresh|logout|user/[^/]+/filter|keys/(?:upload|query|claim|signatures/upload)|user/[^/]+/openid/request_token|join/.*|rooms/[^/]+/(?:join|leave))$|^/_matrix/client/(?:unstable/org[.]matrix[.]msc4140/delayed_events/[^/]+(?:/(?:cancel|restart|send))?|(?:v1|unstable/io[.]element[.]msc4195)/rtc/livekit/(?:get_token|delegate_delayed_leave))$
 		}
 		handle @guest_post {
 			request_body {
@@ -678,15 +696,6 @@ https://rtc.matrix.odarah.org:8447 {
 	import security_deny
 
 	route {
-		@rtc_control path_regexp ^/(?:sfu/get|healthz|get_token)
-		handle @rtc_control {
-			reverse_proxy 10.77.3.15:8081 {
-				import upstream_response_timeout 60s
-				header_up Host {http.request.host}
-				header_up X-Forwarded-For {http.request.remote.host}
-				header_up X-Forwarded-Proto https
-			}
-		}
 		reverse_proxy 10.77.3.15:7880 {
 			header_up Host {http.request.host}
 			header_up X-Forwarded-For {http.request.remote.host}
