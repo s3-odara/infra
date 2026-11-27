@@ -373,7 +373,7 @@ https://guest.matrix.odarah.org:8447 {
 
 		@guest_post {
 			method POST
-			path_regexp ^/_matrix/client/(?:r0|v3)/(?:refresh|logout|user/[^/]+/filter|keys/(?:upload|query|claim|signatures/upload)|user/[^/]+/openid/request_token|join/.*|rooms/[^/]+/(?:join|leave))$|^/_matrix/client/(?:unstable/org[.]matrix[.]msc4140/delayed_events/[^/]+(?:/(?:cancel|restart|send))?|(?:v1|unstable/io[.]element[.]msc4195)/rtc/livekit/(?:get_token|delegate_delayed_leave))$
+			path_regexp ^/_matrix/client/(?:(?:r0|v3)/(?:refresh|logout|user/[^/]+/filter|keys/(?:upload|query|claim|signatures/upload)|join/.*|rooms/[^/]+/(?:join|leave))|unstable/org[.]matrix[.]msc4140/delayed_events/[^/]+(?:/(?:cancel|restart|send))?|(?:v1|unstable/io[.]element[.]msc4195)/rtc/livekit/(?:get_token|delegate_delayed_leave))$
 		}
 		handle @guest_post {
 			request_body {

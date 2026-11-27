@@ -76,8 +76,6 @@ button.sort {
   padding: 0;
   color: inherit;
   background: none;
-  font: inherit;
-  font-weight: 600;
 }
 
 button.sort:hover {

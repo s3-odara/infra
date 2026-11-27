@@ -11,6 +11,8 @@ let
   matrixBot = pkgs.callPackage ../../packages/matrix-bot/package.nix { };
   registrationToken = "/var/lib/tuwunel/registration-token";
   backupDirectory = "/var/lib/tuwunel-backups";
+  livekitUrl = "wss://rtc.matrix.odarah.org";
+  livekitApiKey = "tuwunel";
   backupFailureNotifier = pkgs.writeShellScript "notify-backup-failure" ''
     topic="$(<"$CREDENTIALS_DIRECTORY/ntfy-topic")"
     ${pkgs.curl}/bin/curl \
@@ -66,6 +68,7 @@ in
 
   services.matrix-tuwunel = {
     enable = true;
+    environmentFile = config.sops.templates."tuwunel-livekit.env".path;
     settings.global = {
       server_name = "matrix.odarah.org";
       address = [
@@ -190,10 +193,13 @@ in
         # that Tuwunel advertises automatically from [global.livekit].
         {
           type = "livekit";
-          url = "wss://rtc.matrix.odarah.org";
+          url = livekitUrl;
         }
       ];
-      livekit.url = "wss://rtc.matrix.odarah.org";
+      livekit = {
+        url = livekitUrl;
+        api_key = livekitApiKey;
+      };
       error_on_unknown_config_opts = true;
     };
   };
@@ -201,7 +207,6 @@ in
   # The module creates /var/lib/tuwunel before start and runs this as its user.
   systemd.services.tuwunel = {
     serviceConfig = {
-      EnvironmentFile = [ config.sops.templates."tuwunel-livekit.env".path ];
       StateDirectory = [ "tuwunel-backups" ];
       ExecStartPre = pkgs.writeShellScript "tuwunel-registration-token" ''
         set -eu
@@ -316,14 +321,12 @@ in
       matrix_bot_access_token = { };
       guest_registration_admin_token = { };
       guest_registration_sentinel = { };
-      livekit_api_key = { };
       livekit_api_secret = { };
     };
 
     templates = {
       "tuwunel-livekit.env" = {
         content = ''
-          TUWUNEL_LIVEKIT__API_KEY=${config.sops.placeholder.livekit_api_key}
           TUWUNEL_LIVEKIT__API_SECRET=${config.sops.placeholder.livekit_api_secret}
         '';
         owner = "root";

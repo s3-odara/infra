@@ -3,44 +3,13 @@
   configurationName,
   lib,
   pkgs,
-  utils,
   ...
 }:
 
 let
   privateAddress = "10.77.3.15";
   turnHost = "turn.odarah.org";
-  livekitSettings = {
-    port = 7880;
-    bind_addresses = [ privateAddress ];
-    rtc = {
-      tcp_port = 7881;
-      port_range_start = 50100;
-      port_range_end = 50200;
-      use_external_ip = true;
-      external_ip_only = true;
-      enable_loopback_candidate = false;
-      turn_servers = [
-        {
-          host = turnHost;
-          port = 3478;
-          protocol = "udp";
-          secret_file = "/run/credentials/livekit.service/turn-secret";
-        }
-        {
-          host = turnHost;
-          port = 443;
-          protocol = "tls";
-          secret_file = "/run/credentials/livekit.service/turn-secret";
-        }
-      ];
-    };
-    room.auto_create = false;
-    webhook = {
-      api_key = config.sops.placeholder.livekit_api_key;
-      urls = [ "https://matrix.odarah.org/_tuwunel/livekit/webhook" ];
-    };
-  };
+  livekitApiKey = "tuwunel";
   acmeDnsEnvironment = pkgs.writeText "acme-rfc2136.env" ''
     DNSUPDATE_NAMESERVER=10.77.3.11:53
     DNSUPDATE_TSIG_KEY=rtc.
@@ -56,10 +25,7 @@ in
   networking.hostName = configurationName;
   networking.useDHCP = true;
   networking.firewall.enable = false;
-  networking.hosts."10.77.3.13" = [
-    "matrix.odarah.org"
-    "rtc.matrix.odarah.org"
-  ];
+  networking.hosts."10.77.3.13" = [ "matrix.odarah.org" ];
 
   services.livekit = {
     enable = true;
@@ -67,21 +33,42 @@ in
     keyFile = config.sops.templates."livekit-key-file".path;
     openFirewall = false;
     redis.createLocally = false;
+    settings = {
+      port = 7880;
+      bind_addresses = [ privateAddress ];
+      rtc = {
+        tcp_port = 7881;
+        port_range_start = 50100;
+        port_range_end = 50200;
+        use_external_ip = true;
+        external_ip_only = true;
+        enable_loopback_candidate = false;
+        turn_servers = [
+          {
+            host = turnHost;
+            port = 3478;
+            protocol = "udp";
+            secret_file = "/run/credentials/livekit.service/turn-secret";
+          }
+          {
+            host = turnHost;
+            port = 443;
+            protocol = "tls";
+            secret_file = "/run/credentials/livekit.service/turn-secret";
+          }
+        ];
+      };
+      room.auto_create = false;
+      webhook = {
+        api_key = livekitApiKey;
+        urls = [ "https://matrix.odarah.org/_tuwunel/livekit/webhook" ];
+      };
+    };
   };
 
-  systemd.services.livekit.serviceConfig = {
-    LoadCredential = [
-      "turn-secret:${config.sops.secrets.turn_external_secret.path}"
-      "livekit-config:${config.sops.templates."livekit-config.json".path}"
-    ];
-    ExecStart = lib.mkForce (
-      utils.escapeSystemdExecArgs [
-        (lib.getExe config.services.livekit.package)
-        "--config=/run/credentials/livekit.service/livekit-config"
-        "--key-file=/run/credentials/livekit.service/livekit-secrets"
-      ]
-    );
-  };
+  systemd.services.livekit.serviceConfig.LoadCredential = [
+    "turn-secret:${config.sops.secrets.turn_external_secret.path}"
+  ];
 
   security.acme = {
     acceptTerms = true;
@@ -129,7 +116,6 @@ in
   sops = {
     secrets = {
       rtc_tsig_secret = { };
-      livekit_api_key = { };
       livekit_api_secret = { };
       ntfy_topic = { };
       turn_external_secret.restartUnits = [
@@ -137,21 +123,12 @@ in
         "livekit.service"
       ];
     };
-    templates = {
-      "livekit-key-file" = {
-        content = "${config.sops.placeholder.livekit_api_key}: ${config.sops.placeholder.livekit_api_secret}\n";
-        owner = "root";
-        group = "root";
-        mode = "0400";
-        restartUnits = [ "livekit.service" ];
-      };
-      "livekit-config.json" = {
-        content = builtins.toJSON livekitSettings;
-        owner = "root";
-        group = "root";
-        mode = "0400";
-        restartUnits = [ "livekit.service" ];
-      };
+    templates."livekit-key-file" = {
+      content = "${livekitApiKey}: ${config.sops.placeholder.livekit_api_secret}\n";
+      owner = "root";
+      group = "root";
+      mode = "0400";
+      restartUnits = [ "livekit.service" ];
     };
   };
 

@@ -55,6 +55,13 @@
 - 撤去条件: Tuwunelが[自動media retention（#546）](https://github.com/matrix-construct/tuwunel/issues/546)を実装し、外部の定期削除が不要になったとき。
 - 導入コミット: `3003cc4` (`feat(tuwunel): prune remote media`)
 
+### ゲスト通話ルームの参加状態はstate event互換を維持する
+
+- 実装: `packages/matrix-bot/src/call.rs`の`RTC_MEMBER_EVENT`、`guests/nginx/Caddyfile`の`@guest_put`
+- 理由: `matrix-bot`が作成する通話ルームはE2EE有効のため、Sticky Events (MSC4354) による通話メンバーシップは`m.room.encrypted`として送信される。`m.room.encrypted`を許可するとゲストからの通常チャット投稿と区別できず、`guest.matrix.odarah.org`の最小許可方針と両立しない。また、Sliding SyncクライアントのSticky Events対応も未完である。
+- 対応: ゲスト通話では従来のroom state event (`org.matrix.msc3401.call.member` / `org.matrix.msc4143.rtc.member`) のみ許可し、`guest.matrix.odarah.org`で`/rooms/*/send/...`は開けない（`matrix.odarah.org`の通常ユーザー間ではSticky Eventsを利用可能）。
+- 撤去条件: 通話メンバーシップのSticky EventsがE2EEルームでも平文送信される等、チャット投稿と分離したまま全対応クライアントでSticky Events専用へ移行できるようになったとき。
+
 ## NixOS・build toolへの適応
 
 ### nix-update実行前に更新後のflakeを実体化する
@@ -214,6 +221,14 @@
 - 対応: `/public/element-call/`だけ別のCSPへ差し替え、inline styleを許可する。
 - 撤去条件: Element Callがinline styleなしで動作するようになったとき。
 - 導入コミット: `93c7dff` (`feat: harden Cinny style CSP`)
+
+### Element Call 0.28.x向けに`livekit` transportを明示する
+
+- 実装: `guests/tuwunel/configuration.nix` の `well_known.rtc_transports`
+- 理由: Element Call 0.28.1/0.28.2は、Tuwunelが`[global.livekit]`から自動広告する`m.livekit` transportではなく`livekit` typeを期待する。
+- 対応: `well_known.rtc_transports`に`{ type = "livekit"; url = livekitUrl; }`を追加する。
+- 撤去条件: 利用しているElement Callがすべて0.29以降へ更新され、`m.livekit` transportのみで通話できることを確認したとき。
+- 導入コミット: `504218c` (`feat(rtc): switch to Tuwunel native LiveKit mode`)
 
 ## Security hardening上の互換性緩和
 
