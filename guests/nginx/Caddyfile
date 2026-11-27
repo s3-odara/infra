@@ -338,7 +338,7 @@ https://guest.matrix.odarah.org:8447 {
 
 		@guest_get {
 			method GET
-			path_regexp ^/_matrix/client/(?:versions|(?:r0|v3)/(?:sync|capabilities|pushrules/|voip/turnServer|room_keys/version|user/[^/]+/filter/[^/]+)|v1/media/(?:download|thumbnail)/[^/]+/[^/]+|unstable/org[.]matrix[.]msc4143/rtc/transports|unstable/im[.]nheko[.]summary/(?:summary/.*|rooms/.*/summary))$
+			path_regexp ^/_matrix/client/(?:versions|(?:r0|v3)/(?:sync|capabilities|pushrules/|voip/turnServer|room_keys/version|user/[^/]+/filter/[^/]+)|v1/(?:media/(?:download|thumbnail)/[^/]+/[^/]+|rtc/transports)|unstable/org[.]matrix[.]msc4143/rtc/transports|unstable/im[.]nheko[.]summary/(?:summary/.*|rooms/.*/summary))$
 		}
 		@guest_sync path /_matrix/client/r0/sync /_matrix/client/v3/sync
 		handle @guest_get {

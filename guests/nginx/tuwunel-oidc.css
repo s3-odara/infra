@@ -71,6 +71,28 @@ button.danger {
   background: #c62828;
 }
 
+button.sort {
+  margin-top: 0;
+  padding: 0;
+  color: inherit;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+}
+
+button.sort:hover {
+  background: none;
+  text-decoration: underline;
+}
+
+th[aria-sort="ascending"] button.sort::after {
+  content: " \25B2";
+}
+
+th[aria-sort="descending"] button.sort::after {
+  content: " \25BC";
+}
+
 a {
   color: #1858d5;
 }
