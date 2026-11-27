@@ -12,23 +12,28 @@ use std::{
 use anyhow::{Context, Result, bail};
 use call::CallService;
 use matrix_sdk::{
-    Room, RoomMemberships, SessionMeta,
+    Room, RoomMemberships, RoomState, SessionMeta,
     authentication::{SessionTokens, matrix::MatrixSession},
     config::SyncSettings,
     deserialized_responses::EncryptionInfo,
+    event_handler::Ctx,
     ruma::{
         OwnedDeviceId, OwnedUserId,
         events::room::{
+            encrypted::OriginalSyncRoomEncryptedEvent,
             member::{MembershipState, StrippedRoomMemberEvent},
-            message::{MessageType, RoomMessageEventContent, SyncRoomMessageEvent},
+            message::{
+                MessageType, OriginalSyncRoomMessageEvent, Relation, RoomMessageEventContent,
+            },
         },
     },
     store::StateStoreDataKey,
 };
+use tokio::sync::watch;
 
 const HOMESERVER: &str = "http://127.0.0.1:8008";
 pub(crate) const INVITER: &str = "@odara:matrix.odarah.org";
-pub(crate) const BOT_USER: &str = "@invite-bot:matrix.odarah.org";
+const BOT_USER: &str = "@invite-bot:matrix.odarah.org";
 
 #[derive(Clone)]
 struct App {
@@ -59,6 +64,7 @@ async fn handle_invite(event: StrippedRoomMemberEvent, room: Room) {
     if event.sender.as_str() != INVITER
         || event.state_key != room.own_user_id()
         || event.content.membership != MembershipState::Invite
+        || room.state() != RoomState::Invited
     {
         return;
     }
@@ -73,11 +79,29 @@ async fn handle_invite(event: StrippedRoomMemberEvent, room: Room) {
     }
 }
 
+async fn handle_undecryptable(event: OriginalSyncRoomEncryptedEvent, room: Room) {
+    if event.sender.as_str() != INVITER {
+        return;
+    }
+    match is_expected_dm(&room).await {
+        Ok(true) => {
+            eprintln!(
+                "could not decrypt message {} in authorized DM (check device verification)",
+                event.event_id
+            );
+        }
+        Ok(false) => {}
+        Err(error) => {
+            eprintln!("failed to validate room for undecryptable event: {error}");
+        }
+    }
+}
+
 async fn handle_message(
-    event: SyncRoomMessageEvent,
+    event: OriginalSyncRoomMessageEvent,
     room: Room,
     encryption_info: Option<EncryptionInfo>,
-    app: App,
+    Ctx(app): Ctx<App>,
 ) {
     // Request errors can contain tokens or event data; do not dump them.
     if try_handle_message(event, room, encryption_info, app)
@@ -89,21 +113,19 @@ async fn handle_message(
 }
 
 async fn try_handle_message(
-    event: SyncRoomMessageEvent,
+    event: OriginalSyncRoomMessageEvent,
     room: Room,
     encryption_info: Option<EncryptionInfo>,
     app: App,
 ) -> Result<()> {
-    let Some(original) = event.as_original() else {
-        return Ok(());
-    };
-    if original.sender.as_str() != INVITER
+    if event.sender.as_str() != INVITER
         || encryption_info.is_none()
+        || matches!(event.content.relates_to, Some(Relation::Replacement(_)))
         || !is_expected_dm(&room).await?
     {
         return Ok(());
     }
-    let MessageType::Text(text) = &original.content.msgtype else {
+    let MessageType::Text(text) = &event.content.msgtype else {
         return Ok(());
     };
 
@@ -228,12 +250,34 @@ async fn main() -> Result<()> {
     if !has_sync_token {
         client.sync_once(SyncSettings::default()).await?;
     }
-    let message_app = app.clone();
-    client.add_event_handler(move |event, room, encryption_info| {
-        handle_message(event, room, encryption_info, message_app.clone())
-    });
+    client.add_event_handler_context(app.clone());
+    client.add_event_handler(handle_message);
+    client.add_event_handler(handle_undecryptable);
 
-    tokio::spawn(app.calls.reconcile_loop());
-    client.sync(SyncSettings::default()).await?;
+    let (shutdown_tx, shutdown_rx) = watch::channel(false);
+    let reconcile = tokio::spawn(app.calls.clone().reconcile_loop(shutdown_rx));
+    let mut terminate =
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .context("install SIGTERM handler")?;
+
+    let sync_result = tokio::select! {
+        result = client.sync(SyncSettings::default()) => Some(result),
+        _ = tokio::signal::ctrl_c() => {
+            eprintln!("bot event=shutdown signal=SIGINT");
+            None
+        }
+        _ = terminate.recv() => {
+            eprintln!("bot event=shutdown signal=SIGTERM");
+            None
+        }
+    };
+
+    let _ = shutdown_tx.send(true);
+    let _ = reconcile.await;
+    app.calls.wait_for_idle().await;
+
+    if let Some(result) = sync_result {
+        result?;
+    }
     Ok(())
 }
