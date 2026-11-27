@@ -24,6 +24,9 @@ let
       frameSrc ? "'self'",
     }:
     hashes:
+    let
+      homeserverSrc = if homeserver == null then "" else " https://${homeserver}";
+    in
     builtins.concatStringsSep "; " (
       [
         "default-src 'none'"
@@ -39,14 +42,16 @@ let
         "font-src 'self' data:"
         "worker-src 'self' blob:"
         "manifest-src 'self'"
-        "img-src 'self' data: blob: https://${homeserver}"
-        "media-src 'self' blob: https://${homeserver}"
-        "connect-src 'self' https://${homeserver} wss://${homeserver} https://${rtcHost} wss://${rtcHost}"
+        "img-src 'self' data: blob:${homeserverSrc}"
+        "media-src 'self' blob:${homeserverSrc}"
+        "connect-src 'self'${homeserverSrc} https://${rtcHost} wss://${rtcHost}"
       ]
       ++ (if frameSrc == null then [ ] else [ "frame-src ${frameSrc}" ])
     );
 
-  sableCsp = clientCsp { };
+  sableCsp = clientCsp {
+    frameSrc = null; # Fall back to default-src 'none'.
+  };
   cinnyCsp = clientCsp {
     frameAncestors = "'self'";
     styleDirectives = [
@@ -61,7 +66,7 @@ let
     frameSrc = "'self' blob:";
   };
   elementCallCsp = clientCsp {
-    homeserver = guestMatrixHost;
+    homeserver = null; # Served on guestMatrixHost ('self').
     frameSrc = null; # Fall back to default-src 'none'.
   };
 
