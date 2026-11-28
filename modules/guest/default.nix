@@ -58,6 +58,7 @@ in
     ];
     # Fetch even trivial system derivations from caches; never build in guests.
     always-allow-substitutes = true;
+    auto-optimise-store = true;
     max-jobs = 0;
   };
 

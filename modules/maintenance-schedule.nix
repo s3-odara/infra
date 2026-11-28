@@ -61,9 +61,13 @@
       calendar = "*-*-* 05:15:00 Asia/Tokyo";
       delay = "3m";
     };
+    nixStoreDedup = {
+      calendar = "*-*-* 05:20:00 Asia/Tokyo";
+      delay = "3m";
+    };
     btrfsBalance = {
-      calendar = "*-*-* 05:30:00 Asia/Tokyo";
-      delay = "15m";
+      calendar = "*-*-* 05:40:00 Asia/Tokyo";
+      delay = "5m";
     };
     hostStorageMonitor = {
       calendar = "*-*-* 06:00:00 Asia/Tokyo";

@@ -42,6 +42,9 @@
       checkSygnalPins =
         nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/check-sygnal-pins/package.nix
           { };
+      nixStoreDedup =
+        nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/nix-store-dedup/package.nix
+          { };
 
       matrixTuwunelUpstream =
         { pkgs, ... }:
@@ -71,7 +74,10 @@
     in
     {
       formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.nixfmt;
-      checks.x86_64-linux.check-sygnal-pins = checkSygnalPins;
+      checks.x86_64-linux = {
+        check-sygnal-pins = checkSygnalPins;
+        nix-store-dedup = nixStoreDedup;
+      };
 
       packages.x86_64-linux = {
         age = nixpkgs.legacyPackages.x86_64-linux.age;
@@ -85,6 +91,7 @@
         mkpasswd = nixpkgs.legacyPackages.x86_64-linux.mkpasswd;
         kexec-installer = kexecInstaller;
         nixos-anywhere = nixpkgs.legacyPackages.x86_64-linux.nixos-anywhere;
+        nix-store-dedup = nixStoreDedup;
         opentofu = nixpkgs.legacyPackages.x86_64-linux.opentofu;
         sable = sable-next.packages.x86_64-linux.sable-unwrapped;
         shfmt = nixpkgs.legacyPackages.x86_64-linux.shfmt;

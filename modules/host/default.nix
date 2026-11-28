@@ -166,6 +166,7 @@ let
         --vacuum-size=200M
     '';
   };
+  nixStoreDedup = pkgs.callPackage ../../packages/nix-store-dedup/package.nix { };
 in
 {
   imports = [ ../cachix.nix ];
@@ -301,6 +302,8 @@ in
   };
   systemd.timers.nixos-upgrade.timerConfig.AccuracySec = "1s";
 
+  nix.settings.auto-optimise-store = true;
+
   nix.gc = {
     automatic = true;
     dates = maintenanceSchedule.daily.nixGc.calendar;
@@ -313,8 +316,39 @@ in
     AccuracySec = "1s";
   };
 
+  environment.systemPackages = [ nixStoreDedup ];
+
+  systemd.services.nix-store-dedup = {
+    description = "Deduplicate identical Nix store files across host and Incus guests";
+    serviceConfig = hostOneshotHardening // {
+      Type = "oneshot";
+      # CAP_SYS_ADMIN permits FIDEDUPERANGE on read-only file descriptors.
+      # Only destination mounts need write access; the host /nix/store is always
+      # the source and remains read-only under ProtectSystem=strict.
+      CapabilityBoundingSet = [ "CAP_SYS_ADMIN" ];
+      PrivateNetwork = true;
+      RestrictAddressFamilies = "none";
+      ReadWritePaths = [ "-/var/lib/incus-storage" ];
+      Nice = 19;
+      IOSchedulingClass = "idle";
+      ExecStart = lib.getExe nixStoreDedup;
+    };
+  };
+  systemd.timers.nix-store-dedup = {
+    description = "Daily cross-container Nix store deduplication";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = maintenanceSchedule.daily.nixStoreDedup.calendar;
+      Persistent = false;
+      RandomizedDelaySec = maintenanceSchedule.daily.nixStoreDedup.delay;
+      FixedRandomDelay = true;
+      AccuracySec = "1s";
+    };
+  };
+
   systemd.services.btrfs-balance = {
     description = "Reclaim partially used Btrfs data chunks on /";
+    after = [ "nix-store-dedup.service" ];
     serviceConfig = hostOneshotHardening // {
       Type = "oneshot";
       # Keep ProtectSystem=strict by targeting a writable directory on the same
