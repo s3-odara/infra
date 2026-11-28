@@ -6,6 +6,7 @@
 }:
 
 let
+  maintenanceSchedule = import ../../modules/maintenance-schedule.nix;
   oneshotHardening = import ../../modules/guest/oneshot-hardening.nix;
   forwardZone = ./zones/odarah.org.zone;
   reverseZone = ./zones/173.184.235.15.in-addr.arpa.zone;
@@ -245,9 +246,9 @@ in
           +kaspdb
       '';
       timerConfig = {
-        OnCalendar = "*-*-* 03:30:00 Asia/Tokyo";
+        OnCalendar = maintenanceSchedule.daily.knotBackup.calendar;
         Persistent = true;
-        RandomizedDelaySec = "3m";
+        RandomizedDelaySec = maintenanceSchedule.daily.knotBackup.delay;
         FixedRandomDelay = true;
         AccuracySec = "1s";
       };
@@ -347,9 +348,9 @@ in
   systemd.timers.knot-monthly-backup = {
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "*-*-01 02:45:00 Asia/Tokyo";
+      OnCalendar = maintenanceSchedule.monthly.knotBackup.calendar;
       Persistent = true;
-      RandomizedDelaySec = "3m";
+      RandomizedDelaySec = maintenanceSchedule.monthly.knotBackup.delay;
       FixedRandomDelay = true;
       AccuracySec = "1s";
     };

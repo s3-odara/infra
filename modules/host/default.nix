@@ -6,13 +6,14 @@
 }:
 
 let
+  maintenanceSchedule = import ../maintenance-schedule.nix;
   secretSource = ../../secrets/hosts/${configurationName}/secrets.sops.yaml;
   hasSecrets = builtins.pathExists secretSource;
   monitorEnvironment = {
     # Avoid the inaccessible root-owned client config with ProtectHome enabled.
     INCUS_CONF = "/run/host-monitor-incus";
   };
-  monitorHardening = {
+  hostOneshotHardening = {
     NoNewPrivileges = true;
     PrivateTmp = true;
     PrivateDevices = true;
@@ -43,9 +44,78 @@ let
     path = secretSource;
     name = "${configurationName}-secrets.sops.yaml";
   };
+  btrfsRootUsage = pkgs.writeShellApplication {
+    name = "btrfs-root-usage";
+    runtimeInputs = with pkgs; [ gawk ];
+    text = ''
+      read_uint() {
+        local value
+
+        value=$(<"$1")
+        [[ $value =~ ^[0-9]+$ ]] || {
+          echo "Invalid numeric value in $1: $value" >&2
+          exit 1
+        }
+        printf '%s\n' "$value"
+      }
+
+      root_dev=$(awk '$5 == "/" {
+        for (i = 7; i <= NF; i++) {
+          if ($i == "-" && $(i + 1) == "btrfs") {
+            sub(/^.*\//, "", $(i + 2))
+            print $(i + 2)
+            exit
+          }
+        }
+      }' /proc/self/mountinfo)
+      [[ -n $root_dev ]] || {
+        echo "Failed to resolve Btrfs root device from /proc/self/mountinfo" >&2
+        exit 1
+      }
+
+      shopt -s nullglob
+      btrfs_matches=(/sys/fs/btrfs/*/devices/"$root_dev")
+      shopt -u nullglob
+      (( ''${#btrfs_matches[@]} == 1 )) || {
+        echo "Failed to resolve Btrfs sysfs directory for / (device: $root_dev)" >&2
+        exit 1
+      }
+      btrfs_dir=''${btrfs_matches[0]%/devices/"$root_dev"}
+
+      device_size=0
+      for size_file in "$btrfs_dir"/devices/*/size; do
+        sectors=$(read_uint "$size_file")
+        ((device_size += sectors * 512))
+      done
+      ((device_size > 0)) || {
+        echo "Failed to read Btrfs device size from $btrfs_dir" >&2
+        exit 1
+      }
+
+      data_disk=$(read_uint "$btrfs_dir/allocation/data/disk_total")
+      metadata_disk=$(read_uint "$btrfs_dir/allocation/metadata/disk_total")
+      system_disk=$(read_uint "$btrfs_dir/allocation/system/disk_total")
+      allocated=$((data_disk + metadata_disk + system_disk))
+      if ((allocated > device_size)); then
+        unallocated=0
+      else
+        unallocated=$((device_size - allocated))
+      fi
+
+      metadata_used=$(read_uint "$btrfs_dir/allocation/metadata/bytes_used")
+      metadata_size=$(read_uint "$btrfs_dir/allocation/metadata/total_bytes")
+      ((metadata_size > 0)) || {
+        echo "Invalid Btrfs metadata total_bytes in $btrfs_dir" >&2
+        exit 1
+      }
+
+      printf '%s %s %s %s\n' "$unallocated" "$device_size" "$metadata_used" "$metadata_size"
+    '';
+  };
   storageMonitor = pkgs.writeShellApplication {
     name = "host-storage-monitor";
     runtimeInputs = with pkgs; [
+      btrfsRootUsage
       coreutils
       curl
       gawk
@@ -55,6 +125,24 @@ let
       sops
     ];
     text = builtins.readFile ./storage-monitor.sh;
+  };
+  btrfsBalance = pkgs.writeShellApplication {
+    name = "btrfs-balance";
+    runtimeInputs = with pkgs; [
+      btrfs-progs
+      btrfsRootUsage
+    ];
+    text = ''
+      usage=$(btrfs-root-usage)
+      read -r unallocated device_size _ _ <<<"$usage"
+
+      min_unallocated=$((4 * 1024 * 1024 * 1024))
+      if ((unallocated >= min_unallocated && unallocated * 10 >= device_size)); then
+        exit 0
+      fi
+
+      btrfs balance start -dusage=50 -dlimit=5 /var/lib/btrfs-balance
+    '';
   };
   healthMonitor = pkgs.writeShellApplication {
     name = "host-health-monitor";
@@ -78,6 +166,7 @@ let
         --vacuum-size=200M
     '';
   };
+  nixStoreDedup = pkgs.callPackage ../../packages/nix-store-dedup/package.nix { };
 in
 {
   imports = [ ../cachix.nix ];
@@ -203,26 +292,86 @@ in
 
   system.autoUpgrade = {
     enable = true;
-    dates = "*-*-* 04:00:00 Asia/Tokyo";
+    dates = maintenanceSchedule.daily.hostUpgrade.calendar;
     flake = "github:s3-odara/infra#${configurationName}";
     upgrade = false;
     allowReboot = true;
-    randomizedDelaySec = "3m";
+    randomizedDelaySec = maintenanceSchedule.daily.hostUpgrade.delay;
     fixedRandomDelay = true;
     persistent = false;
   };
   systemd.timers.nixos-upgrade.timerConfig.AccuracySec = "1s";
 
+  nix.settings.auto-optimise-store = true;
+
   nix.gc = {
     automatic = true;
-    dates = "*-*-* 04:45:00 Asia/Tokyo";
-    randomizedDelaySec = "15m";
+    dates = maintenanceSchedule.daily.nixGc.calendar;
+    randomizedDelaySec = maintenanceSchedule.daily.nixGc.delay;
     persistent = false;
     options = "--delete-older-than 3d";
   };
   systemd.timers.nix-gc.timerConfig = {
     FixedRandomDelay = true;
     AccuracySec = "1s";
+  };
+
+  environment.systemPackages = [ nixStoreDedup ];
+
+  systemd.services.nix-store-dedup = {
+    description = "Deduplicate identical Nix store files across host and Incus guests";
+    serviceConfig = hostOneshotHardening // {
+      Type = "oneshot";
+      # CAP_SYS_ADMIN permits FIDEDUPERANGE on read-only file descriptors.
+      # Only destination mounts need write access; the host /nix/store is always
+      # the source and remains read-only under ProtectSystem=strict.
+      CapabilityBoundingSet = [ "CAP_SYS_ADMIN" ];
+      PrivateNetwork = true;
+      RestrictAddressFamilies = "none";
+      ReadWritePaths = [ "-/var/lib/incus-storage" ];
+      Nice = 19;
+      IOSchedulingClass = "idle";
+      ExecStart = lib.getExe nixStoreDedup;
+    };
+  };
+  systemd.timers.nix-store-dedup = {
+    description = "Daily cross-container Nix store deduplication";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = maintenanceSchedule.daily.nixStoreDedup.calendar;
+      Persistent = false;
+      RandomizedDelaySec = maintenanceSchedule.daily.nixStoreDedup.delay;
+      FixedRandomDelay = true;
+      AccuracySec = "1s";
+    };
+  };
+
+  systemd.services.btrfs-balance = {
+    description = "Reclaim partially used Btrfs data chunks on /";
+    after = [ "nix-store-dedup.service" ];
+    serviceConfig = hostOneshotHardening // {
+      Type = "oneshot";
+      # Keep ProtectSystem=strict by targeting a writable directory on the same
+      # Btrfs filesystem; BTRFS_IOC_BALANCE_V2 still balances the whole filesystem.
+      StateDirectory = "btrfs-balance";
+      StateDirectoryMode = "0700";
+      CapabilityBoundingSet = [ "CAP_SYS_ADMIN" ];
+      RestrictAddressFamilies = "none";
+      Nice = 19;
+      IOSchedulingClass = "idle";
+      ExecStart = lib.getExe btrfsBalance;
+    };
+  };
+  systemd.timers.btrfs-balance = {
+    description = "Daily lightweight Btrfs data chunk balance";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = maintenanceSchedule.daily.btrfsBalance.calendar;
+      Persistent = false;
+      RandomizedDelaySec = maintenanceSchedule.daily.btrfsBalance.delay;
+      FixedRandomDelay = true;
+      AccuracySec = "1s";
+    };
   };
 
   services.fstrim.enable = false;
@@ -238,7 +387,7 @@ in
 
   systemd.services.guest-journal-vacuum = {
     description = "Expire archived remote guest journals";
-    serviceConfig = monitorHardening // {
+    serviceConfig = hostOneshotHardening // {
       Type = "oneshot";
       User = "systemd-journal-remote";
       Group = "systemd-journal-remote";
@@ -250,9 +399,9 @@ in
     description = "Daily remote guest journal retention";
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "*-*-* 05:15:00 Asia/Tokyo";
+      OnCalendar = maintenanceSchedule.daily.guestJournalVacuum.calendar;
       Persistent = false;
-      RandomizedDelaySec = "3m";
+      RandomizedDelaySec = maintenanceSchedule.daily.guestJournalVacuum.delay;
       FixedRandomDelay = true;
       AccuracySec = "1s";
     };
@@ -265,7 +414,7 @@ in
     environment = monitorEnvironment // {
       STORAGE_MONITOR_SECRET_FILE = secretFile;
     };
-    serviceConfig = monitorHardening // {
+    serviceConfig = hostOneshotHardening // {
       Type = "oneshot";
       ExecStart = lib.getExe storageMonitor;
     };
@@ -275,9 +424,9 @@ in
     description = "Daily host and Incus container storage usage check";
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "*-*-* 06:30:00 Asia/Tokyo";
+      OnCalendar = maintenanceSchedule.daily.hostStorageMonitor.calendar;
       Persistent = true;
-      RandomizedDelaySec = "1h";
+      RandomizedDelaySec = maintenanceSchedule.daily.hostStorageMonitor.delay;
       FixedRandomDelay = true;
       AccuracySec = "1s";
     };
@@ -290,7 +439,7 @@ in
     environment = monitorEnvironment // {
       HOST_MONITOR_SECRET_FILE = secretFile;
     };
-    serviceConfig = monitorHardening // {
+    serviceConfig = hostOneshotHardening // {
       Type = "oneshot";
       ExecStart = lib.getExe healthMonitor;
       SupplementaryGroups = [

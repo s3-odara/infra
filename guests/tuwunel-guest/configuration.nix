@@ -1,6 +1,7 @@
 { configurationName, pkgs, ... }:
 
 let
+  maintenanceSchedule = import ../../modules/maintenance-schedule.nix;
   oneshotHardening = import ../../modules/guest/oneshot-hardening.nix;
 in
 {
@@ -81,9 +82,9 @@ in
     description = "Daily cached remote media pruning for Tuwunel";
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "*-*-* 05:30:00 Asia/Tokyo";
+      OnCalendar = maintenanceSchedule.daily.tuwunelMediaPrune.calendar;
       Persistent = false;
-      RandomizedDelaySec = "3m";
+      RandomizedDelaySec = maintenanceSchedule.daily.tuwunelMediaPrune.delay;
       FixedRandomDelay = true;
       AccuracySec = "1s";
     };
