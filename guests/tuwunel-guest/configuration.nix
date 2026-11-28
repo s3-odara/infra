@@ -81,7 +81,7 @@ in
     description = "Daily cached remote media pruning for Tuwunel";
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "*-*-* 05:30:00 Asia/Tokyo";
+      OnCalendar = "*-*-* 05:15:00 Asia/Tokyo";
       Persistent = false;
       RandomizedDelaySec = "3m";
       FixedRandomDelay = true;

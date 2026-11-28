@@ -40,7 +40,7 @@ in
 
   system.autoUpgrade = {
     enable = true;
-    dates = "*-*-* 04:15:00 Asia/Tokyo";
+    dates = "*-*-* 04:35:00 Asia/Tokyo";
     flake = "github:s3-odara/infra#${configurationName}";
     upgrade = false;
     allowReboot = false;
@@ -62,7 +62,7 @@ in
 
   nix.gc = {
     automatic = true;
-    dates = "*-*-* 04:45:00 Asia/Tokyo";
+    dates = "*-*-* 04:00:00 Asia/Tokyo";
     randomizedDelaySec = "15m";
     persistent = false;
     options = "--delete-older-than 3d";

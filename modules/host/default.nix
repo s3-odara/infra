@@ -43,9 +43,78 @@ let
     path = secretSource;
     name = "${configurationName}-secrets.sops.yaml";
   };
+  btrfsRootUsage = pkgs.writeShellApplication {
+    name = "btrfs-root-usage";
+    runtimeInputs = with pkgs; [ gawk ];
+    text = ''
+      read_uint() {
+        local value
+
+        value=$(<"$1")
+        [[ $value =~ ^[0-9]+$ ]] || {
+          echo "Invalid numeric value in $1: $value" >&2
+          exit 1
+        }
+        printf '%s\n' "$value"
+      }
+
+      root_dev=$(awk '$5 == "/" {
+        for (i = 7; i <= NF; i++) {
+          if ($i == "-" && $(i + 1) == "btrfs") {
+            sub(/^.*\//, "", $(i + 2))
+            print $(i + 2)
+            exit
+          }
+        }
+      }' /proc/self/mountinfo)
+      [[ -n $root_dev ]] || {
+        echo "Failed to resolve Btrfs root device from /proc/self/mountinfo" >&2
+        exit 1
+      }
+
+      shopt -s nullglob
+      btrfs_matches=(/sys/fs/btrfs/*/devices/"$root_dev")
+      shopt -u nullglob
+      (( ''${#btrfs_matches[@]} == 1 )) || {
+        echo "Failed to resolve Btrfs sysfs directory for / (device: $root_dev)" >&2
+        exit 1
+      }
+      btrfs_dir=''${btrfs_matches[0]%/devices/"$root_dev"}
+
+      device_size=0
+      for size_file in "$btrfs_dir"/devices/*/size; do
+        sectors=$(read_uint "$size_file")
+        ((device_size += sectors * 512))
+      done
+      ((device_size > 0)) || {
+        echo "Failed to read Btrfs device size from $btrfs_dir" >&2
+        exit 1
+      }
+
+      data_disk=$(read_uint "$btrfs_dir/allocation/data/disk_total")
+      metadata_disk=$(read_uint "$btrfs_dir/allocation/metadata/disk_total")
+      system_disk=$(read_uint "$btrfs_dir/allocation/system/disk_total")
+      allocated=$((data_disk + metadata_disk + system_disk))
+      if ((allocated > device_size)); then
+        unallocated=0
+      else
+        unallocated=$((device_size - allocated))
+      fi
+
+      metadata_used=$(read_uint "$btrfs_dir/allocation/metadata/bytes_used")
+      metadata_size=$(read_uint "$btrfs_dir/allocation/metadata/total_bytes")
+      ((metadata_size > 0)) || {
+        echo "Invalid Btrfs metadata total_bytes in $btrfs_dir" >&2
+        exit 1
+      }
+
+      printf '%s %s %s %s\n' "$unallocated" "$device_size" "$metadata_used" "$metadata_size"
+    '';
+  };
   storageMonitor = pkgs.writeShellApplication {
     name = "host-storage-monitor";
     runtimeInputs = with pkgs; [
+      btrfsRootUsage
       coreutils
       curl
       gawk
@@ -55,6 +124,24 @@ let
       sops
     ];
     text = builtins.readFile ./storage-monitor.sh;
+  };
+  btrfsBalance = pkgs.writeShellApplication {
+    name = "btrfs-balance";
+    runtimeInputs = with pkgs; [
+      btrfs-progs
+      btrfsRootUsage
+    ];
+    text = ''
+      usage=$(btrfs-root-usage)
+      read -r unallocated device_size _ _ <<<"$usage"
+
+      min_unallocated=$((4 * 1024 * 1024 * 1024))
+      if ((unallocated >= min_unallocated && unallocated * 10 >= device_size)); then
+        exit 0
+      fi
+
+      btrfs balance start -dusage=50 -dlimit=5 /var/lib/btrfs-balance
+    '';
   };
   healthMonitor = pkgs.writeShellApplication {
     name = "host-health-monitor";
@@ -203,7 +290,7 @@ in
 
   system.autoUpgrade = {
     enable = true;
-    dates = "*-*-* 04:00:00 Asia/Tokyo";
+    dates = "*-*-* 04:20:00 Asia/Tokyo";
     flake = "github:s3-odara/infra#${configurationName}";
     upgrade = false;
     allowReboot = true;
@@ -215,7 +302,7 @@ in
 
   nix.gc = {
     automatic = true;
-    dates = "*-*-* 04:45:00 Asia/Tokyo";
+    dates = "*-*-* 04:00:00 Asia/Tokyo";
     randomizedDelaySec = "15m";
     persistent = false;
     options = "--delete-older-than 3d";
@@ -223,6 +310,33 @@ in
   systemd.timers.nix-gc.timerConfig = {
     FixedRandomDelay = true;
     AccuracySec = "1s";
+  };
+
+  systemd.services.btrfs-balance = {
+    description = "Reclaim partially used Btrfs data chunks on /";
+    serviceConfig = monitorHardening // {
+      Type = "oneshot";
+      # Keep ProtectSystem=strict by targeting a writable directory on the same
+      # Btrfs filesystem; BTRFS_IOC_BALANCE_V2 still balances the whole filesystem.
+      StateDirectory = "btrfs-balance";
+      StateDirectoryMode = "0700";
+      CapabilityBoundingSet = [ "CAP_SYS_ADMIN" ];
+      RestrictAddressFamilies = "none";
+      Nice = 19;
+      IOSchedulingClass = "idle";
+      ExecStart = lib.getExe btrfsBalance;
+    };
+  };
+  systemd.timers.btrfs-balance = {
+    description = "Daily lightweight Btrfs data chunk balance";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "*-*-* 05:30:00 Asia/Tokyo";
+      Persistent = false;
+      RandomizedDelaySec = "15m";
+      FixedRandomDelay = true;
+      AccuracySec = "1s";
+    };
   };
 
   services.fstrim.enable = false;
@@ -250,7 +364,7 @@ in
     description = "Daily remote guest journal retention";
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "*-*-* 05:15:00 Asia/Tokyo";
+      OnCalendar = "*-*-* 05:05:00 Asia/Tokyo";
       Persistent = false;
       RandomizedDelaySec = "3m";
       FixedRandomDelay = true;
@@ -275,7 +389,7 @@ in
     description = "Daily host and Incus container storage usage check";
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "*-*-* 06:30:00 Asia/Tokyo";
+      OnCalendar = "*-*-* 06:00:00 Asia/Tokyo";
       Persistent = true;
       RandomizedDelaySec = "1h";
       FixedRandomDelay = true;

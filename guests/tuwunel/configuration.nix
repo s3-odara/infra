@@ -297,7 +297,7 @@ in
     description = "Daily local Tuwunel media expiry after seven days";
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "*-*-* 05:30:00 Asia/Tokyo";
+      OnCalendar = "*-*-* 05:15:00 Asia/Tokyo";
       Persistent = true;
       RandomizedDelaySec = "3m";
       FixedRandomDelay = true;
