@@ -1,6 +1,7 @@
 { configurationName, pkgs, ... }:
 
 let
+  maintenanceSchedule = import ../maintenance-schedule.nix;
   journalUpload = pkgs.writeShellScript "guest-journal-upload" ''
     route=$(${pkgs.iproute2}/bin/ip -4 route show default)
     set -- $route
@@ -40,11 +41,11 @@ in
 
   system.autoUpgrade = {
     enable = true;
-    dates = "*-*-* 04:35:00 Asia/Tokyo";
+    dates = maintenanceSchedule.daily.guestUpgrade.calendar;
     flake = "github:s3-odara/infra#${configurationName}";
     upgrade = false;
     allowReboot = false;
-    randomizedDelaySec = "15m";
+    randomizedDelaySec = maintenanceSchedule.daily.guestUpgrade.delay;
     fixedRandomDelay = true;
     persistent = false;
   };
@@ -62,8 +63,8 @@ in
 
   nix.gc = {
     automatic = true;
-    dates = "*-*-* 04:00:00 Asia/Tokyo";
-    randomizedDelaySec = "15m";
+    dates = maintenanceSchedule.daily.nixGc.calendar;
+    randomizedDelaySec = maintenanceSchedule.daily.nixGc.delay;
     persistent = false;
     options = "--delete-older-than 3d";
   };

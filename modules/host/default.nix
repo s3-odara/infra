@@ -6,13 +6,14 @@
 }:
 
 let
+  maintenanceSchedule = import ../maintenance-schedule.nix;
   secretSource = ../../secrets/hosts/${configurationName}/secrets.sops.yaml;
   hasSecrets = builtins.pathExists secretSource;
   monitorEnvironment = {
     # Avoid the inaccessible root-owned client config with ProtectHome enabled.
     INCUS_CONF = "/run/host-monitor-incus";
   };
-  monitorHardening = {
+  hostOneshotHardening = {
     NoNewPrivileges = true;
     PrivateTmp = true;
     PrivateDevices = true;
@@ -290,11 +291,11 @@ in
 
   system.autoUpgrade = {
     enable = true;
-    dates = "*-*-* 04:20:00 Asia/Tokyo";
+    dates = maintenanceSchedule.daily.hostUpgrade.calendar;
     flake = "github:s3-odara/infra#${configurationName}";
     upgrade = false;
     allowReboot = true;
-    randomizedDelaySec = "3m";
+    randomizedDelaySec = maintenanceSchedule.daily.hostUpgrade.delay;
     fixedRandomDelay = true;
     persistent = false;
   };
@@ -302,8 +303,8 @@ in
 
   nix.gc = {
     automatic = true;
-    dates = "*-*-* 04:00:00 Asia/Tokyo";
-    randomizedDelaySec = "15m";
+    dates = maintenanceSchedule.daily.nixGc.calendar;
+    randomizedDelaySec = maintenanceSchedule.daily.nixGc.delay;
     persistent = false;
     options = "--delete-older-than 3d";
   };
@@ -314,7 +315,7 @@ in
 
   systemd.services.btrfs-balance = {
     description = "Reclaim partially used Btrfs data chunks on /";
-    serviceConfig = monitorHardening // {
+    serviceConfig = hostOneshotHardening // {
       Type = "oneshot";
       # Keep ProtectSystem=strict by targeting a writable directory on the same
       # Btrfs filesystem; BTRFS_IOC_BALANCE_V2 still balances the whole filesystem.
@@ -331,9 +332,9 @@ in
     description = "Daily lightweight Btrfs data chunk balance";
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "*-*-* 05:30:00 Asia/Tokyo";
+      OnCalendar = maintenanceSchedule.daily.btrfsBalance.calendar;
       Persistent = false;
-      RandomizedDelaySec = "15m";
+      RandomizedDelaySec = maintenanceSchedule.daily.btrfsBalance.delay;
       FixedRandomDelay = true;
       AccuracySec = "1s";
     };
@@ -352,7 +353,7 @@ in
 
   systemd.services.guest-journal-vacuum = {
     description = "Expire archived remote guest journals";
-    serviceConfig = monitorHardening // {
+    serviceConfig = hostOneshotHardening // {
       Type = "oneshot";
       User = "systemd-journal-remote";
       Group = "systemd-journal-remote";
@@ -364,9 +365,9 @@ in
     description = "Daily remote guest journal retention";
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "*-*-* 05:05:00 Asia/Tokyo";
+      OnCalendar = maintenanceSchedule.daily.guestJournalVacuum.calendar;
       Persistent = false;
-      RandomizedDelaySec = "3m";
+      RandomizedDelaySec = maintenanceSchedule.daily.guestJournalVacuum.delay;
       FixedRandomDelay = true;
       AccuracySec = "1s";
     };
@@ -379,7 +380,7 @@ in
     environment = monitorEnvironment // {
       STORAGE_MONITOR_SECRET_FILE = secretFile;
     };
-    serviceConfig = monitorHardening // {
+    serviceConfig = hostOneshotHardening // {
       Type = "oneshot";
       ExecStart = lib.getExe storageMonitor;
     };
@@ -389,9 +390,9 @@ in
     description = "Daily host and Incus container storage usage check";
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "*-*-* 06:00:00 Asia/Tokyo";
+      OnCalendar = maintenanceSchedule.daily.hostStorageMonitor.calendar;
       Persistent = true;
-      RandomizedDelaySec = "1h";
+      RandomizedDelaySec = maintenanceSchedule.daily.hostStorageMonitor.delay;
       FixedRandomDelay = true;
       AccuracySec = "1s";
     };
@@ -404,7 +405,7 @@ in
     environment = monitorEnvironment // {
       HOST_MONITOR_SECRET_FILE = secretFile;
     };
-    serviceConfig = monitorHardening // {
+    serviceConfig = hostOneshotHardening // {
       Type = "oneshot";
       ExecStart = lib.getExe healthMonitor;
       SupplementaryGroups = [

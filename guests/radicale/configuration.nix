@@ -6,6 +6,7 @@
 }:
 
 let
+  maintenanceSchedule = import ../../modules/maintenance-schedule.nix;
   oneshotHardening = import ../../modules/guest/oneshot-hardening.nix;
   privateAddress = "10.77.3.18";
   collectionsDirectory = "/var/lib/radicale/collections";
@@ -146,9 +147,9 @@ in
       "--keep-weekly 8"
     ];
     timerConfig = {
-      OnCalendar = "*-*-* 03:50:00 Asia/Tokyo";
+      OnCalendar = maintenanceSchedule.daily.radicaleBackup.calendar;
       Persistent = true;
-      RandomizedDelaySec = "3m";
+      RandomizedDelaySec = maintenanceSchedule.daily.radicaleBackup.delay;
       FixedRandomDelay = true;
       AccuracySec = "1s";
     };
@@ -198,9 +199,9 @@ in
   systemd.timers.radicale-monthly-backup = {
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "*-*-01 02:50:00 Asia/Tokyo";
+      OnCalendar = maintenanceSchedule.monthly.radicaleBackup.calendar;
       Persistent = true;
-      RandomizedDelaySec = "3m";
+      RandomizedDelaySec = maintenanceSchedule.monthly.radicaleBackup.delay;
       FixedRandomDelay = true;
       AccuracySec = "1s";
     };

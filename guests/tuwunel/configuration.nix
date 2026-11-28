@@ -7,6 +7,7 @@
 }:
 
 let
+  maintenanceSchedule = import ../../modules/maintenance-schedule.nix;
   oneshotHardening = import ../../modules/guest/oneshot-hardening.nix;
   matrixBot = pkgs.callPackage ../../packages/matrix-bot/package.nix { };
   registrationToken = "/var/lib/tuwunel/registration-token";
@@ -237,9 +238,9 @@ in
   systemd.timers.tuwunel-online-backup = {
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "*-*-* 03:00:00 Asia/Tokyo";
+      OnCalendar = maintenanceSchedule.daily.tuwunelOnlineBackup.calendar;
       Persistent = true;
-      RandomizedDelaySec = "3m";
+      RandomizedDelaySec = maintenanceSchedule.daily.tuwunelOnlineBackup.delay;
       FixedRandomDelay = true;
       AccuracySec = "1s";
     };
@@ -297,9 +298,9 @@ in
     description = "Daily local Tuwunel media expiry after seven days";
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "*-*-* 05:15:00 Asia/Tokyo";
+      OnCalendar = maintenanceSchedule.daily.tuwunelMediaPrune.calendar;
       Persistent = true;
-      RandomizedDelaySec = "3m";
+      RandomizedDelaySec = maintenanceSchedule.daily.tuwunelMediaPrune.delay;
       FixedRandomDelay = true;
       AccuracySec = "1s";
     };
@@ -383,9 +384,9 @@ in
       ${pkgs.systemd}/bin/systemctl start matrix-bot.service
     '';
     timerConfig = {
-      OnCalendar = "*-*-* 03:45:00 Asia/Tokyo";
+      OnCalendar = maintenanceSchedule.daily.matrixBotBackup.calendar;
       Persistent = true;
-      RandomizedDelaySec = "3m";
+      RandomizedDelaySec = maintenanceSchedule.daily.matrixBotBackup.delay;
       FixedRandomDelay = true;
       AccuracySec = "1s";
     };
@@ -442,9 +443,9 @@ in
   systemd.timers.tuwunel-monthly-backup = {
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "*-*-01 02:15:00 Asia/Tokyo";
+      OnCalendar = maintenanceSchedule.monthly.tuwunelBackup.calendar;
       Persistent = true;
-      RandomizedDelaySec = "3m";
+      RandomizedDelaySec = maintenanceSchedule.monthly.tuwunelBackup.delay;
       FixedRandomDelay = true;
       AccuracySec = "1s";
     };

@@ -7,6 +7,7 @@
 }:
 
 let
+  maintenanceSchedule = import ../../modules/maintenance-schedule.nix;
   oneshotHardening = import ../../modules/guest/oneshot-hardening.nix;
   acmeDnsEnvironment = pkgs.writeText "acme-rfc2136.env" ''
     DNSUPDATE_NAMESERVER=10.77.3.11:53
@@ -351,9 +352,9 @@ in
         exit "$status"
       '';
       timerConfig = {
-        OnCalendar = "*-*-* 03:15:00 Asia/Tokyo";
+        OnCalendar = maintenanceSchedule.daily.prosodyBackup.calendar;
         Persistent = true;
-        RandomizedDelaySec = "3m";
+        RandomizedDelaySec = maintenanceSchedule.daily.prosodyBackup.delay;
         FixedRandomDelay = true;
         AccuracySec = "1s";
       };
@@ -422,9 +423,9 @@ in
   systemd.timers.prosody-monthly-backup = {
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "*-*-01 02:30:00 Asia/Tokyo";
+      OnCalendar = maintenanceSchedule.monthly.prosodyBackup.calendar;
       Persistent = true;
-      RandomizedDelaySec = "3m";
+      RandomizedDelaySec = maintenanceSchedule.monthly.prosodyBackup.delay;
       FixedRandomDelay = true;
       AccuracySec = "1s";
     };
