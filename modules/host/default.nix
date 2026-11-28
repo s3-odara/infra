@@ -322,10 +322,19 @@ in
     description = "Deduplicate identical Nix store files across host and Incus guests";
     serviceConfig = hostOneshotHardening // {
       Type = "oneshot";
-      # CAP_SYS_ADMIN permits FIDEDUPERANGE on read-only file descriptors.
-      # Only destination mounts need write access; the host /nix/store is always
-      # the source and remains read-only under ProtectSystem=strict.
-      CapabilityBoundingSet = [ "CAP_SYS_ADMIN" ];
+      # RestrictSUIDSGID=true installs a seccomp filter that rejects openat2()
+      # with ENOSYS because struct open_how cannot be inspected by seccomp.
+      # nix-store-dedup never creates or chmods files and relies on openat2()
+      # RESOLVE_* flags to confine traversal within untrusted guest stores.
+      RestrictSUIDSGID = false;
+      # CAP_SYS_ADMIN permits FIDEDUPERANGE on read-only file descriptors;
+      # CAP_DAC_READ_SEARCH allows read-only traversal into idmapped guest
+      # directories. Only destination mounts need write access, so the host
+      # /nix/store remains read-only under ProtectSystem=strict.
+      CapabilityBoundingSet = [
+        "CAP_SYS_ADMIN"
+        "CAP_DAC_READ_SEARCH"
+      ];
       PrivateNetwork = true;
       RestrictAddressFamilies = "none";
       ReadWritePaths = [ "-/var/lib/incus-storage" ];
